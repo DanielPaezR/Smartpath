@@ -1,0 +1,239 @@
+/* frontend/src/styles/AdvisorDashboard.css */
+
+.advisor-dashboard {
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  color: #333; /* Color de texto por defecto */
+}
+
+.dashboard-header {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.dashboard-header h1 {
+  color: #2c3e50;
+  margin: 0 0 15px 0;
+  font-size: 28px;
+}
+
+.route-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: #e3f2fd;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+.dashboard-content {
+  display: grid;
+  gap: 20px;
+}
+
+.map-section {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.map-section h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.stores-list {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stores-list h3 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+.stores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.store-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  background: white;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.store-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.store-order {
+  background: #3498db;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.status-badge.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.in_progress {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-badge.completed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.store-card h4 {
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.store-card p {
+  color: #666;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.store-zone {
+  color: #7f8c8d !important;
+  font-size: 13px !important;
+}
+
+.start-visit-btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 10px;
+  transition: background 0.3s;
+}
+
+.start-visit-btn:hover {
+  background: #219a52;
+}
+
+.complete-visit-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 10px;
+  transition: background 0.3s;
+}
+
+.complete-visit-btn:hover {
+  background: #c0392b;
+}
+
+.completed-badge {
+  background: #d4edda;
+  color: #155724;
+  padding: 8px 12px;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+/* Estados de las tarjetas */
+.store-card.pending {
+  border-left: 4px solid #ffc107;
+}
+
+.store-card.in_progress {
+  border-left: 4px solid #17a2b8;
+}
+
+.store-card.completed {
+  border-left: 4px solid #28a745;
+}
+
+/* Loading y estados de error */
+.dashboard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #666;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.dashboard-error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #f5c6cb;
+}
+
+.dashboard-empty {
+  background: #e2e3e5;
+  color: #383d41;
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+}
