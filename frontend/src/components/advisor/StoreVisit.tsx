@@ -14,6 +14,37 @@ interface ITask {
   additionalData?: any;
 }
 
+// Servicio de tracking
+const trackingService = {
+  updateLocation: async (latitude: number, longitude: number, currentStoreId?: string, activityStatus?: string) => {
+    try {
+      const response = await fetch('/api/tracking/update-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          currentStoreId,
+          activityStatus,
+          batteryLevel: 100
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error updating location');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error en tracking:', error);
+      // No lanzamos error para no interrumpir el flujo principal
+    }
+  }
+};
+
 const StoreVisit: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -36,6 +67,40 @@ const StoreVisit: React.FC = () => {
     { key: 'damageCheck', label: '⚠️ Revisar en bodega las averías (evidencia fotográfica y escaneo)', requiresPhotos: true },
     { key: 'signature', label: '✍️ Recoger firma y sello de seguridad del almacén', requiresPhotos: false }
   ];
+
+  // Función para actualizar ubicación
+  const updateAdvisorLocation = async (storeId?: string, activityStatus: string = 'at_store') => {
+    try {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            await trackingService.updateLocation(
+              position.coords.latitude,
+              position.coords.longitude,
+              storeId,
+              activityStatus
+            );
+            console.log('📍 Ubicación actualizada');
+          },
+          (error) => {
+            console.warn('No se pudo obtener la ubicación:', error);
+            // Actualizar sin ubicación si hay error
+            trackingService.updateLocation(0, 0, storeId, activityStatus);
+          },
+          { 
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000 
+          }
+        );
+      } else {
+        // Navegador no soporta geolocalización
+        await trackingService.updateLocation(0, 0, storeId, activityStatus);
+      }
+    } catch (error) {
+      console.error('Error actualizando ubicación:', error);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -123,6 +188,9 @@ const StoreVisit: React.FC = () => {
       setIsTimerRunning(true);
       initializeTasks();
       
+      // ACTUALIZAR TRACKING - Asesor llega a la tienda
+      await updateAdvisorLocation(route.stores[currentStoreIndex].id.toString(), 'at_store');
+      
     } catch (error) {
       console.error('Error iniciando visita:', error);
     }
@@ -174,6 +242,9 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(false);
       
+      // ACTUALIZAR TRACKING - Asesor sale de la tienda
+      await updateAdvisorLocation(undefined, 'traveling');
+      
       // Navegar de vuelta al dashboard
       navigate('/dashboard', { 
         state: { message: `¡Visita a ${storeInfo.name} completada!` } 
@@ -208,6 +279,9 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(false);
       
+      // ACTUALIZAR TRACKING - Asesor sale sin completar
+      await updateAdvisorLocation(undefined, 'traveling');
+      
       // Navegar de vuelta al dashboard
       navigate('/dashboard');
       
@@ -215,6 +289,25 @@ const StoreVisit: React.FC = () => {
       console.error('Error saltando tienda:', error);
     }
   };
+
+  // Actualizar ubicación periódicamente mientras está en tienda
+  useEffect(() => {
+    let locationInterval: ReturnType<typeof setInterval>;
+    
+    if (isTimerRunning && route?.stores?.[currentStoreIndex]?.status === 'in-progress') {
+      // Actualizar ubicación inmediatamente
+      updateAdvisorLocation(route.stores[currentStoreIndex].id.toString(), 'at_store');
+      
+      // Y luego cada 2 minutos
+      locationInterval = setInterval(() => {
+        updateAdvisorLocation(route.stores[currentStoreIndex].id.toString(), 'at_store');
+      }, 120000);
+    }
+    
+    return () => {
+      if (locationInterval) clearInterval(locationInterval);
+    };
+  }, [isTimerRunning, route, currentStoreIndex]);
 
   useEffect(() => {
     if (tasks.length > 0 && route?.stores?.[currentStoreIndex]?.status === 'in-progress') {
@@ -269,21 +362,6 @@ const StoreVisit: React.FC = () => {
     }}>
       {/* Header */}
       <header style={{ marginBottom: '20px' }}>
-        <button 
-          onClick={() => navigate('/dashboard')} 
-          style={{ 
-            marginBottom: '10px', 
-            padding: '8px 16px',
-            backgroundColor: '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          ← Volver al Dashboard
-        </button>
-        
         <h2 style={{ margin: '10px 0', color: '#333' }}>🏪 {storeInfo.name}</h2>
         <p style={{ margin: '5px 0', color: '#666' }}>📍 {storeInfo.address}</p>
         

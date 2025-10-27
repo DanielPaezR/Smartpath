@@ -3,7 +3,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 // @ts-ignore
 import { authService } from '../services/authService';
 
-// Eliminar interfaces TypeScript y usar any temporalmente
 const AuthContext = createContext(undefined);
 
 export const AuthProvider = ({ children }) => {
@@ -17,13 +16,16 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const userData = authService.getCurrentUser();
+      console.log('🔄 UserData from localStorage:', userData);
+      
       if (userData) {
+        // ✅ CORREGIDO: Usar la estructura EXACTA que viene del backend
         setUser({
-          id: userData._id || userData.id || '',
+          id: userData.id,  // ← número, no _id
           email: userData.email,
           name: userData.name,
           role: userData.role,
-          vehicleType: userData.vehicleType
+          vehicleType: userData.vehicleType || 'car' // valor por defecto
         });
       }
     } catch (error) {
@@ -41,15 +43,19 @@ export const AuthProvider = ({ children }) => {
       
       console.log('🔑 User data del login:', userData);
       
+      // ✅ CORREGIDO: Mapeo exacto con el backend
       const mappedUser = {
-        id: userData._id || userData.id || '',
+        id: userData.id,  // ← número directo
         email: userData.email,
         name: userData.name,
         role: userData.role,
-        vehicleType: userData.vehicleType
+        vehicleType: userData.vehicleType || 'car'
       };
       
+      console.log('✅ Usuario mapeado:', mappedUser);
       setUser(mappedUser);
+      
+      return response;
     } catch (error) {
       console.error('Error en login:', error);
       throw error;

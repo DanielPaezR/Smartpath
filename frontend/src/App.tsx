@@ -3,9 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import StoreManagement from './components/admin/StoreManagement';
+import StoresManagement from './components/admin/StoresManagement';
 import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
+import RealTimeTracking from './components/admin/RealTimeTracking';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -20,38 +21,85 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return user && user.role === 'admin' ? <>{children}</> : <Navigate to="/dashboard" />;
 };
 
+// Componente placeholder para páginas en desarrollo
+const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
+  <div style={{ padding: '40px', textAlign: 'center' }}>
+    <h2>{title}</h2>
+    <p>Esta funcionalidad estará disponible próximamente</p>
+  </div>
+);
+
 function App() {
   return (
     <AuthProvider>
       <Router>
         <div className="App">
           <Routes>
+            {/* Rutas públicas */}
             <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/admin/stores" element={<AdminRoute><StoreManagement /></AdminRoute>} />
             
-            {/* Rutas placeholder para las otras secciones */}
-            <Route path="/admin/metrics" element={<AdminRoute><div>Métricas - En construcción</div></AdminRoute>} />
-            <Route path="/admin/tracking" element={<AdminRoute><div>Seguimiento - En construcción</div></AdminRoute>} />
-            <Route path="/admin/settings" element={<AdminRoute><div>Configuración - En construcción</div></AdminRoute>} />
-            
+            {/* Ruta principal */}
             <Route path="/" element={<Navigate to="/dashboard" />} />
-            <Route path="/advisor/visit" element={
-            <ProtectedRoute>
-              <StoreVisit />
-            </ProtectedRoute>
-            } />
-
-            <Route path="/advisor/map" element={
+            
+            {/* Rutas protegidas (para todos los usuarios autenticados) */}
+            <Route path="/dashboard" element={
               <ProtectedRoute>
-                <div>Mapa - En construcción</div>
+                <Dashboard />
               </ProtectedRoute>
             } />
+            
+            <Route path="/advisor/visit" element={
+              <ProtectedRoute>
+                <StoreVisit />
+              </ProtectedRoute>
+            } />
+            
             <Route path="/advisor/map" element={
               <ProtectedRoute>
                 <RouteMap />
               </ProtectedRoute>
             } />
+
+            {/* Rutas exclusivas para ADMIN */}
+            <Route path="/admin/stores" element={
+              <AdminRoute>
+                <StoresManagement />
+              </AdminRoute>
+            } />
+            
+            <Route path="/admin/tracking" element={
+              <AdminRoute>
+                <RealTimeTracking />
+              </AdminRoute>
+            } />
+            
+            {/* Otras rutas de admin (placeholders) */}
+            <Route path="/admin/metrics" element={
+              <AdminRoute>
+                <PlaceholderPage title="Métricas y Estadísticas" />
+              </AdminRoute>
+            } />
+            
+            <Route path="/admin/settings" element={
+              <AdminRoute>
+                <PlaceholderPage title="Configuración de Rutas" />
+              </AdminRoute>
+            } />
+            
+            <Route path="/admin/advisors" element={
+              <AdminRoute>
+                <PlaceholderPage title="Gestión de Asesores" />
+              </AdminRoute>
+            } />
+            
+            <Route path="/admin/notifications" element={
+              <AdminRoute>
+                <PlaceholderPage title="Notificaciones y Alertas" />
+              </AdminRoute>
+            } />
+
+            {/* Ruta 404 */}
+            <Route path="*" element={<div>Página no encontrada</div>} />
           </Routes>
         </div>
       </Router>

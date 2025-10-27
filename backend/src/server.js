@@ -1,7 +1,10 @@
-// backend/src/server.js - VERSIÓN COMPLETA FUNCIONAL
+// backend/src/server.js - VERSIÓN CORREGIDA
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import adminRoutes from './routes/adminRoutes.js';
+import authRoutes from './routes/authRoutes.js'; // ✅ AGREGAR ESTA LÍNEA
+
 
 // Configurar dotenv
 dotenv.config();
@@ -13,59 +16,34 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// 1. HEALTH CHECK (GET) - ✅ Esta funciona
+// ✅ RUTA DE TRACKING (sin autenticación para testing)
+app.post('/api/tracking/update-location', async (req, res) => {
+  try {
+    req.user = { id: req.body.userId || 'mock_user_id' };
+    await trackingController.updateLocation(req, res);
+  } catch (error) {
+    console.error('Error en ruta de tracking:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ✅ USAR RUTAS DE AUTH (en lugar de login duplicado)
+app.use('/api/auth', authRoutes);
+
+// ✅ RUTAS DEL ADMIN (con autenticación)
+app.use('/api/admin', adminRoutes);
+
+// 1. HEALTH CHECK (GET)
 app.get('/api/health', (req, res) => {
   res.json({ 
     message: 'SmartPath Backend funcionando correctamente', 
     timestamp: new Date().toISOString(),
-    database: 'MySQL',
+    database: 'MongoDB',
     status: 'OK'
   });
 });
 
-// 2. LOGIN (POST) - 🚨 Necesita método POST
-app.post('/api/auth/login', (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    console.log('📨 Login attempt:', email);
-    
-    // Credenciales de prueba
-    const users = {
-      'admin@vitamarket.com': { password: 'admin123', name: 'Administrador', role: 'admin', id: 1 },
-      'asesor1@vitamarket.com': { password: 'asesor123', name: 'Carlos Rodríguez', role: 'advisor', id: 2 }
-    };
-
-    const user = users[email];
-    
-    if (!user) {
-      return res.status(401).json({ message: 'Usuario no encontrado' });
-    }
-
-    if (user.password !== password) {
-      return res.status(401).json({ message: 'Contraseña incorrecta' });
-    }
-
-    // Simular token
-    const token = 'mock_jwt_token_' + Date.now();
-    
-    res.json({
-      message: 'Login exitoso',
-      token,
-      user: {
-        id: user.id,
-        email: email,
-        name: user.name,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-});
-
-// 3. OBTENER TIENDAS (GET) - ✅ Esta debería funcionar
+// 3. OBTENER TIENDAS (GET)
 app.get('/api/stores', (req, res) => {
   try {
     const stores = [
@@ -103,7 +81,7 @@ app.get('/api/stores', (req, res) => {
   }
 });
 
-// 4. OBTENER RUTA ACTUAL (GET) - ✅ Esta debería funcionar
+// 4. OBTENER RUTA ACTUAL (GET)
 app.get('/api/routes/advisor/:advisorId/current', (req, res) => {
   try {
     const { advisorId } = req.params;
@@ -133,7 +111,7 @@ app.get('/api/routes/advisor/:advisorId/current', (req, res) => {
   }
 });
 
-// 5. INICIAR VISITA (PATCH) - 🚨 Necesita método PATCH
+// 5. INICIAR VISITA (PATCH)
 app.patch('/api/routes/start-visit', (req, res) => {
   try {
     const { routeStoreId } = req.body;
@@ -151,7 +129,7 @@ app.patch('/api/routes/start-visit', (req, res) => {
   }
 });
 
-// Ruta 404 corregida
+// Ruta 404
 app.use((req, res) => {
   res.status(404).json({ 
     message: 'Ruta no encontrada',
@@ -171,6 +149,11 @@ app.listen(PORT, () => {
   console.log(`✅ GET  http://localhost:${PORT}/api/routes/advisor/2/current`);
   console.log(`🔐 POST http://localhost:${PORT}/api/auth/login`);
   console.log(`🔄 PATCH http://localhost:${PORT}/api/routes/start-visit`);
+  console.log(`📍 POST http://localhost:${PORT}/api/tracking/update-location`);
+  console.log('');
+  console.log('🏢 ENDPOINTS ADMIN:');
+  console.log(`📊 GET  http://localhost:${PORT}/api/admin/dashboard/overview`);
+  console.log(`👥 GET  http://localhost:${PORT}/api/admin/tracking/live-status`);
   console.log('');
   console.log('👤 CREDENCIALES:');
   console.log('   📧 admin@vitamarket.com / 🔑 admin123');
