@@ -1,15 +1,14 @@
-// frontend/src/components/advisor/AdvisorDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { routeService } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
 import RouteMap from './RouteMap';
-import { useNavigate } from 'react-router-dom'; // ✅ Ya está importado
+import { useNavigate } from 'react-router-dom';
 import '../../styles/AdvisorDashboard.css';
 
 const AdvisorDashboard = () => {
   const [currentRoute, setCurrentRoute] = useState(null);
   const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(true); // ✅ Remover currentStore del estado
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   
@@ -45,51 +44,22 @@ const AdvisorDashboard = () => {
     try {
       console.log('📡 Cargando datos de ruta para usuario ID:', userId);
       
-      // Simular datos de prueba para evitar errores 404
-      console.log('⚠️ Usando datos de prueba temporalmente');
-      const mockRoute = {
-        id: 'route-123',
-        advisor_id: userId,
-        date: new Date().toISOString().split('T')[0],
-        total_stores: 3,
-        completed_stores: 1,
-        total_distance: '8.5',
-        estimated_duration: '120',
-        stores: [
-          {
-            id: 'store-1',
-            name: 'Supermercado Central',
-            address: 'Av. Principal 123',
-            zone: 'Centro',
-            visit_order: 1,
-            status: 'completed'
-          },
-          {
-            id: 'store-2',
-            name: 'MiniMarket Express',
-            address: 'Jr. Comercio 456',
-            zone: 'Centro',
-            visit_order: 2,
-            status: 'in_progress'
-          },
-          {
-            id: 'store-3',
-            name: 'Bodega Don Pedro',
-            address: 'Av. Libertad 789',
-            zone: 'Norte',
-            visit_order: 3,
-            status: 'pending'
-          }
-        ]
-      };
+      // ✅ LLAMADA REAL A LA API
+      const routeData = await routeService.getCurrentRoute(userId);
+      console.log('✅ Ruta obtenida de la API:', routeData);
       
-      setCurrentRoute(mockRoute);
-      setStores(mockRoute.stores);
-      // ✅ Remover setCurrentStore - ya no lo necesitamos aquí
+      setCurrentRoute(routeData);
+      setStores(routeData.stores);
       
     } catch (err) {
       console.error('❌ Error cargando datos:', err);
-      setError(err.message || 'Error cargando la ruta');
+      
+      // Manejar error 404 (no hay ruta)
+      if (err.response?.status === 404) {
+        setError('No tienes una ruta asignada para hoy');
+      } else {
+        setError(err.message || 'Error cargando la ruta');
+      }
     } finally {
       setLoading(false);
     }
@@ -101,13 +71,11 @@ const AdvisorDashboard = () => {
     initializeDashboard();
   };
 
-  // ✅ Cambiar handleStartVisit para navegar directamente
   const handleStartVisit = (storeId) => {
     console.log('🚀 Navegando a visita de tienda:', storeId);
     navigate('/advisor/visit', { state: { storeId } });
   };
 
-  // ✅ Cambiar handleCompleteVisit para navegar también
   const handleCompleteVisit = (storeId) => {
     console.log('✅ Navegando a completar visita:', storeId);
     navigate('/advisor/visit', { state: { storeId } });
@@ -180,15 +148,16 @@ const AdvisorDashboard = () => {
                   <span className="store-order">#{store.visit_order}</span>
                   <span className={`status-badge ${store.status}`}>
                     {store.status === 'pending' && '⏳ Pendiente'}
-                    {store.status === 'in_progress' && '🟡 En Progreso'}
+                    {store.status === 'in-progress' && '🟡 En Progreso'}
                     {store.status === 'completed' && '✅ Completada'}
                   </span>
                 </div>
-                <h4>{store.name}</h4>
-                <p>{store.address}</p>
-                <p className="store-zone">📍 {store.zone}</p>
                 
-                {/* ✅ Cambiar todos los botones para navegar a página separada */}
+                {/* ✅ ACCEDER CORRECTAMENTE A LOS DATOS */}
+                <h4>{store.storeId?.name || store.name}</h4>
+                <p>{store.storeId?.address || store.address}</p>
+                <p className="store-zone">📍 {store.storeId?.zone || store.zone}</p>
+                
                 {store.status === 'pending' && (
                   <button 
                     className="start-visit-btn"
@@ -198,7 +167,7 @@ const AdvisorDashboard = () => {
                   </button>
                 )}
                 
-                {store.status === 'in_progress' && (
+                {store.status === 'in-progress' && (
                   <button 
                     className="complete-visit-btn"
                     onClick={() => handleCompleteVisit(store.id)}

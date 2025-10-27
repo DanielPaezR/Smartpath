@@ -1,6 +1,7 @@
 import express from 'express';
 import adminController from '../controllers/adminController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { advancedAdminController } from '../controllers/advancedAdminController.js';
 
 const router = express.Router();
 
@@ -14,5 +15,10 @@ router.get('/tracking/live-status', adminController.getLiveAdvisorsStatus);
 router.get('/tracking/advisor/:advisorId', adminController.getAdvisorDetail);
 router.get('/notifications', adminController.getNotifications);
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
+router.get('/metrics/advanced', advancedAdminController.getAdvancedMetrics);
+router.post('/routes/optimize', advancedAdminController.generateOptimizedRoute);
+router.get('/ml/training-data', advancedAdminController.getMLTrainingData);
+router.get('/reports/damage', advancedAdminController.getDamageReports);
+router.get('/analytics/sales', advancedAdminController.getSalesAnalytics);
 
 export default router;

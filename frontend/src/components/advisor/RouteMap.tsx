@@ -75,7 +75,7 @@ const RouteMap: React.FC = () => {
     .map(storeVisit => {
       const store = storeVisit.storeId!;
       return {
-        _id: store._id || store.id || `store-${Math.random()}`,
+        _id: store.id || store.id || `store-${Math.random()}`,
         name: store.name || 'Tienda sin nombre',
         address: store.address || 'Dirección no disponible',
         coordinates: store.coordinates || { lat: 4.710989, lng: -74.072092 },
@@ -114,9 +114,7 @@ const RouteMap: React.FC = () => {
   return (
     <div style={{ padding: '20px' }}>
       <header style={{ marginBottom: '20px' }}>
-        <button onClick={() => navigate('/advisor')} style={{ marginBottom: '10px' }}>
-          ← Volver al Dashboard
-        </button>
+        
         <h2>🗺️ Mapa de Ruta - {new Date(route.date).toLocaleDateString('es-ES')}</h2>
         
         <div style={{ 
@@ -163,7 +161,7 @@ const RouteMap: React.FC = () => {
           const store = storeVisit.storeId;
           
           return (
-            <div key={storeVisit._id} style={{
+            <div key={storeVisit.id} style={{
               border: '1px solid #ddd',
               borderRadius: '8px',
               padding: '15px',

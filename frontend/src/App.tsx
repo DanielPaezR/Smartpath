@@ -3,10 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import StoresManagement from './components/admin/StoresManagement';
+import StoresManagement from './components/admin/StoreManagement';
 import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
 import RealTimeTracking from './components/admin/RealTimeTracking';
+import AdvancedMetrics from './components/admin/AdvancedMetrics'; // 🆕 NUEVA IMPORTACIÓN
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -73,10 +74,10 @@ function App() {
               </AdminRoute>
             } />
             
-            {/* Otras rutas de admin (placeholders) */}
+            {/* 🆕 RUTA ACTUALIZADA - Métricas avanzadas reales */}
             <Route path="/admin/metrics" element={
               <AdminRoute>
-                <PlaceholderPage title="Métricas y Estadísticas" />
+                <AdvancedMetrics />
               </AdminRoute>
             } />
             

@@ -3,7 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import adminRoutes from './routes/adminRoutes.js';
-import authRoutes from './routes/authRoutes.js'; // ✅ AGREGAR ESTA LÍNEA
+import authRoutes from './routes/authRoutes.js';
+import productRoutes from '../src/routes/productRoutes.js';
+import storeRoutes from '../src/routes/storeRoutes.js';
 
 
 // Configurar dotenv
@@ -32,6 +34,8 @@ app.use('/api/auth', authRoutes);
 
 // ✅ RUTAS DEL ADMIN (con autenticación)
 app.use('/api/admin', adminRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/stores', storeRoutes);
 
 // 1. HEALTH CHECK (GET)
 app.get('/api/health', (req, res) => {

@@ -1,7 +1,31 @@
-  // frontend/src/services/routeService.ts
-  import api from './api';
+// frontend/src/services/routeService.ts - SIN MOCKS
+import api from './api';
 
-  export interface IRoute {
+// frontend/src/services/routeService.ts - ACTUALIZAR INTERFAZ
+export interface IStore {
+  id: string;
+  storeId: {
+    id: string;
+    name: string;
+    address: string;
+    coordinates: {
+      lat: number;    // Esto mapeará a latitude
+      lng: number;    // Esto mapeará a longitude  
+    };
+    priority: string; // Cambiar a string porque es enum
+    category?: string;
+    zone?: string;
+  };
+  status: 'pending' | 'in-progress' | 'completed' | 'skipped';
+  visit_order: number;
+  plannedArrival?: string;
+  actualArrival?: string;
+  actualDeparture?: string;
+  visitDuration?: number;
+  skipReason?: string;
+}
+
+export interface IRoute {
   id: string;
   advisor_id: string;
   date: string;
@@ -12,92 +36,50 @@
   stores: IStore[];
 }
 
-  export const routeService = {
-    async getCurrentRoute(advisorId: string) {
-      try {
-        // Por ahora devolvemos datos mock para evitar errores
-        return {
-          id: 'route-123',
-          advisor_id: advisorId,
-          date: new Date().toISOString().split('T')[0],
-          total_stores: 3,
-          completed_stores: 1,
-          total_distance: '8.5',
-          estimated_duration: '120',
-          stores: [
-            {
-              id: 'store-1',
-              name: 'Supermercado Central',
-              address: 'Av. Principal 123',
-              zone: 'Centro',
-              visit_order: 1,
-              status: 'completed' as const
-            },
-            {
-              id: 'store-2',
-              name: 'MiniMarket Express', 
-              address: 'Jr. Comercio 456',
-              zone: 'Centro',
-              visit_order: 2,
-              status: 'in_progress' as const
-            },
-            {
-              id: 'store-3',
-              name: 'Bodega Don Pedro',
-              address: 'Av. Libertad 789',
-              zone: 'Norte', 
-              visit_order: 3,
-              status: 'pending' as const
-            }
-          ]
-        };
-      } catch (error) {
-        console.error('Error en getCurrentRoute:', error);
-        throw error;
+export const routeService = {
+  async getCurrentRoute(advisorId: string): Promise<IRoute> {
+    try {
+      const response = await api.get(`/routes/advisor/${advisorId}/current`);
+      
+      if (!response.data) {
+        throw new Error('No se encontró ruta para el asesor');
       }
-    },
-
-    async startVisit(routeStoreId: string) {
-      // Simular API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { 
-        message: 'Visita iniciada', 
-        routeStoreId,
-        startedAt: new Date().toISOString()
-      };
-    },
-
-    async completeVisit(routeStoreId: string) {
-      // Simular API call  
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { 
-        message: 'Visita completada', 
-        routeStoreId,
-        completedAt: new Date().toISOString()
-      };
-    },
-
-    async getStores() {
-      // Datos mock
-      return [
-        {
-          id: 'store-1',
-          name: 'Supermercado Central',
-          address: 'Av. Principal 123', 
-          zone: 'Centro'
-        },
-        {
-          id: 'store-2',
-          name: 'MiniMarket Express',
-          address: 'Jr. Comercio 456',
-          zone: 'Centro'
-        },
-        {
-          id: 'store-3', 
-          name: 'Bodega Don Pedro',
-          address: 'Av. Libertad 789',
-          zone: 'Norte'
-        }
-      ];
+      
+      console.log('✅ Ruta obtenida de la API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error obteniendo ruta real:', error);
+      throw error; // ❌ ELIMINAMOS FALLBACK MOCK - QUE FALLE SI NO HAY DATOS REALES
     }
-  };
+  },
+
+  async startVisit(routeId: string, storeVisitId: string) {
+    try {
+      const response = await api.patch('/routes/start-visit', {
+        routeId: routeId,
+        storeVisitId: storeVisitId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error iniciando visita:', error);
+      throw error; // ❌ ELIMINAMOS FALLBACK MOCK
+    }
+  },
+
+  async completeVisit(routeId: string, storeVisitId: string, visitData?: any) {
+    try {
+      const response = await api.patch('/routes/complete-visit', {
+        routeId: routeId,
+        storeVisitId: storeVisitId,
+        visitData: visitData || {
+          duration: 40,
+          notes: 'Visita completada exitosamente'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error completando visita:', error);
+      throw error; // ❌ ELIMINAMOS FALLBACK MOCK
+    }
+  }
+};

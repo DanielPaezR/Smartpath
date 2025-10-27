@@ -1,7 +1,9 @@
 import express from 'express';
-import { routeController } from '../controllers/routeController';
+import { routeController } from '../controllers/routeController.js';
+import trackingRoutes from './trackingRoutes.js';
 
 const router = express.Router();
+
 
 router.post('/generate', routeController.generateDailyRoute);
 router.get('/advisor/:advisorId/current', routeController.getCurrentRoute);
@@ -10,7 +12,7 @@ router.patch('/complete-visit', routeController.completeStoreVisit);
 router.patch('/skip-visit', routeController.skipStoreVisit);
 router.patch('/update-tasks', routeController.updateStoreTasks);
 router.get('/metrics', routeController.getRouteMetrics);
-
+router.use('/tracking', trackingRoutes);
 
 
 export default router;
