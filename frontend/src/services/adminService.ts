@@ -82,26 +82,38 @@ export interface OptimizedRouteResponse {
   };
 }
 
-// Función para manejar errores de autenticación
-const handleAuthError = (error: any) => {
+// ✅ CORREGIDO: Función para manejar errores de autenticación
+const handleAuthError = (error: any): never => {
   console.log('🔐 Error en request:', error.response?.status, error.message);
   
   if (error.response?.status === 403 || error.response?.status === 401) {
     console.log('🔐 Token inválido, limpiando...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    throw new Error('Sesión expirada');
+    
+    // ✅ Lanzar error correctamente
+    throw new Error('Sesión expirada o sin permisos de administrador');
   }
+  
+  // ✅ Para otros errores, verificar si es HTML
+  if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE html>')) {
+    console.error('❌ El servidor devolvió HTML en lugar de JSON');
+    throw new Error('Error de servidor: respuesta en formato incorrecto');
+  }
+  
   throw error;
 };
 
 export const adminService = {
-  // Dashboard overview
+  // ✅ CORREGIDO: Dashboard overview con mejor logging
   getDashboardOverview: async (): Promise<DashboardOverview> => {
     try {
+      console.log('🔄 [adminService] Solicitando datos del dashboard...');
       const response = await api.get('/admin/dashboard/overview');
+      console.log('✅ [adminService] Datos recibidos:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [adminService] Error en getDashboardOverview:', error);
       return handleAuthError(error);
     }
   },
@@ -109,10 +121,12 @@ export const adminService = {
   // Estado en tiempo real de asesores
   getLiveAdvisorsStatus: async (): Promise<AdvisorLiveStatus[]> => {
     try {
+      console.log('🔄 [adminService] Solicitando estado de asesores...');
       const response = await api.get('/admin/tracking/live-status');
-      console.log('📊 Datos recibidos de asesores:', response.data);
+      console.log('✅ [adminService] Datos recibidos de asesores:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [adminService] Error en getLiveAdvisorsStatus:', error);
       return handleAuthError(error);
     }
   },
@@ -120,9 +134,11 @@ export const adminService = {
   // Detalle de un asesor específico
   getAdvisorDetail: async (advisorId: number): Promise<any> => {
     try {
+      console.log(`🔄 [adminService] Solicitando detalle del asesor ${advisorId}...`);
       const response = await api.get(`/admin/tracking/advisor/${advisorId}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [adminService] Error en getAdvisorDetail:', error);
       return handleAuthError(error);
     }
   },
@@ -130,17 +146,21 @@ export const adminService = {
   // Notificaciones
   getNotifications: async (): Promise<any[]> => {
     try {
+      console.log('🔄 [adminService] Solicitando notificaciones...');
       const response = await api.get('/admin/notifications');
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [adminService] Error en getNotifications:', error);
       return handleAuthError(error);
     }
   },
 
   markNotificationAsRead: async (notificationId: number): Promise<void> => {
     try {
+      console.log(`🔄 [adminService] Marcando notificación ${notificationId} como leída...`);
       await api.patch(`/admin/notifications/${notificationId}/read`);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [adminService] Error en markNotificationAsRead:', error);
       return handleAuthError(error);
     }
   },
@@ -148,10 +168,11 @@ export const adminService = {
   // 🆕 MÉTRICAS AVANZADAS
   getAdvancedMetrics: async (timeRange: 'week' | 'month' | 'quarter' = 'month'): Promise<AdvancedMetrics> => {
     try {
+      console.log(`🔄 [adminService] Solicitando métricas avanzadas (${timeRange})...`);
       const response = await api.get(`/admin/metrics/advanced?timeRange=${timeRange}`);
       return response.data;
-    } catch (error) {
-      console.error('❌ Error obteniendo métricas avanzadas:', error);
+    } catch (error: any) {
+      console.error('❌ [adminService] Error obteniendo métricas avanzadas:', error);
       
       // Datos de ejemplo para desarrollo mientras se implementa el backend
       const mockData: AdvancedMetrics = {
@@ -219,6 +240,7 @@ export const adminService = {
         ]
       };
       
+      console.log('📊 [adminService] Usando datos mock de métricas avanzadas');
       return mockData;
     }
   },
@@ -226,10 +248,11 @@ export const adminService = {
   // 🆕 OPTIMIZACIÓN DE RUTAS
   generateOptimizedRoute: async (data: OptimizedRouteRequest): Promise<OptimizedRouteResponse> => {
     try {
+      console.log('🔄 [adminService] Generando ruta optimizada...');
       const response = await api.post('/admin/routes/optimize', data);
       return response.data;
-    } catch (error) {
-      console.error('❌ Error generando ruta optimizada:', error);
+    } catch (error: any) {
+      console.error('❌ [adminService] Error generando ruta optimizada:', error);
       
       // Datos de ejemplo para desarrollo
       const mockResponse: OptimizedRouteResponse = {
@@ -248,6 +271,7 @@ export const adminService = {
         }
       };
       
+      console.log('🔄 [adminService] Usando datos mock de ruta optimizada');
       return mockResponse;
     }
   },
@@ -255,10 +279,11 @@ export const adminService = {
   // 🆕 DATOS DE ENTRENAMIENTO ML
   getMLTrainingData: async (): Promise<any> => {
     try {
+      console.log('🔄 [adminService] Solicitando datos de entrenamiento ML...');
       const response = await api.get('/admin/ml/training-data');
       return response.data;
-    } catch (error) {
-      console.error('❌ Error obteniendo datos de entrenamiento:', error);
+    } catch (error: any) {
+      console.error('❌ [adminService] Error obteniendo datos de entrenamiento:', error);
       return [];
     }
   },
@@ -266,11 +291,12 @@ export const adminService = {
   // 🆕 REPORTES DE DAÑOS
   getDamageReports: async (storeId?: string): Promise<any> => {
     try {
+      console.log(`🔄 [adminService] Solicitando reportes de daño ${storeId ? `para tienda ${storeId}` : ''}...`);
       const url = storeId ? `/admin/reports/damage?storeId=${storeId}` : '/admin/reports/damage';
       const response = await api.get(url);
       return response.data;
-    } catch (error) {
-      console.error('❌ Error obteniendo reportes de daño:', error);
+    } catch (error: any) {
+      console.error('❌ [adminService] Error obteniendo reportes de daño:', error);
       return [];
     }
   },
@@ -278,10 +304,11 @@ export const adminService = {
   // 🆕 ANALYTICS DE VENTAS
   getSalesAnalytics: async (timeRange: string = 'month'): Promise<any> => {
     try {
+      console.log(`🔄 [adminService] Solicitando analytics de ventas (${timeRange})...`);
       const response = await api.get(`/admin/analytics/sales?timeRange=${timeRange}`);
       return response.data;
-    } catch (error) {
-      console.error('❌ Error obteniendo analytics de ventas:', error);
+    } catch (error: any) {
+      console.error('❌ [adminService] Error obteniendo analytics de ventas:', error);
       return [];
     }
   }

@@ -1,9 +1,11 @@
+// frontend/src/components/advisor/RouteMap.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { routeService } from '../../services/routeService';
 import type { IRoute } from '../../services/routeService';
 import MapComponent, { type Store } from '../common/MapComponent';
+import '../../styles/RouteMap.css';
 
 const RouteMap: React.FC = () => {
   const { user } = useAuth();
@@ -44,7 +46,7 @@ const RouteMap: React.FC = () => {
         },
         (error) => {
           console.warn('Error obteniendo ubicación:', error);
-          setUserLocation({ lat: 4.710989, lng: -74.072092 });
+          setUserLocation({ lat: 4.710989, lng: -74.072092 }); // Bogotá por defecto
         }
       );
     } else {
@@ -56,26 +58,34 @@ const RouteMap: React.FC = () => {
     console.log('Tienda clickeada:', store);
   };
 
-  const openInMaps = (lat: number, lng: number) => {
+  const openInMaps = (lat: number, lng: number, storeName: string) => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const encodedName = encodeURIComponent(storeName);
     
     if (isMobile) {
+      // Intentar con Waze primero
       window.open(`waze://?ll=${lat},${lng}&navigate=yes`, '_blank');
+      // Fallback a Google Maps después de un delay
       setTimeout(() => {
         window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
       }, 500);
     } else {
+      // Desktop - Google Maps
       window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
     }
   };
 
-  // CORRECCIÓN: Preparar datos para el mapa de forma segura
+  const startStoreVisit = (storeId: string) => {
+    navigate('/advisor/visit', { state: { storeId } });
+  };
+
+  // Preparar datos para el mapa de forma segura
   const storesForMap: Store[] = route?.stores
-    ?.filter(storeVisit => storeVisit?.storeId) // Filtrar storeVisits con storeId válido
+    ?.filter(storeVisit => storeVisit?.storeId)
     .map(storeVisit => {
       const store = storeVisit.storeId!;
       return {
-        _id: store.id || store.id || `store-${Math.random()}`,
+        _id: store.id || `store-${Math.random()}`,
         name: store.name || 'Tienda sin nombre',
         address: store.address || 'Dirección no disponible',
         coordinates: store.coordinates || { lat: 4.710989, lng: -74.072092 },
@@ -84,15 +94,21 @@ const RouteMap: React.FC = () => {
     }) || [];
 
   if (loading) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Cargando mapa...</div>;
+    return (
+      <div className="route-map-loading">
+        <div className="spinner"></div>
+        <p>Cargando mapa de ruta...</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Error</h2>
+      <div className="route-map-error">
+        <div className="error-icon">⚠️</div>
+        <h3>Error al cargar la ruta</h3>
         <p>{error}</p>
-        <button onClick={() => navigate('/advisor')}>
+        <button className="primary-btn" onClick={() => navigate('/advisor')}>
           Volver al Dashboard
         </button>
       </div>
@@ -101,10 +117,11 @@ const RouteMap: React.FC = () => {
 
   if (!route) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>No hay ruta asignada para hoy</h2>
-        <p>Genera una nueva ruta desde el dashboard</p>
-        <button onClick={() => navigate('/advisor')}>
+      <div className="route-map-empty">
+        <div className="empty-icon">🗺️</div>
+        <h3>No hay ruta asignada para hoy</h3>
+        <p>Consulta con tu administrador para obtener una ruta</p>
+        <button className="primary-btn" onClick={() => navigate('/advisor')}>
           Volver al Dashboard
         </button>
       </div>
@@ -112,128 +129,142 @@ const RouteMap: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <header style={{ marginBottom: '20px' }}>
-        
-        <h2>🗺️ Mapa de Ruta - {new Date(route.date).toLocaleDateString('es-ES')}</h2>
-        
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '15px',
-          marginTop: '15px'
-        }}>
-          <div style={{ padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '5px' }}>
-            <strong>Tiendas Totales:</strong> {route.stores?.length || 0}
+    <div className="route-map-container">
+      {/* Header */}
+      <header className="route-map-header">
+        <div className="header-content">
+          <h1>🗺️ Mapa de Ruta</h1>
+          <p className="route-date">
+            {new Date(route.date).toLocaleDateString('es-ES', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </p>
+        </div>
+
+        {/* Estadísticas */}
+        <div className="route-stats-grid">
+          <div className="stat-card total">
+            <span className="stat-icon">🏪</span>
+            <div className="stat-info">
+              <span className="stat-value">{route.stores?.length || 0}</span>
+              <span className="stat-label">Total Tiendas</span>
+            </div>
           </div>
-          <div style={{ padding: '10px', backgroundColor: '#e8f5e8', borderRadius: '5px' }}>
-            <strong>Completadas:</strong> {route.stores?.filter(s => s.status === 'completed').length || 0}
+          <div className="stat-card completed">
+            <span className="stat-icon">✅</span>
+            <div className="stat-info">
+              <span className="stat-value">{route.stores?.filter(s => s.status === 'completed').length || 0}</span>
+              <span className="stat-label">Completadas</span>
+            </div>
           </div>
-          <div style={{ padding: '10px', backgroundColor: '#fff3e0', borderRadius: '5px' }}>
-            <strong>En Progreso:</strong> {route.stores?.filter(s => s.status === 'in-progress').length || 0}
+          <div className="stat-card progress">
+            <span className="stat-icon">🟡</span>
+            <div className="stat-info">
+              <span className="stat-value">{route.stores?.filter(s => s.status === 'in-progress').length || 0}</span>
+              <span className="stat-label">En Progreso</span>
+            </div>
           </div>
-          <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-            <strong>Pendientes:</strong> {route.stores?.filter(s => s.status === 'pending').length || 0}
+          <div className="stat-card pending">
+            <span className="stat-icon">⏳</span>
+            <div className="stat-info">
+              <span className="stat-value">{route.stores?.filter(s => s.status === 'pending').length || 0}</span>
+              <span className="stat-label">Pendientes</span>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Mapa */}
-      <div style={{ marginBottom: '20px' }}>
-        <MapComponent
-          stores={storesForMap}
-          userLocation={userLocation || undefined}
-          showRoute={true}
-          onStoreClick={handleStoreClick}
-        />
-      </div>
+      <section className="map-section">
+        <div className="section-header">
+          <h2>Vista del Mapa</h2>
+          <p>Visualiza tu ruta y las tiendas asignadas</p>
+        </div>
+        <div className="map-container">
+          <MapComponent
+            stores={storesForMap}
+            userLocation={userLocation || undefined}
+            showRoute={true}
+            onStoreClick={handleStoreClick}
+          />
+        </div>
+      </section>
 
-      {/* Lista de tiendas */}
-      <div>
-        <h3>Tiendas en la Ruta:</h3>
-        {route.stores?.map((storeVisit, index) => {
-          // Verificación segura de storeVisit.storeId
-          if (!storeVisit?.storeId) {
-            console.warn('StoreVisit sin storeId:', storeVisit);
-            return null;
-          }
+      {/* Lista de Tiendas */}
+      <section className="stores-section">
+        <div className="section-header">
+          <h2>Lista de Tiendas</h2>
+          <p>Gestiona tus visitas del día</p>
+        </div>
+        
+        <div className="stores-list">
+          {route.stores?.map((storeVisit, index) => {
+            if (!storeVisit?.storeId) {
+              console.warn('StoreVisit sin storeId:', storeVisit);
+              return null;
+            }
 
-          const store = storeVisit.storeId;
-          
-          return (
-            <div key={storeVisit.id} style={{
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-              padding: '15px',
-              marginBottom: '10px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: storeVisit.status === 'completed' ? '#e8f5e8' : 
-                             storeVisit.status === 'in-progress' ? '#fff3e0' : '#f5f5f5'
-            }}>
-              <div>
-                <h4 style={{ margin: '0 0 5px 0' }}>
-                  {index + 1}. {store.name || 'Tienda sin nombre'}
-                  <span style={{ 
-                    marginLeft: '10px',
-                    fontSize: '12px',
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                    backgroundColor: storeVisit.status === 'completed' ? '#4caf50' :
-                                   storeVisit.status === 'in-progress' ? '#ff9800' : '#9e9e9e',
-                    color: 'white'
-                  }}>
-                    {storeVisit.status === 'completed' ? 'COMPLETADA' :
-                     storeVisit.status === 'in-progress' ? 'EN PROGRESO' : 'PENDIENTE'}
-                  </span>
-                </h4>
-                <p style={{ margin: '2px 0' }}>📍 {store.address || 'Dirección no disponible'}</p>
-                <p style={{ margin: '2px 0' }}>⏰ {storeVisit.plannedArrival ? 
-                  new Date(storeVisit.plannedArrival).toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', minute: '2-digit' 
-                  }) : 'Horario no definido'}
-                </p>
+            const store = storeVisit.storeId;
+            const coordinates = store.coordinates || { lat: 4.710989, lng: -74.072092 };
+            
+            return (
+              <div key={storeVisit.id} className={`store-card ${storeVisit.status}`}>
+                <div className="store-header">
+                  <div className="store-order">#{index + 1}</div>
+                  <div className={`status-badge ${storeVisit.status}`}>
+                    {storeVisit.status === 'completed' && '✅ Completada'}
+                    {storeVisit.status === 'in-progress' && '🟡 En Progreso'}
+                    {storeVisit.status === 'pending' && '⏳ Pendiente'}
+                  </div>
+                </div>
+
+                <div className="store-info">
+                  <h3 className="store-name">{store.name || 'Tienda sin nombre'}</h3>
+                  <p className="store-address">
+                    <span className="icon">📍</span>
+                    {store.address || 'Dirección no disponible'}
+                  </p>
+                  <p className="store-time">
+                    <span className="icon">⏰</span>
+                    {storeVisit.plannedArrival ? 
+                      new Date(storeVisit.plannedArrival).toLocaleTimeString('es-ES', { 
+                        hour: '2-digit', minute: '2-digit' 
+                      }) : 'Horario por definir'}
+                  </p>
+                </div>
+
+                <div className="store-actions">
+                  <button 
+                    className="action-btn navigate-btn"
+                    onClick={() => openInMaps(coordinates.lat, coordinates.lng, store.name || 'Tienda')}
+                    title="Abrir en Maps"
+                  >
+                    <span className="btn-icon">🗺️</span>
+                    <span className="btn-text">Navegar</span>
+                  </button>
+                  
+                  <button 
+                    className={`action-btn visit-btn ${storeVisit.status === 'completed' ? 'completed' : ''}`}
+                    onClick={() => startStoreVisit(store.id)}
+                    disabled={storeVisit.status === 'completed'}
+                    title={storeVisit.status === 'completed' ? 'Visita completada' : 'Iniciar visita'}
+                  >
+                    <span className="btn-icon">
+                      {storeVisit.status === 'completed' ? '✅' : '🏪'}
+                    </span>
+                    <span className="btn-text">
+                      {storeVisit.status === 'completed' ? 'Completada' : 'Visitar'}
+                    </span>
+                  </button>
+                </div>
               </div>
-              
-              <div>
-                <button 
-                  onClick={() => openInMaps(
-                    store.coordinates?.lat || 4.710989, 
-                    store.coordinates?.lng || -74.072092
-                  )}
-                  style={{
-                    padding: '8px 15px',
-                    marginRight: '10px',
-                    backgroundColor: '#4285f4',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🗺️ Navegar
-                </button>
-                
-                <button 
-                  onClick={() => navigate('/advisor/visit')}
-                  style={{
-                    padding: '8px 15px',
-                    backgroundColor: storeVisit.status === 'completed' ? '#9e9e9e' : '#4caf50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: storeVisit.status === 'completed' ? 'not-allowed' : 'pointer'
-                  }}
-                  disabled={storeVisit.status === 'completed'}
-                >
-                  {storeVisit.status === 'completed' ? '✅ Completada' : '🏪 Visitar'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 };

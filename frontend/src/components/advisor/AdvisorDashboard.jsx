@@ -1,3 +1,4 @@
+// frontend/src/components/advisor/AdvisorDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { routeService } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -44,7 +45,6 @@ const AdvisorDashboard = () => {
     try {
       console.log('📡 Cargando datos de ruta para usuario ID:', userId);
       
-      // ✅ LLAMADA REAL A LA API
       const routeData = await routeService.getCurrentRoute(userId);
       console.log('✅ Ruta obtenida de la API:', routeData);
       
@@ -54,7 +54,6 @@ const AdvisorDashboard = () => {
     } catch (err) {
       console.error('❌ Error cargando datos:', err);
       
-      // Manejar error 404 (no hay ruta)
       if (err.response?.status === 404) {
         setError('No tienes una ruta asignada para hoy');
       } else {
@@ -95,7 +94,7 @@ const AdvisorDashboard = () => {
       <div className="dashboard-error">
         <h3>⚠️ Error</h3>
         <p>{error}</p>
-        <button onClick={handleRetry}>Reintentar</button>
+        <button className="retry-btn" onClick={handleRetry}>Reintentar</button>
       </div>
     );
   }
@@ -105,25 +104,37 @@ const AdvisorDashboard = () => {
       <div className="dashboard-empty">
         <h3>📅 No hay ruta para hoy</h3>
         <p>No tienes tiendas asignadas para hoy.</p>
-        <button onClick={handleRetry}>Actualizar</button>
+        <button className="retry-btn" onClick={handleRetry}>Actualizar</button>
       </div>
     );
   }
 
   return (
     <div className="advisor-dashboard">
-      <div className="dashboard-header">
+      <div className="dashboard-header-custom">
         <h1>Mi Ruta Diaria</h1>
         <div className="route-stats">
-          <span className="stat">
-            🏪 {currentRoute.completed_stores}/{currentRoute.total_stores} Tiendas
-          </span>
-          <span className="stat">
-            🛣️ {currentRoute.total_distance} km
-          </span>
-          <span className="stat">
-            ⏱️ {currentRoute.estimated_duration} min
-          </span>
+          <div className="stat-item">
+            <span className="stat-icon">🏪</span>
+            <div className="stat-info">
+              <span className="stat-value">{currentRoute.completed_stores}/{currentRoute.total_stores}</span>
+              <span className="stat-label">Tiendas</span>
+            </div>
+          </div>
+          <div className="stat-item">
+            <span className="stat-icon">🛣️</span>
+            <div className="stat-info">
+              <span className="stat-value">{currentRoute.total_distance} km</span>
+              <span className="stat-label">Distancia</span>
+            </div>
+          </div>
+          <div className="stat-item">
+            <span className="stat-icon">⏱️</span>
+            <div className="stat-info">
+              <span className="stat-value">{currentRoute.estimated_duration} min</span>
+              <span className="stat-label">Duración</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -136,8 +147,8 @@ const AdvisorDashboard = () => {
           />
         </div>
 
-        <div className="stores-list">
-          <h3>Tiendas de Hoy</h3>
+        <div className="stores-section">
+          <h3 className="section-title">Tiendas de Hoy</h3>
           <div className="stores-grid">
             {currentRoute.stores.map(store => (
               <div 
@@ -153,14 +164,13 @@ const AdvisorDashboard = () => {
                   </span>
                 </div>
                 
-                {/* ✅ ACCEDER CORRECTAMENTE A LOS DATOS */}
-                <h4>{store.storeId?.name || store.name}</h4>
-                <p>{store.storeId?.address || store.address}</p>
+                <h4 className="store-name">{store.storeId?.name || store.name}</h4>
+                <p className="store-address">{store.storeId?.address || store.address}</p>
                 <p className="store-zone">📍 {store.storeId?.zone || store.zone}</p>
                 
                 {store.status === 'pending' && (
                   <button 
-                    className="start-visit-btn"
+                    className="action-btn start-visit-btn"
                     onClick={() => handleStartVisit(store.id)}
                   >
                     Iniciar Visita
@@ -169,7 +179,7 @@ const AdvisorDashboard = () => {
                 
                 {store.status === 'in-progress' && (
                   <button 
-                    className="complete-visit-btn"
+                    className="action-btn complete-visit-btn"
                     onClick={() => handleCompleteVisit(store.id)}
                   >
                     Continuar Visita

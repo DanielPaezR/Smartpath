@@ -1,6 +1,8 @@
+// frontend/src/components/auth/Login.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import '../styles/common/Login.css';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -27,38 +29,78 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '400px', margin: '50px auto' }}>
-      <h2>SmartPath - Vitamarket</h2>
-      {error && <div style={{ color: 'red', marginBottom: '15px' }}>{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px' }}>
-          <input
-            type="email"
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: '100%', padding: '10px' }}
-            required
+    <div className="login-container">
+      <div className="login-card">
+        {/* Header con Logo */}
+        <div className="login-header">
+          <img 
+            src="https://media.licdn.com/dms/image/v2/D4E0BAQF5nYIzwOYBtA/company-logo_200_200/company-logo_200_200/0/1681181862974/vitamarket_logo?e=2147483647&v=beta&t=qxAn5rp-7MC1FvaZS09zvc9L3_o16RdPaMpxjGDdpLw" 
+            alt="Vitamarket" 
+            className="login-logo"
           />
+          <div className="login-brand">
+            <h1>SmartPath</h1>
+            <p>Optimización de Rutas Comerciales</p>
+          </div>
         </div>
-        <div style={{ marginBottom: '15px' }}>
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: '10px' }}
-            required
-          />
-        </div>
-        <button 
-          type="submit" 
-          style={{ width: '100%', padding: '10px' }}
-          disabled={loading}
-        >
-          {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-        </button>
-      </form>
+
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="login-form">
+          {error && (
+            <div className="error-message">
+              <span className="error-icon">⚠️</span>
+              {error}
+            </div>
+          )}
+
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">
+              Correo Electrónico
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="tu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="form-input"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">
+              Contraseña
+            </label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Ingresa tu contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="form-input"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className={`login-btn ${loading ? 'loading' : ''}`}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <div className="btn-spinner"></div>
+                Iniciando Sesión...
+              </>
+            ) : (
+              'Iniciar Sesión'
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

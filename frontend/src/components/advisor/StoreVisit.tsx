@@ -1,3 +1,4 @@
+// frontend/src/components/advisor/StoreVisit.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
@@ -6,6 +7,7 @@ import PhotoUpload from '../common/PhotoUpload';
 import SignaturePad from '../common/SignaturePad';
 import BarcodeScanner from '../common/BarcodeScanner';
 import TaskProgress from '../common/TaskProgress';
+import '../../styles/StoreVisit.css';
 
 // Interfaces mejoradas
 interface ITask {
@@ -90,7 +92,7 @@ const productService = {
   }
 };
 
-// Servicio de tracking (mantener igual)
+// Servicio de tracking
 const trackingService = {
   updateLocation: async (latitude: number, longitude: number, currentStoreId?: string, activityStatus?: string) => {
     try {
@@ -201,6 +203,33 @@ const StoreVisit: React.FC = () => {
       completed: false
     }
   ];
+
+  // 🆕 FUNCIÓN PARA NAVEGACIÓN A MAPS
+  const openInMaps = () => {
+    if (!route?.stores?.[currentStoreIndex]?.storeId?.coordinates) {
+      alert('No hay coordenadas disponibles para esta tienda');
+      return;
+    }
+
+    const store = route.stores[currentStoreIndex].storeId;
+    const lat = store.coordinates?.lat || 4.710989; // Bogotá por defecto
+    const lng = store.coordinates?.lng || -74.072092;
+    const storeName = encodeURIComponent(store.name || 'Tienda');
+    
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Intentar con Waze primero
+      window.open(`waze://?ll=${lat},${lng}&navigate=yes`, '_blank');
+      // Fallback a Google Maps después de un delay
+      setTimeout(() => {
+        window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+      }, 500);
+    } else {
+      // Desktop - Google Maps
+      window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+    }
+  };
 
   // Función para actualizar ubicación
   const updateAdvisorLocation = async (storeId?: string, activityStatus: string = 'at_store') => {
@@ -314,7 +343,7 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // 🆕 Manejo mejorado de tareas
+  // Manejo mejorado de tareas
   const handleTaskComplete = (taskIndex: number) => {
     const task = tasks[taskIndex];
     
@@ -343,14 +372,14 @@ const StoreVisit: React.FC = () => {
     setTasks(updatedTasks);
   };
 
-  // 🆕 Manejo de fotos con compresión
+  // Manejo de fotos con compresión
   const handlePhotosChange = (taskIndex: number, photos: string[]) => {
     const updatedTasks = [...tasks];
     updatedTasks[taskIndex].photos = photos;
     setTasks(updatedTasks);
   };
 
-  // 🆕 Manejo de firma digital
+  // Manejo de firma digital
   const handleSignatureSave = (signatureData: string) => {
     if (currentTaskIndex !== null) {
       const updatedTasks = [...tasks];
@@ -364,7 +393,7 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // 🆕 Manejo de códigos de barras CONEXIÓN A BD
+  // Manejo de códigos de barras CONEXIÓN A BD
   const handleBarcodeScanned = async (barcode: string) => {
     setLoading(true);
     try {
@@ -389,7 +418,7 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // 🆕 Manejo de reportes de daños
+  // Manejo de reportes de daños
   const handleAddDamageReport = async () => {
     if (!currentProduct || !route) return;
     
@@ -446,7 +475,7 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // 🆕 Validación completa antes de finalizar
+  // Validación completa antes de finalizar
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
     const missingTasks: string[] = [];
     
@@ -473,7 +502,7 @@ const StoreVisit: React.FC = () => {
   const handleCompleteVisit = async () => {
     if (!route) return;
 
-    // 🆕 Validación completa
+    // Validación completa
     const validation = validateVisitCompletion();
     if (!validation.isValid) {
       alert(`❌ No puedes finalizar la visita. Tareas pendientes:\n\n• ${validation.missingTasks.join('\n• ')}`);
@@ -512,7 +541,7 @@ const StoreVisit: React.FC = () => {
       setIsTimerRunning(false);
       await updateAdvisorLocation(undefined, 'traveling');
       
-      // 🆕 Navegar con resumen
+      // Navegar con resumen
       navigate('/dashboard', { 
         state: { 
           message: `¡Visita a ${storeInfo.name} completada!`,
@@ -567,43 +596,32 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // 🆕 Componente de tarea mejorado
+  // Componente de tarea mejorado
   const renderTask = (task: ITask, index: number) => (
-    <div key={task.key} style={{
-      border: '1px solid #dee2e6',
-      borderRadius: '8px',
-      padding: '15px',
-      backgroundColor: task.completed ? '#d4edda' : 'white',
-      color: task.completed ? '#155724' : '#333',
-      marginBottom: '10px'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+    <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
+      <div className="task-content">
         <input 
           type="checkbox" 
           checked={task.completed}
           onChange={() => handleTaskComplete(index)}
-          style={{ marginTop: '2px' }}
+          className="task-checkbox"
         />
         
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <span style={{ 
-              textDecoration: task.completed ? 'line-through' : 'none',
-              color: task.completed ? '#155724' : '#333',
-              fontWeight: 'bold'
-            }}>
+        <div className="task-info">
+          <div className="task-header">
+            <span className="task-label">
               {task.label}
             </span>
-            <div style={{ display: 'flex', gap: '5px' }}>
-              {task.requiresPhotos && <span style={{ fontSize: '12px', background: '#007bff', color: 'white', padding: '2px 6px', borderRadius: '10px' }}>📸</span>}
-              {task.requiresBarcode && <span style={{ fontSize: '12px', background: '#28a745', color: 'white', padding: '2px 6px', borderRadius: '10px' }}>📱</span>}
-              {task.requiresSignature && <span style={{ fontSize: '12px', background: '#ffc107', color: 'black', padding: '2px 6px', borderRadius: '10px' }}>✍️</span>}
+            <div className="task-requirements">
+              {task.requiresPhotos && <span className="requirement-badge photos">📸</span>}
+              {task.requiresBarcode && <span className="requirement-badge barcode">📱</span>}
+              {task.requiresSignature && <span className="requirement-badge signature">✍️</span>}
             </div>
           </div>
           
           {/* Subida de fotos con compresión */}
           {task.requiresPhotos && (
-            <div style={{ marginTop: '10px' }}>
+            <div className="task-additional">
               <PhotoUpload 
                 onPhotosChange={(photos) => handlePhotosChange(index, photos)}
                 existingPhotos={task.photos || []}
@@ -616,32 +634,17 @@ const StoreVisit: React.FC = () => {
           
           {/* Escáner de códigos de barras */}
           {task.requiresBarcode && task.barcodes && task.barcodes.length > 0 && (
-            <div style={{ marginTop: '10px', padding: '10px', background: '#f8f9fa', borderRadius: '5px' }}>
-              <h5 style={{ margin: '0 0 5px 0' }}>Productos escaneados ({task.barcodes.length}):</h5>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+            <div className="scanned-products">
+              <h5>Productos escaneados ({task.barcodes.length}):</h5>
+              <div className="barcode-tags">
                 {task.barcodes.map((barcode, i) => (
-                  <span key={i} style={{ 
-                    background: '#e9ecef', 
-                    padding: '2px 8px', 
-                    borderRadius: '12px', 
-                    fontSize: '12px',
-                    border: '1px solid #dee2e6'
-                  }}>
+                  <span key={i} className="barcode-tag">
                     {barcode}
                   </span>
                 ))}
               </div>
               <button 
-                style={{
-                  marginTop: '8px',
-                  padding: '5px 10px',
-                  background: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
+                className="secondary-btn primary"
                 onClick={() => {
                   setCurrentTaskIndex(index);
                   setShowBarcodeScanner(true);
@@ -654,20 +657,11 @@ const StoreVisit: React.FC = () => {
           
           {/* Firma digital */}
           {task.requiresSignature && task.signature && (
-            <div style={{ marginTop: '10px', padding: '10px', background: '#fff3cd', borderRadius: '5px' }}>
-              <h5 style={{ margin: '0 0 5px 0' }}>Firma capturada:</h5>
-              <img src={task.signature} alt="Firma" style={{ maxWidth: '200px', border: '1px solid #dee2e6', borderRadius: '4px' }} />
+            <div className="signature-section">
+              <h5>Firma capturada:</h5>
+              <img src={task.signature} alt="Firma" className="signature-image" />
               <button 
-                style={{
-                  marginTop: '8px',
-                  padding: '5px 10px',
-                  background: '#ffc107',
-                  color: 'black',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
+                className="secondary-btn warning"
                 onClick={() => {
                   setCurrentTaskIndex(index);
                   setShowSignaturePad(true);
@@ -680,7 +674,7 @@ const StoreVisit: React.FC = () => {
           
           {/* Timestamp */}
           {task.timestamp && (
-            <div style={{ marginTop: '8px', fontSize: '12px', color: '#6c757d' }}>
+            <div className="task-timestamp">
               Completado: {task.timestamp.toLocaleTimeString()}
             </div>
           )}
@@ -726,11 +720,13 @@ const StoreVisit: React.FC = () => {
 
   if (!route) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>No hay ruta asignada para hoy</h2>
-        <button onClick={() => navigate('/dashboard')}>
-          Volver al Dashboard
-        </button>
+      <div className="store-visit-container">
+        <div className="visit-status pending">
+          <h3>No hay ruta asignada para hoy</h3>
+          <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
+            Volver al Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -739,19 +735,22 @@ const StoreVisit: React.FC = () => {
   
   if (!currentStore) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Error: Tienda no encontrada</h2>
-        <p>No se pudo cargar la información de la tienda actual.</p>
-        <button onClick={() => navigate('/dashboard')}>
-          Volver al Dashboard
-        </button>
+      <div className="store-visit-container">
+        <div className="visit-status pending">
+          <h3>Error: Tienda no encontrada</h3>
+          <p>No se pudo cargar la información de la tienda actual.</p>
+          <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
+            Volver al Dashboard
+          </button>
+        </div>
       </div>
     );
   }
 
   const storeInfo = {
     name: currentStore.storeId?.name || 'Tienda no disponible',
-    address: currentStore.storeId?.address || 'Dirección no disponible'
+    address: currentStore.storeId?.address || 'Dirección no disponible',
+    coordinates: currentStore.storeId?.coordinates || { lat: 4.710989, lng: -74.072092 }
   };
 
   const completedTasks = tasks.filter(task => task.completed).length;
@@ -759,19 +758,21 @@ const StoreVisit: React.FC = () => {
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   return (
-    <div style={{ 
-      padding: '20px', 
-      maxWidth: '500px', 
-      margin: '0 auto',
-      backgroundColor: '#f8f9fa',
-      minHeight: '100vh'
-    }}>
+    <div className="store-visit-container">
       {/* Header */}
-      <header style={{ marginBottom: '20px' }}>
-        <h2 style={{ margin: '10px 0', color: '#333' }}>🏪 {storeInfo.name}</h2>
-        <p style={{ margin: '5px 0', color: '#666' }}>📍 {storeInfo.address}</p>
+      <header className="store-visit-header">
+        <h2>🏪 {storeInfo.name}</h2>
+        <p className="store-address">📍 {storeInfo.address}</p>
         
-        {/* 🆕 Componente de progreso mejorado */}
+        {/* 🆕 BOTÓN DE NAVEGACIÓN */}
+        <button 
+          className="secondary-btn primary"
+          onClick={openInMaps}
+          style={{ marginTop: '10px', marginBottom: '10px' }}
+        >
+          🗺️ Navegar a Tienda
+        </button>
+        
         <TaskProgress 
           completed={completedTasks}
           total={totalTasks}
@@ -780,34 +781,18 @@ const StoreVisit: React.FC = () => {
         />
         
         {timeInStore >= 40 && (
-          <div style={{
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            padding: '10px',
-            borderRadius: '5px',
-            marginBottom: '15px',
-            textAlign: 'center',
-            border: '1px solid #f5c6cb'
-          }}>
+          <div className="time-warning">
             ⚠️ Has excedido el tiempo máximo de 40 minutos
           </div>
         )}
       </header>
 
       {/* Estado de la visita */}
-      <div style={{ 
-        backgroundColor: currentStore.status === 'in-progress' ? '#d4edda' : '#fff3cd',
-        color: currentStore.status === 'in-progress' ? '#155724' : '#856404',
-        padding: '15px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        textAlign: 'center',
-        border: `1px solid ${currentStore.status === 'in-progress' ? '#c3e6cb' : '#ffeaa7'}`
-      }}>
-        <h3 style={{ margin: '0 0 5px 0' }}>
+      <div className={`visit-status ${currentStore.status === 'in-progress' ? 'in-progress' : 'pending'}`}>
+        <h3>
           {currentStore.status === 'in-progress' ? '🟢 Visita en Progreso' : '🟡 Visita Pendiente'}
         </h3>
-        <p style={{ margin: 0, fontSize: '14px' }}>
+        <p>
           {currentStore.status === 'in-progress' 
             ? `Progreso: ${progressPercentage.toFixed(0)}% completado` 
             : 'Presiona "Iniciar Visita" para comenzar'
@@ -817,46 +802,26 @@ const StoreVisit: React.FC = () => {
 
       {/* Botón para iniciar visita */}
       {currentStore.status === 'pending' && (
-        <button 
-          onClick={handleStartVisit}
-          style={{
-            width: '100%',
-            padding: '15px',
-            fontSize: '18px',
-            backgroundColor: '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            marginBottom: '20px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
+        <button className="primary-action-btn" onClick={handleStartVisit}>
           🏪 Iniciar Visita
         </button>
       )}
 
       {/* Lista de tareas cuando la visita está en progreso */}
       {currentStore.status === 'in-progress' && (
-        <div>
-          <h3 style={{ marginBottom: '15px', color: '#333' }}>📋 Checklist de Tareas:</h3>
+        <div className="tasks-section">
+          <h3>📋 Checklist de Tareas:</h3>
           
-          <div style={{ display: 'grid', gap: '10px' }}>
+          <div className="tasks-list">
             {tasks.map((task, index) => renderTask(task, index))}
           </div>
 
-          {/* 🆕 Reportes de daños */}
+          {/* Reportes de daños */}
           {damageReports.length > 0 && (
-            <div style={{ marginTop: '20px', padding: '15px', background: '#fff3cd', borderRadius: '8px' }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>⚠️ Reportes de Daños ({damageReports.length})</h4>
+            <div className="damage-reports">
+              <h4>⚠️ Reportes de Daños ({damageReports.length})</h4>
               {damageReports.map((report, index) => (
-                <div key={index} style={{ 
-                  padding: '10px', 
-                  background: 'white', 
-                  borderRadius: '5px', 
-                  marginBottom: '8px',
-                  border: '1px solid #dee2e6'
-                }}>
+                <div key={index} className="damage-report-card">
                   <strong>Producto:</strong> {report.product.name} <br/>
                   <strong>Código:</strong> {report.barcode} <br/>
                   <strong>Daño:</strong> {report.damageType} <br/>
@@ -870,64 +835,33 @@ const StoreVisit: React.FC = () => {
             </div>
           )}
 
-          {/* 🆕 Notas de la visita */}
-          <div style={{ marginTop: '20px' }}>
-            <h4 style={{ marginBottom: '10px' }}>📝 Notas de la visita</h4>
+          {/* Notas de la visita */}
+          <div className="visit-notes">
+            <h4>📝 Notas de la visita</h4>
             <textarea 
               value={visitNotes}
               onChange={(e) => setVisitNotes(e.target.value)}
               placeholder="Agregar notas adicionales sobre la visita..."
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #dee2e6',
-                borderRadius: '5px',
-                fontSize: '14px',
-                resize: 'vertical'
-              }}
+              className="notes-textarea"
             />
           </div>
 
           {/* Botones de acción */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '10px', 
-            marginTop: '30px',
-            flexWrap: 'wrap'
-          }}>
+          <div className="visit-actions">
             <button 
+              className="action-btn complete-btn"
               onClick={handleCompleteVisit}
               disabled={completedTasks !== totalTasks || loading}
-              style={{
-                flex: 1,
-                padding: '12px',
-                backgroundColor: completedTasks === totalTasks ? '#28a745' : '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: completedTasks === totalTasks ? 'pointer' : 'not-allowed',
-                fontWeight: 'bold',
-                opacity: loading ? 0.6 : 1
-              }}
             >
               {loading ? '⏳ Procesando...' : '✅ Finalizar Visita'}
             </button>
             
             <button 
+              className="action-btn skip-btn"
               onClick={() => {
                 if (window.confirm('¿Estás seguro de que quieres saltar esta tienda?')) {
                   handleSkipStore('Tienda cerrada');
                 }
-              }}
-              style={{
-                padding: '12px',
-                backgroundColor: '#ffc107',
-                color: '#212529',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
               }}
             >
               ⏭️ Saltar Tienda
@@ -936,49 +870,22 @@ const StoreVisit: React.FC = () => {
 
           {/* Mensaje de finalización */}
           {completedTasks === totalTasks && (
-            <div style={{
-              backgroundColor: '#28a745',
-              color: 'white',
-              padding: '10px',
-              borderRadius: '5px',
-              marginTop: '15px',
-              textAlign: 'center',
-              fontWeight: 'bold'
-            }}>
+            <div className="completion-message">
               ✅ Todas las tareas completadas. Revisa que tengas todas las fotos y firmas necesarias antes de finalizar.
             </div>
           )}
         </div>
       )}
 
-      {/* 🆕 Modal de Reporte de Daños */}
+      {/* Modal de Reporte de Daños */}
       {showDamageReport && currentProduct && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '20px',
-            borderRadius: '10px',
-            width: '90%',
-            maxWidth: '500px',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
+        <div className="damage-modal-overlay">
+          <div className="damage-modal">
             <h3>⚠️ Reportar Daño</h3>
             
             {/* Información del producto */}
-            <div style={{ padding: '15px', background: '#f8f9fa', borderRadius: '5px', marginBottom: '15px' }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>Producto Escaneado</h4>
+            <div className="product-info">
+              <h4>Producto Escaneado</h4>
               <p><strong>Nombre:</strong> {currentProduct.name}</p>
               <p><strong>Código:</strong> {currentBarcode}</p>
               <p><strong>Marca:</strong> {currentProduct.brand}</p>
@@ -986,17 +893,12 @@ const StoreVisit: React.FC = () => {
             </div>
 
             {/* Formulario de daño */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Tipo de Daño:</label>
+            <div className="modal-form-group">
+              <label className="modal-label">Tipo de Daño:</label>
               <select 
                 value={damageType}
                 onChange={(e) => setDamageType(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '4px'
-                }}
+                className="modal-select"
               >
                 <option value="">Seleccionar tipo de daño</option>
                 <option value="empaque_danado">Empaque dañado</option>
@@ -1008,17 +910,12 @@ const StoreVisit: React.FC = () => {
               </select>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Severidad:</label>
+            <div className="modal-form-group">
+              <label className="modal-label">Severidad:</label>
               <select 
                 value={damageSeverity}
                 onChange={(e) => setDamageSeverity(e.target.value as 'low' | 'medium' | 'high')}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '4px'
-                }}
+                className="modal-select"
               >
                 <option value="low">Baja</option>
                 <option value="medium">Media</option>
@@ -1026,25 +923,18 @@ const StoreVisit: React.FC = () => {
               </select>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Descripción:</label>
+            <div className="modal-form-group">
+              <label className="modal-label">Descripción:</label>
               <textarea 
                 value={damageDescription}
                 onChange={(e) => setDamageDescription(e.target.value)}
                 placeholder="Describir el daño encontrado..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '4px',
-                  resize: 'vertical'
-                }}
+                className="modal-textarea"
               />
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Fotos del Daño:</label>
+            <div className="modal-form-group">
+              <label className="modal-label">Fotos del Daño:</label>
               <PhotoUpload 
                 onPhotosChange={setDamagePhotos}
                 existingPhotos={damagePhotos}
@@ -1053,32 +943,17 @@ const StoreVisit: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div className="modal-actions">
               <button 
+                className="modal-btn cancel"
                 onClick={() => setShowDamageReport(false)}
-                style={{
-                  padding: '10px 15px',
-                  background: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
               >
                 Cancelar
               </button>
               <button 
+                className="modal-btn report"
                 onClick={handleAddDamageReport}
                 disabled={!damageType || !damageDescription || loading}
-                style={{
-                  padding: '10px 15px',
-                  background: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: damageType && damageDescription ? 'pointer' : 'not-allowed',
-                  opacity: loading ? 0.6 : 1
-                }}
               >
                 {loading ? '⏳ Guardando...' : '📝 Reportar Daño'}
               </button>
@@ -1087,7 +962,7 @@ const StoreVisit: React.FC = () => {
         </div>
       )}
 
-      {/* 🆕 Modales para funcionalidades avanzadas */}
+      {/* Modales para funcionalidades avanzadas */}
       {showSignaturePad && (
         <SignaturePad 
           onSave={handleSignatureSave}

@@ -1,13 +1,13 @@
-/* frontend/src/styles/AdvisorDashboard.css */
-.advisor-dashboard {
+/* frontend/src/styles/RouteMap.css */
+.route-map-container {
   padding: 1rem;
   background-color: #f8f9fa;
-  min-height: calc(100vh - 120px);
+  min-height: 100vh;
   color: #333;
 }
 
-/* Header Customizado */
-.dashboard-header-custom {
+/* Header */
+.route-map-header {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
@@ -15,21 +15,28 @@
   margin-bottom: 1.5rem;
 }
 
-.dashboard-header-custom h1 {
+.header-content h1 {
   color: #2c3e50;
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
   font-weight: 700;
 }
 
-/* ESTADÍSTICAS MEJORADAS - MEJOR CONTRASTE */
-.advisor-dashboard .route-stats {
+.route-date {
+  color: #7f8c8d;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* ESTADÍSTICAS - FORZANDO COLOR BLANCO */
+.route-map-container .route-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
+  margin-top: 1.5rem;
 }
 
-.advisor-dashboard .stat-item {
+.route-map-container .stat-card {
   padding: 1.25rem;
   border-radius: 12px;
   display: flex;
@@ -39,40 +46,44 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.advisor-dashboard .stat-item:hover {
+.route-map-container .stat-card:hover {
   transform: translateY(-3px);
 }
 
-.advisor-dashboard .stat-item:nth-child(1) {
+.route-map-container .stat-card.total {
   background: linear-gradient(135deg, #3498db, #2980b9) !important;
 }
 
-.advisor-dashboard .stat-item:nth-child(2) {
+.route-map-container .stat-card.completed {
   background: linear-gradient(135deg, #27ae60, #229954) !important;
 }
 
-.advisor-dashboard .stat-item:nth-child(3) {
+.route-map-container .stat-card.progress {
   background: linear-gradient(135deg, #f39c12, #e67e22) !important;
 }
 
+.route-map-container .stat-card.pending {
+  background: linear-gradient(135deg, #95a5a6, #7f8c8d) !important;
+}
+
 /* FORZAR TEXTO BLANCO EN ESTADÍSTICAS */
-.advisor-dashboard .stat-item,
-.advisor-dashboard .stat-item * {
+.route-map-container .stat-card,
+.route-map-container .stat-card * {
   color: white !important;
 }
 
-.advisor-dashboard .stat-icon {
+.route-map-container .stat-icon {
   font-size: 1.8rem;
   opacity: 0.9;
   color: white !important;
 }
 
-.advisor-dashboard .stat-info {
+.route-map-container .stat-info {
   display: flex;
   flex-direction: column;
 }
 
-.advisor-dashboard .stat-value {
+.route-map-container .stat-value {
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.2;
@@ -80,7 +91,7 @@
   color: white !important;
 }
 
-.advisor-dashboard .stat-label {
+.route-map-container .stat-label {
   font-size: 0.85rem;
   font-weight: 600;
   opacity: 0.95;
@@ -89,23 +100,41 @@
   color: white !important;
 }
 
-/* Layout Principal */
-.dashboard-content {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
+/* Secciones */
+.section-header {
+  margin-bottom: 1.5rem;
 }
 
-/* Sección de Mapa */
+.section-header h2 {
+  color: #2c3e50;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.section-header p {
+  color: #7f8c8d;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Mapa */
 .map-section {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  min-height: 400px;
+  margin-bottom: 1.5rem;
 }
 
-/* Sección de Tiendas */
+.map-container {
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 400px;
+  border: 1px solid #e9ecef;
+}
+
+/* Lista de Tiendas */
 .stores-section {
   background: white;
   padding: 1.5rem;
@@ -113,24 +142,16 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.section-title {
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-  font-size: 1.3rem;
-  font-weight: 600;
-}
-
-/* Grid de Tiendas Responsive */
-.stores-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+.stores-list {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
 /* Tarjetas de Tienda */
 .store-card {
   border: 1px solid #e9ecef;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 1.25rem;
   background: white;
   transition: all 0.3s ease;
@@ -149,20 +170,20 @@
 }
 
 .store-card.pending::before {
-  background: #ffc107;
+  background: #f39c12;
 }
 
 .store-card.in-progress::before {
-  background: #17a2b8;
+  background: #3498db;
 }
 
 .store-card.completed::before {
-  background: #28a745;
+  background: #27ae60;
 }
 
 .store-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
 
 .store-header {
@@ -173,7 +194,7 @@
 }
 
 .store-order {
-  background: #3498db;
+  background: #2c3e50;
   color: white;
   padding: 0.4rem 0.8rem;
   border-radius: 20px;
@@ -203,80 +224,106 @@
   color: #155724;
 }
 
+.store-info {
+  margin-bottom: 1rem;
+}
+
 .store-name {
   color: #2c3e50;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
   font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.3;
 }
 
-.store-address {
+.store-address,
+.store-time {
   color: #666;
-  margin: 0.25rem 0;
+  margin: 0.5rem 0;
   font-size: 0.9rem;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.store-zone {
-  color: #7f8c8d !important;
-  font-size: 0.8rem !important;
-  margin: 0.25rem 0 !important;
+.icon {
+  font-size: 1rem;
 }
 
-/* Botones de Acción */
+/* Acciones */
+.store-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .action-btn {
   border: none;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  width: 100%;
-  margin-top: 1rem;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.9rem;
+  flex: 1;
+  min-width: 120px;
+  justify-content: center;
 }
 
-.start-visit-btn {
+.navigate-btn {
+  background: #3498db;
+  color: white;
+}
+
+.navigate-btn:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+.visit-btn {
   background: #27ae60;
   color: white;
 }
 
-.start-visit-btn:hover {
-  background: #219a52;
+.visit-btn:hover:not(.completed):not(:disabled) {
+  background: #229954;
   transform: translateY(-1px);
 }
 
-.complete-visit-btn {
-  background: #e74c3c;
-  color: white;
+.visit-btn.completed {
+  background: #95a5a6;
+  cursor: not-allowed;
 }
 
-.complete-visit-btn:hover {
-  background: #c0392b;
-  transform: translateY(-1px);
+.visit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.completed-badge {
-  background: #d4edda;
-  color: #155724;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  text-align: center;
-  font-weight: 600;
-  margin-top: 1rem;
-  font-size: 0.9rem;
+.btn-icon {
+  font-size: 1rem;
+}
+
+.btn-text {
+  white-space: nowrap;
 }
 
 /* Estados de Loading y Error */
-.dashboard-loading {
+.route-map-loading,
+.route-map-error,
+.route-map-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 3rem;
-  color: #666;
   text-align: center;
+  min-height: 50vh;
 }
 
 .spinner {
@@ -294,36 +341,39 @@
   100% { transform: rotate(360deg); }
 }
 
-.dashboard-error, .dashboard-empty {
+.route-map-error {
   background: white;
-  padding: 2rem;
   border-radius: 12px;
-  text-align: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin: 1rem;
-}
-
-.dashboard-error {
   border-left: 4px solid #e74c3c;
 }
 
-.dashboard-empty {
+.route-map-empty {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border-left: 4px solid #f39c12;
 }
 
-.retry-btn {
+.error-icon,
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.primary-btn {
   background: #3498db;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   margin-top: 1rem;
   transition: background 0.3s;
 }
 
-.retry-btn:hover {
+.primary-btn:hover {
   background: #2980b9;
 }
 
@@ -331,131 +381,84 @@
 
 /* Tablets */
 @media (max-width: 1024px) {
-  .dashboard-content {
-    grid-template-columns: 1fr;
+  .route-map-container .route-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
   
-  .stores-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  .store-actions {
+    flex-direction: column;
   }
   
-  .advisor-dashboard .route-stats {
-    grid-template-columns: repeat(3, 1fr);
+  .action-btn {
+    min-width: auto;
   }
 }
 
 /* Tablets Pequeñas */
 @media (max-width: 768px) {
-  .advisor-dashboard {
+  .route-map-container {
     padding: 0.75rem;
   }
   
-  .dashboard-header-custom {
-    padding: 1.25rem;
-  }
-  
-  .dashboard-header-custom h1 {
-    font-size: 1.3rem;
-  }
-  
-  .advisor-dashboard .route-stats {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-  
-  .advisor-dashboard .stat-item {
-    padding: 1rem;
-  }
-  
-  .advisor-dashboard .stat-value {
-    font-size: 1.3rem;
-  }
-  
+  .route-map-header,
   .map-section,
   .stores-section {
     padding: 1.25rem;
   }
   
-  .stores-grid {
+  .header-content h1 {
+    font-size: 1.3rem;
+  }
+  
+  .route-map-container .route-stats-grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .route-map-container .stat-card {
+    padding: 1rem;
+  }
+  
+  .route-map-container .stat-value {
+    font-size: 1.3rem;
+  }
+  
+  .section-header h2 {
+    font-size: 1.1rem;
   }
 }
 
 /* Móviles */
 @media (max-width: 480px) {
-  .advisor-dashboard {
+  .route-map-container {
     padding: 0.5rem;
   }
   
-  .dashboard-header-custom {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .dashboard-header-custom h1 {
-    font-size: 1.1rem;
-    margin-bottom: 0.75rem;
-  }
-  
-  .section-title {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .advisor-dashboard .stat-item {
-    padding: 0.875rem;
-  }
-  
-  .advisor-dashboard .stat-value {
-    font-size: 1.25rem;
-  }
-  
-  .advisor-dashboard .stat-label {
-    font-size: 0.8rem;
-  }
-  
+  .route-map-header,
   .map-section,
   .stores-section {
     padding: 1rem;
     border-radius: 8px;
   }
   
+  .header-content h1 {
+    font-size: 1.1rem;
+  }
+  
+  .route-map-container .stat-card {
+    padding: 0.875rem;
+  }
+  
+  .route-map-container .stat-value {
+    font-size: 1.25rem;
+  }
+  
+  .route-map-container .stat-label {
+    font-size: 0.8rem;
+  }
+  
   .store-card {
     padding: 1rem;
-  }
-  
-  .store-name {
-    font-size: 1rem;
-  }
-  
-  .store-address {
-    font-size: 0.85rem;
-  }
-  
-  .action-btn {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.85rem;
-  }
-}
-
-/* Móviles muy pequeños */
-@media (max-width: 360px) {
-  .advisor-dashboard {
-    padding: 0.25rem;
-  }
-  
-  .dashboard-header-custom,
-  .map-section,
-  .stores-section {
-    padding: 0.75rem;
-  }
-  
-  .advisor-dashboard .stat-item {
-    padding: 0.75rem;
-  }
-  
-  .store-card {
-    padding: 0.75rem;
   }
   
   .store-header {
@@ -467,55 +470,38 @@
   .store-order {
     align-self: flex-start;
   }
-}
-
-/* Mejoras de accesibilidad */
-@media (prefers-reduced-motion: reduce) {
-  .store-card,
-  .action-btn,
-  .advisor-dashboard .stat-item,
-  .store-card::before {
-    transition: none;
-  }
-  
-  .spinner {
-    animation-duration: 2s;
-  }
-}
-
-/* Modo oscuro (opcional) */
-@media (prefers-color-scheme: dark) {
-  .advisor-dashboard {
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-  }
-  
-  .dashboard-header-custom,
-  .map-section,
-  .stores-section,
-  .store-card {
-    background: #2d2d2d;
-    color: #e0e0e0;
-  }
   
   .store-name {
-    color: #ffffff;
+    font-size: 1rem;
   }
   
-  .store-address {
-    color: #b0b0b0;
+  .action-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
   }
   
-  /* Asegurar contraste en modo oscuro para las estadísticas */
-  .advisor-dashboard .stat-item:nth-child(1) {
-    background: linear-gradient(135deg, #2980b9, #1f618d) !important;
+  .btn-text {
+    font-size: 0.8rem;
+  }
+}
+
+/* Móviles muy pequeños */
+@media (max-width: 360px) {
+  .route-map-header,
+  .map-section,
+  .stores-section {
+    padding: 0.75rem;
   }
   
-  .advisor-dashboard .stat-item:nth-child(2) {
-    background: linear-gradient(135deg, #229954, #1e7e34) !important;
+  .route-map-container .stat-card {
+    padding: 0.75rem;
   }
   
-  .advisor-dashboard .stat-item:nth-child(3) {
-    background: linear-gradient(135deg, #e67e22, #d35400) !important;
+  .store-card {
+    padding: 0.75rem;
+  }
+  
+  .store-actions {
+    gap: 0.5rem;
   }
 }

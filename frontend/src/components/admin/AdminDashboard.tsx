@@ -1,5 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// Interfaces para los datos
+interface DashboardOverview {
+  active_advisors: number;
+  active_routes: number;
+  total_stores_today: number;
+  completed_stores: number;
+  in_progress_stores: number;
+  avg_visit_duration: number;
+}
 
 // Componente de tarjeta reutilizable
 interface DashboardCardProps {
@@ -58,6 +68,55 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, description, onCli
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Función simple para cargar los datos
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🔄 Cargando datos del dashboard...');
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      const response = await fetch('http://localhost:5000/api/admin/dashboard/overview', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📊 Status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data: DashboardOverview = await response.json();
+      console.log('✅ Datos recibidos:', data);
+      
+      setDashboardData(data);
+    } catch (err) {
+      console.error('❌ Error cargando dashboard:', err);
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const handleRetry = () => {
+    loadDashboardData();
+  };
 
   return (
     <div style={{ 
@@ -86,7 +145,7 @@ const AdminDashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* Grid de Tarjetas - Solo las esenciales */}
+      {/* Grid de Tarjetas */}
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
@@ -114,7 +173,7 @@ const AdminDashboard: React.FC = () => {
         />
       </div>
 
-      {/* Información Rápida */}
+      {/* Resumen Rápido */}
       <div style={{
         marginTop: '50px',
         padding: '20px',
@@ -125,18 +184,63 @@ const AdminDashboard: React.FC = () => {
         <h3 style={{ margin: '0 0 15px 0', color: '#1f2937' }}>
           Resumen Rápido del Sistema
         </h3>
+        
+        {error && (
+          <div style={{
+            padding: '15px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <strong style={{ color: '#dc2626' }}>⚠️ Error:</strong>
+              <span style={{ marginLeft: '8px', color: '#6b7280' }}>{error}</span>
+            </div>
+            <button 
+              onClick={handleRetry}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
           <div>
             <strong style={{ color: '#3b82f6' }}>Asesores Activos:</strong>
-            <span style={{ marginLeft: '8px', color: '#6b7280' }}>Cargando...</span>
+            <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              {loading ? 'Cargando...' : dashboardData?.active_advisors ?? 'N/A'}
+            </span>
           </div>
           <div>
             <strong style={{ color: '#3b82f6' }}>Tiendas Hoy:</strong>
-            <span style={{ marginLeft: '8px', color: '#6b7280' }}>Cargando...</span>
+            <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              {loading ? 'Cargando...' : dashboardData?.total_stores_today ?? 'N/A'}
+            </span>
           </div>
           <div>
             <strong style={{ color: '#3b82f6' }}>Rutas en Progreso:</strong>
-            <span style={{ marginLeft: '8px', color: '#6b7280' }}>Cargando...</span>
+            <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              {loading ? 'Cargando...' : dashboardData?.active_routes ?? 'N/A'}
+            </span>
+          </div>
+          <div>
+            <strong style={{ color: '#3b82f6' }}>Tiendas Completadas:</strong>
+            <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              {loading ? 'Cargando...' : dashboardData?.completed_stores ?? 'N/A'}
+            </span>
           </div>
         </div>
       </div>

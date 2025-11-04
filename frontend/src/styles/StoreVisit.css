@@ -1,0 +1,746 @@
+/* frontend/src/styles/StoreVisit.css */
+.store-visit-container {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  color: #333;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Header */
+.store-visit-header {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.store-visit-header h2 {
+  color: #2c3e50;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.store-address {
+  color: #7f8c8d;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+/* Progreso */
+.progress-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 1.5rem;
+}
+
+/* Estado de la visita */
+.visit-status {
+  padding: 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  border: 2px solid transparent;
+  font-weight: 600;
+}
+
+.visit-status.in-progress {
+  background: #d4edda;
+  color: #155724;
+  border-color: #c3e6cb;
+}
+
+.visit-status.pending {
+  background: #fff3cd;
+  color: #856404;
+  border-color: #ffeaa7;
+}
+
+.visit-status h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.visit-status p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Botón principal */
+.primary-action-btn {
+  width: 100%;
+  padding: 1.25rem;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, #27ae60, #229954);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.primary-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.primary-action-btn:active {
+  transform: translateY(0);
+}
+
+.primary-action-btn:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Sección de tareas */
+.tasks-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 1.5rem;
+}
+
+.tasks-section h3 {
+  color: #2c3e50;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Lista de tareas */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Tarjetas de tarea */
+.task-card {
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: white;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.task-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.task-card.completed {
+  background: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.task-card.completed::before {
+  background: #28a745;
+}
+
+.task-card:not(.completed):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  border-color: #3498db;
+}
+
+.task-card:not(.completed)::before {
+  background: #3498db;
+}
+
+/* Contenido de la tarea */
+.task-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.task-checkbox {
+  margin-top: 0.25rem;
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+.task-info {
+  flex: 1;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.task-label {
+  font-weight: 600;
+  color: #2c3e50;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 200px;
+}
+
+.task-card.completed .task-label {
+  color: #155724;
+  text-decoration: line-through;
+}
+
+/* Badges de requisitos */
+.task-requirements {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.requirement-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.requirement-badge.photos {
+  background: #007bff;
+  color: white;
+}
+
+.requirement-badge.barcode {
+  background: #28a745;
+  color: white;
+}
+
+.requirement-badge.signature {
+  background: #ffc107;
+  color: #212529;
+}
+
+/* Secciones adicionales dentro de tareas */
+.task-additional {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+/* Subida de fotos */
+.photos-section {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+/* Productos escaneados */
+.scanned-products {
+  background: #e8f5e8;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+.scanned-products h5 {
+  margin: 0 0 0.5rem 0;
+  color: #155724;
+}
+
+.barcode-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.barcode-tag {
+  background: white;
+  padding: 0.375rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+  font-weight: 500;
+}
+
+/* Firma digital */
+.signature-section {
+  background: #fff3cd;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+.signature-section h5 {
+  margin: 0 0 0.5rem 0;
+  color: #856404;
+}
+
+.signature-image {
+  max-width: 100%;
+  border: 2px solid #ffc107;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+/* Botones secundarios */
+.secondary-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.secondary-btn.primary {
+  background: #28a745;
+  color: white;
+}
+
+.secondary-btn.primary:hover {
+  background: #229954;
+  transform: translateY(-1px);
+}
+
+.secondary-btn.warning {
+  background: #ffc107;
+  color: #212529;
+}
+
+.secondary-btn.warning:hover {
+  background: #e0a800;
+  transform: translateY(-1px);
+}
+
+/* Reportes de daños */
+.damage-reports {
+  background: #fff3cd;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+}
+
+.damage-reports h4 {
+  margin: 0 0 1rem 0;
+  color: #856404;
+}
+
+.damage-report-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  border: 1px solid #dee2e6;
+}
+
+/* Notas de visita */
+.visit-notes {
+  margin-top: 1.5rem;
+}
+
+.visit-notes h4 {
+  margin: 0 0 0.75rem 0;
+  color: #2c3e50;
+}
+
+.notes-textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.3s ease;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Acciones finales */
+.visit-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  text-align: center;
+}
+
+.complete-btn {
+  background: linear-gradient(135deg, #28a745, #229954);
+  color: white;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.complete-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.complete-btn:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.skip-btn {
+  background: #ffc107;
+  color: #212529;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+.skip-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
+}
+
+/* Mensaje de finalización */
+.completion-message {
+  background: #28a745;
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Modal de reporte de daños */
+.damage-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.damage-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.damage-modal h3 {
+  color: #2c3e50;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+/* Información del producto en modal */
+.product-info {
+  background: #f8f9fa;
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #3498db;
+}
+
+.product-info h4 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+}
+
+.product-info p {
+  margin: 0.5rem 0;
+  color: #555;
+}
+
+/* Formularios en modal */
+.modal-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.modal-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.modal-select,
+.modal-textarea {
+  width: 100%;
+  padding: 0.875rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.3s ease;
+}
+
+.modal-select:focus,
+.modal-textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.modal-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Acciones del modal */
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.modal-btn.cancel {
+  background: #6c757d;
+  color: white;
+}
+
+.modal-btn.cancel:hover {
+  background: #5a6268;
+}
+
+.modal-btn.report {
+  background: #dc3545;
+  color: white;
+}
+
+.modal-btn.report:hover:not(:disabled) {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ========== RESPONSIVE DESIGN ========== */
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .store-visit-container {
+    padding: 0.75rem;
+  }
+  
+  .visit-actions {
+    flex-direction: column;
+  }
+  
+  .action-btn {
+    min-width: auto;
+  }
+}
+
+/* Tablets Pequeñas */
+@media (max-width: 768px) {
+  .store-visit-header,
+  .progress-section,
+  .tasks-section {
+    padding: 1.25rem;
+  }
+  
+  .store-visit-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .task-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .task-label {
+    min-width: auto;
+  }
+  
+  .damage-modal {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+}
+
+/* Móviles */
+@media (max-width: 480px) {
+  .store-visit-container {
+    padding: 0.5rem;
+  }
+  
+  .store-visit-header,
+  .progress-section,
+  .tasks-section {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .store-visit-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .primary-action-btn {
+    padding: 1rem;
+    font-size: 1rem;
+  }
+  
+  .task-card {
+    padding: 1rem;
+  }
+  
+  .task-content {
+    gap: 0.75rem;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-btn {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Móviles muy pequeños */
+@media (max-width: 360px) {
+  .store-visit-header,
+  .progress-section,
+  .tasks-section {
+    padding: 0.75rem;
+  }
+  
+  .task-card {
+    padding: 0.75rem;
+  }
+  
+  .task-requirements {
+    justify-content: center;
+  }
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .task-card,
+  .primary-action-btn,
+  .action-btn,
+  .secondary-btn,
+  .modal-btn {
+    transition: none;
+  }
+}
+
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  .store-visit-container {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .store-visit-header,
+  .progress-section,
+  .tasks-section,
+  .task-card,
+  .damage-modal,
+  .product-info {
+    background: #2d2d2d;
+    color: #e0e0e0;
+  }
+  
+  .store-visit-header h2,
+  .task-label {
+    color: #ffffff;
+  }
+  
+  .store-address {
+    color: #b0b0b0;
+  }
+  
+  .task-card {
+    border-color: #4d4d4d;
+  }
+  
+  .notes-textarea,
+  .modal-select,
+  .modal-textarea {
+    background: #3d3d3d;
+    border-color: #4d4d4d;
+    color: #e0e0e0;
+  }
+
+  /* Advertencia de tiempo */
+    .time-warning {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #f5c6cb;
+    font-weight: 600;
+    margin-top: 1rem;
+    }
+
+    /* Timestamp de tarea */
+    .task-timestamp {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-style: italic;
+    }
+}

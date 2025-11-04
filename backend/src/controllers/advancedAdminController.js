@@ -2,14 +2,40 @@
 import { createConnection } from '../config/database.js';
 import { mlService } from '../services/mlService.js';
 
+// ✅ FUNCIÓN CALCULATE DATE RANGE CORREGIDA (fuera del objeto)
+const calculateDateRange = (timeRange) => {
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+
+  switch (timeRange) {
+    case 'week':
+      start.setDate(now.getDate() - 7);
+      break;
+    case 'month':
+      start.setMonth(now.getMonth() - 1);
+      break;
+    case 'quarter':
+      start.setMonth(now.getMonth() - 3);
+      break;
+    default:
+      start.setMonth(now.getMonth() - 1);
+  }
+
+  return { 
+    start: start.toISOString().split('T')[0], 
+    end: end.toISOString().split('T')[0] 
+  };
+};
+
 export const advancedAdminController = {
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     try {
       const { timeRange = 'month' } = req.query;
       
-      // Calcular fechas según el rango
-      const dateRange = this.calculateDateRange(timeRange);
+      // ✅ CORREGIDO: Usar la función importada correctamente
+      const dateRange = calculateDateRange(timeRange);
       
       console.log('📊 Obteniendo métricas avanzadas para rango:', dateRange);
 
@@ -308,7 +334,7 @@ export const advancedAdminController = {
     const connection = await createConnection();
     try {
       const { timeRange = 'month' } = req.query;
-      const dateRange = this.calculateDateRange(timeRange);
+      const dateRange = calculateDateRange(timeRange); // ✅ CORREGIDO
 
       const [salesData] = await connection.execute(
         `SELECT 
@@ -330,30 +356,5 @@ export const advancedAdminController = {
     } finally {
       await connection.end();
     }
-  },
-
-  calculateDateRange(timeRange) {
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    switch (timeRange) {
-      case 'week':
-        start.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        start.setMonth(now.getMonth() - 1);
-        break;
-      case 'quarter':
-        start.setMonth(now.getMonth() - 3);
-        break;
-      default:
-        start.setMonth(now.getMonth() - 1);
-    }
-
-    return { 
-      start: start.toISOString().split('T')[0], 
-      end: end.toISOString().split('T')[0] 
-    };
   }
 };
