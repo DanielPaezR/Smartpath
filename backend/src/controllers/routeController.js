@@ -1,7 +1,8 @@
-// backend/src/controllers/routeController.js - VERSIÓN COMPLETA CON STATUS ESTANDARIZADO
+// backend/src/controllers/routeController.js - VERSIÓN CON ANALYTICS INTEGRADO
 import { createConnection } from '../config/database.js';
+import { mlService } from '../services/mlService.js';
 
-console.log('🔄 routeController.js CARGADO - VERSIÓN COMPLETA CON STATUS ESTANDARIZADO');
+console.log('🔄 routeController.js CARGADO - VERSIÓN CON ANALYTICS');
 
 export const routeController = {
   async getCurrentRoute(req, res) {
@@ -341,7 +342,8 @@ export const routeController = {
          SET status = 'completed', end_time = NOW(),
              actual_duration = ?, notes = ?,
              before_photo_url = ?, after_photo_url = ?,
-             products_damaged = ?, signature_url = ?, barcode_data = ?
+             products_damaged = ?, signature_url = ?, barcode_data = ?,
+             tasks_completed = ?
          WHERE id = ? AND route_id = ?`,
         [
           duration,
@@ -351,6 +353,7 @@ export const routeController = {
           visitData?.productsDamaged || 0,
           visitData?.signature || null,
           visitData?.barcodeData || null,
+          visitData?.tasksCompleted || 0,
           storeVisitId,
           routeId
         ]
@@ -367,6 +370,21 @@ export const routeController = {
         `UPDATE routes SET completed_stores = completed_stores + 1 WHERE id = ?`,
         [routeId]
       );
+
+      // 🎯 CAPTURAR ANALYTICS DESPUÉS DE COMPLETAR VISITA
+      try {
+        await mlService.captureVisitMetrics(storeVisitId, {
+          duration: duration,
+          tasksCompleted: visitData?.tasksCompleted || 0,
+          totalTasks: 10, // Asumiendo 10 tareas por tienda
+          damageReportsCount: visitData?.productsDamaged || 0,
+          travelTime: 0 // Puedes calcular esto después
+        });
+        console.log('📊 Analytics capturados exitosamente');
+      } catch (analyticsError) {
+        console.error('❌ Error en analytics (no crítico):', analyticsError);
+        // No fallar la request principal por errores de analytics
+      }
 
       return res.json({
         success: true,
@@ -583,6 +601,19 @@ export const routeController = {
         return res.status(404).json({ message: 'Visita no encontrada' });
       }
 
+      // 🎯 CAPTURAR ANALYTICS DE TAREAS
+      try {
+        await mlService.captureTaskMetrics(visitId, {
+          type: 'batch_update',
+          key: 'multiple_tasks',
+          tasksCompleted: taskData.tasksCompleted || 0,
+          photosCount: (taskData.beforePhoto ? 1 : 0) + (taskData.afterPhoto ? 1 : 0)
+        });
+        console.log('📊 Analytics de tareas capturados');
+      } catch (analyticsError) {
+        console.error('❌ Error en analytics de tareas:', analyticsError);
+      }
+
       console.log('✅ Tareas actualizadas exitosamente');
       res.json({ 
         message: 'Tareas actualizadas exitosamente',
@@ -705,6 +736,30 @@ export const routeController = {
       });
     } finally {
       await connection.end();
+    }
+  },
+
+  // 🆕 ENDPOINT PARA OPTIMIZAR RUTA CON ML
+  async optimizeRoute(req, res) {
+    try {
+      const { stores, advisor, constraints } = req.body;
+
+      console.log('🧠 Solicitando optimización de ruta con ML');
+
+      const optimizedRoute = await mlService.optimizeRoute(stores, advisor, constraints);
+
+      res.json({
+        success: true,
+        message: 'Ruta optimizada exitosamente',
+        data: optimizedRoute
+      });
+    } catch (error) {
+      console.error('❌ Error optimizando ruta:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error optimizando ruta',
+        error: error.message
+      });
     }
   }
 };

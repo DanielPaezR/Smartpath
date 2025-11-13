@@ -292,6 +292,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
                     color: '#6b7280'
                   }}>
                     <span>Orden: <strong>#{index + 1}</strong></span>
+                    
                     {store.status && (
                       <span style={{
                         padding: '2px 8px',
