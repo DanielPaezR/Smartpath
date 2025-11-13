@@ -1,4 +1,4 @@
-// frontend/src/components/advisor/StoreVisit.tsx
+// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
@@ -96,7 +96,7 @@ const productService = {
 const trackingService = {
   updateLocation: async (latitude: number, longitude: number, currentStoreId?: string, activityStatus?: string) => {
     try {
-      const response = await fetch('/api/tracking/update-location', {
+      const response = await fetch('http://localhost:3000/api/tracking/update-location', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,9 +105,9 @@ const trackingService = {
         body: JSON.stringify({
           latitude,
           longitude,
-          currentStoreId,
-          activityStatus,
-          batteryLevel: 100
+          currentStoreId: null,
+          activityStatus: 'active', 
+          batteryLevel: 80 
         })
       });
       
@@ -126,6 +126,15 @@ const StoreVisit: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { storeVisitId, routeId } = location.state || {};
+  
+  console.log('📍 Parámetros recibidos en StoreVisit:', {
+    storeVisitId,
+    routeId,
+    locationState: location.state
+  });
+  
   const [route, setRoute] = useState<IRoute | null>(null);
   const [currentStoreIndex, setCurrentStoreIndex] = useState(0);
   const [timeInStore, setTimeInStore] = useState(0);
@@ -144,6 +153,11 @@ const StoreVisit: React.FC = () => {
   const [damagePhotos, setDamagePhotos] = useState<string[]>([]);
   const [visitNotes, setVisitNotes] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 🎯 ESTADOS MEJORADOS - SOPORTE PARA in_progress E in-progress
+  const [visitStatus, setVisitStatus] = useState<'pending' | 'in-progress' | 'in_progress' | 'completed' | 'skipped'>('pending');
+  const [currentVisitData, setCurrentVisitData] = useState<any>(null);
+  const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
 
   // Tareas mejoradas
   const taskDefinitions: ITask[] = [
@@ -204,6 +218,78 @@ const StoreVisit: React.FC = () => {
     }
   ];
 
+  // 🎯 FUNCIÓN MEJORADA: Normalizar status (soporta ambos formatos)
+  const normalizeStatus = (status: string): 'pending' | 'in-progress' | 'completed' | 'skipped' => {
+    if (status === 'in_progress' || status === 'in-progress') {
+      return 'in-progress';
+    }
+    return status as 'pending' | 'in-progress' | 'completed' | 'skipped';
+  };
+
+  // 🎯 FUNCIÓN MEJORADA: Verificar estado de visita
+  const checkVisitStatus = () => {
+    if (!route || !storeVisitId) {
+      console.log('❌ No hay ruta o storeVisitId para verificar estado');
+      return;
+    }
+    
+    console.log('🔍 VERIFICANDO ESTADO DE VISITA - DEBUG COMPLETO:', {
+      routeId: route.id,
+      storeVisitId,
+      totalStores: route.stores?.length,
+      stores: route.stores?.map(s => ({ id: s.id, status: s.status, name: s.storeId?.name }))
+    });
+
+    // Buscar la visita actual en las tiendas de la ruta
+    const currentStoreVisit = route.stores?.find(
+      store => store.id.toString() === storeVisitId.toString()
+    );
+
+    console.log('🏪 VISITA ACTUAL ENCONTRADA:', currentStoreVisit);
+
+    if (currentStoreVisit) {
+      // 🎯 NORMALIZAR EL STATUS (soporta in_progress e in-progress)
+      const normalizedStatus = normalizeStatus(currentStoreVisit.status || 'pending');
+      
+      console.log('🔄 ACTUALIZANDO ESTADO DE VISITA:', {
+        estadoOriginal: currentStoreVisit.status,
+        estadoNormalizado: normalizedStatus,
+        storeVisitId
+      });
+      
+      setVisitStatus(normalizedStatus);
+      setCurrentVisitData(currentStoreVisit);
+      
+      if (normalizedStatus === 'in-progress') {
+        console.log('✅ VISITA EN PROGRESO DETECTADA - Inicializando tareas...');
+        setIsTimerRunning(true);
+        initializeTasks();
+        
+        // 🎯 CALCULAR TIEMPO TRANSCURRIDO si ya estaba en progreso
+        if (currentStoreVisit.start_time) {
+          const startTime = new Date(currentStoreVisit.start_time);
+          const now = new Date();
+          const diffMs = now.getTime() - startTime.getTime();
+          const minutesElapsed = Math.floor(diffMs / 60000);
+          setTimeInStore(minutesElapsed);
+          console.log(`⏱️ Tiempo transcurrido calculado: ${minutesElapsed} minutos`);
+        } else {
+          console.log('ℹ️ No hay start_time disponible, iniciando desde 0');
+          setTimeInStore(0);
+        }
+      } else if (normalizedStatus === 'pending') {
+        console.log('⏳ VISITA PENDIENTE - Mostrando botón de inicio');
+        setIsTimerRunning(false);
+        setTimeInStore(0);
+      }
+      
+      setHasCheckedStatus(true);
+    } else {
+      console.error('❌ NO SE ENCONTRÓ LA VISITA EN LA RUTA');
+      setHasCheckedStatus(true);
+    }
+  };
+
   // 🆕 FUNCIÓN PARA NAVEGACIÓN A MAPS
   const openInMaps = () => {
     if (!route?.stores?.[currentStoreIndex]?.storeId?.coordinates) {
@@ -212,21 +298,18 @@ const StoreVisit: React.FC = () => {
     }
 
     const store = route.stores[currentStoreIndex].storeId;
-    const lat = store.coordinates?.lat || 4.710989; // Bogotá por defecto
+    const lat = store.coordinates?.lat || 4.710989;
     const lng = store.coordinates?.lng || -74.072092;
     const storeName = encodeURIComponent(store.name || 'Tienda');
     
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
     if (isMobile) {
-      // Intentar con Waze primero
       window.open(`waze://?ll=${lat},${lng}&navigate=yes`, '_blank');
-      // Fallback a Google Maps después de un delay
       setTimeout(() => {
         window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
       }, 500);
     } else {
-      // Desktop - Google Maps
       window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
     }
   };
@@ -272,37 +355,50 @@ const StoreVisit: React.FC = () => {
 
   const loadCurrentRoute = async () => {
     try {
+      console.log('🔄 Cargando ruta actual para usuario:', user?.id);
       const currentRoute = await routeService.getCurrentRoute(user!.id);
       setRoute(currentRoute);
       
       if (currentRoute) {
-        // Si viene de un storeId específico, encontrar ese índice
-        const storeIdFromState = location.state?.storeId;
-        let currentIndex;
-        
-        if (storeIdFromState) {
-          currentIndex = currentRoute.stores.findIndex(store => store.id === storeIdFromState);
-        } else {
+        console.log('✅ Ruta cargada:', {
+          id: currentRoute.id,
+          totalStores: currentRoute.stores?.length,
+          stores: currentRoute.stores?.map(s => ({ id: s.id, status: s.status, name: s.storeId?.name }))
+        });
+
+        // Buscar el índice de la tienda actual
+        let currentIndex = 0;
+        if (storeVisitId) {
           currentIndex = currentRoute.stores.findIndex(
-            store => store.status === 'in-progress' || store.status === 'pending'
+            store => store.id.toString() === storeVisitId.toString()
           );
+          console.log('🎯 Buscando índice para storeVisitId:', {
+            storeVisitId,
+            encontradoEnIndice: currentIndex,
+            totalStores: currentRoute.stores.length
+          });
         }
-        
-        setCurrentStoreIndex(Math.max(0, currentIndex));
-        
-        // Inicializar tareas si la visita está en progreso
-        if (currentIndex >= 0 && currentRoute.stores[currentIndex].status === 'in-progress') {
-          initializeTasks();
-          setIsTimerRunning(true);
+
+        if (currentIndex === -1) {
+          currentIndex = 0;
+          console.warn('⚠️ No se encontró la tienda, usando índice 0');
         }
+
+        setCurrentStoreIndex(currentIndex);
+        
+        // 🎯 VERIFICAR ESTADO DE VISITA INMEDIATAMENTE
+        setTimeout(() => {
+          checkVisitStatus();
+        }, 100);
       }
     } catch (error) {
-      console.error('Error cargando ruta:', error);
+      console.error('❌ Error cargando ruta:', error);
       alert('Error cargando la ruta. Intenta nuevamente.');
     }
   };
 
   const initializeTasks = () => {
+    console.log('🔄 Inicializando tareas...');
     setTasks([...taskDefinitions]);
   };
 
@@ -332,6 +428,7 @@ const StoreVisit: React.FC = () => {
       });
       
       setIsTimerRunning(true);
+      setVisitStatus('in-progress');
       initializeTasks();
       
       // ACTUALIZAR TRACKING - Asesor llega a la tienda
@@ -341,6 +438,20 @@ const StoreVisit: React.FC = () => {
       console.error('❌ Error iniciando visita:', error);
       alert('Error al iniciar la visita. Intenta nuevamente.');
     }
+  };
+
+  // 🎯 FUNCIÓN MEJORADA: Continuar visita existente
+  const handleContinueVisit = () => {
+    console.log('🔄 CONTINUANDO VISITA EXISTENTE...');
+    setIsTimerRunning(true);
+    setVisitStatus('in-progress');
+    initializeTasks();
+    
+    console.log('✅ Estado actualizado:', {
+      isTimerRunning: true,
+      visitStatus: 'in-progress',
+      tasksInicializadas: tasks.length
+    });
   };
 
   // Manejo mejorado de tareas
@@ -539,6 +650,7 @@ const StoreVisit: React.FC = () => {
       });
       
       setIsTimerRunning(false);
+      setVisitStatus('completed');
       await updateAdvisorLocation(undefined, 'traveling');
       
       // Navegar con resumen
@@ -561,21 +673,31 @@ const StoreVisit: React.FC = () => {
     }
   };
 
+  // 🎯 FUNCIÓN CORREGIDA - SIN skipReason
   const handleSkipStore = async (reason: string) => {
     if (!route) return;
 
     try {
-      console.log('⏭️ Saltando tienda:', reason);
+      console.log('⏭️ Saltando tienda:', {
+        routeId: route.id,
+        storeVisitId: route.stores[currentStoreIndex].id,
+        reason: reason
+      });
       
-      // Simular saltar tienda
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 🎯 LLAMAR AL SERVICIO PARA SALTAR LA TIENDA
+      const result = await routeService.skipStoreVisit(
+        route.id, 
+        route.stores[currentStoreIndex].id, 
+        reason
+      );
       
-      // Actualizar estado local
+      console.log('✅ Resultado de saltar tienda:', result);
+      
+      // 🎯 ACTUALIZAR ESTADO LOCAL
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
         ...updatedStores[currentStoreIndex],
-        status: 'skipped',
-        skipReason: reason
+        status: 'skipped'
       };
       
       setRoute({
@@ -584,15 +706,35 @@ const StoreVisit: React.FC = () => {
       });
       
       setIsTimerRunning(false);
+      setVisitStatus('skipped');
       
-      // ACTUALIZAR TRACKING - Asesor sale sin completar
+      // 🎯 ACTUALIZAR TRACKING - Asesor sale sin completar
       await updateAdvisorLocation(undefined, 'traveling');
       
-      // Navegar de vuelta al dashboard
+      // 🎯 MOSTRAR CONFIRMACIÓN
+      alert('✅ Tienda saltada exitosamente');
+      
+      // 🎯 NAVEGAR AL DASHBOARD
       navigate('/dashboard');
       
     } catch (error) {
-      console.error('Error saltando tienda:', error);
+      console.error('❌ Error saltando tienda:', error);
+      
+      // 🎯 MEJOR MANEJO DE ERRORES
+      let errorMessage = 'Error al saltar la tienda';
+      
+      if (error.response) {
+        // Error del servidor
+        errorMessage = error.response.data?.message || `Error del servidor: ${error.response.status}`;
+      } else if (error.request) {
+        // Error de red
+        errorMessage = 'Error de conexión. Verifica tu internet.';
+      } else {
+        // Otro error
+        errorMessage = error.message || 'Error desconocido';
+      }
+      
+      alert(`❌ ${errorMessage}`);
     }
   };
 
@@ -687,18 +829,18 @@ const StoreVisit: React.FC = () => {
   useEffect(() => {
     let locationInterval: ReturnType<typeof setInterval>;
     
-    if (isTimerRunning && route?.stores?.[currentStoreIndex]?.status === 'in-progress') {
-      updateAdvisorLocation(route.stores[currentStoreIndex].storeId?.id?.toString(), 'at_store');
+    if (isTimerRunning && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
+      updateAdvisorLocation(route?.stores?.[currentStoreIndex]?.storeId?.id?.toString(), 'at_store');
       
       locationInterval = setInterval(() => {
-        updateAdvisorLocation(route.stores[currentStoreIndex].storeId?.id?.toString(), 'at_store');
+        updateAdvisorLocation(route?.stores?.[currentStoreIndex]?.storeId?.id?.toString(), 'at_store');
       }, 120000);
     }
     
     return () => {
       if (locationInterval) clearInterval(locationInterval);
     };
-  }, [isTimerRunning, route, currentStoreIndex]);
+  }, [isTimerRunning, visitStatus, route, currentStoreIndex]);
 
   useEffect(() => {
     if (user) {
@@ -706,17 +848,25 @@ const StoreVisit: React.FC = () => {
     }
   }, [user]);
 
+  // 🎯 EFECTO MEJORADO: Verificar estado cuando la ruta se carga
+  useEffect(() => {
+    if (route && !hasCheckedStatus) {
+      console.log('🔄 Ruta cargada, verificando estado de visita...');
+      checkVisitStatus();
+    }
+  }, [route, hasCheckedStatus]);
+
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
     
-    if (isTimerRunning && timeInStore < 40) {
+    if (isTimerRunning && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
       timer = setInterval(() => {
         setTimeInStore(prev => prev + 1);
       }, 60000);
     }
 
     return () => clearInterval(timer);
-  }, [isTimerRunning, timeInStore]);
+  }, [isTimerRunning, visitStatus, timeInStore]);
 
   if (!route) {
     return (
@@ -757,6 +907,143 @@ const StoreVisit: React.FC = () => {
   const totalTasks = tasks.length;
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
+  // 🎯 RENDERIZADO CONDICIONAL MEJORADO CON SOPORTE PARA in_progress
+  const renderVisitContent = () => {
+    console.log('🎨 Renderizando contenido para estado:', visitStatus);
+    
+    // 🎯 NORMALIZAR EL STATUS PARA RENDERIZADO
+    const normalizedStatus = normalizeStatus(visitStatus);
+    
+    switch (normalizedStatus) {
+      case 'pending':
+        return (
+          <div className="visit-pending">
+            <div className="visit-status pending">
+              <h3>🟡 Visita Pendiente</h3>
+              <p>Presiona "Iniciar Visita" para comenzar</p>
+            </div>
+            <button className="primary-action-btn" onClick={handleStartVisit}>
+              🏪 Iniciar Visita
+            </button>
+          </div>
+        );
+
+      case 'in-progress':
+        return (
+          <div className="visit-in-progress">
+            <div className="visit-status in-progress">
+              <h3>🟢 Visita en Progreso</h3>
+              <p>Progreso: {progressPercentage.toFixed(0)}% completado</p>
+              <p className="time-elapsed">⏱️ Tiempo transcurrido: {timeInStore} minutos</p>
+            </div>
+
+            <div className="tasks-section">
+              <h3>📋 Checklist de Tareas:</h3>
+              
+              <div className="tasks-list">
+                {tasks.map((task, index) => renderTask(task, index))}
+              </div>
+
+              {/* Reportes de daños */}
+              {damageReports.length > 0 && (
+                <div className="damage-reports">
+                  <h4>⚠️ Reportes de Daños ({damageReports.length})</h4>
+                  {damageReports.map((report, index) => (
+                    <div key={index} className="damage-report-card">
+                      <strong>Producto:</strong> {report.product.name} <br/>
+                      <strong>Código:</strong> {report.barcode} <br/>
+                      <strong>Daño:</strong> {report.damageType} <br/>
+                      <strong>Severidad:</strong> <span style={{ 
+                        color: report.severity === 'high' ? '#dc3545' : 
+                               report.severity === 'medium' ? '#ffc107' : '#28a745',
+                        fontWeight: 'bold'
+                      }}>{report.severity}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Notas de la visita */}
+              <div className="visit-notes">
+                <h4>📝 Notas de la visita</h4>
+                <textarea 
+                  value={visitNotes}
+                  onChange={(e) => setVisitNotes(e.target.value)}
+                  placeholder="Agregar notas adicionales sobre la visita..."
+                  className="notes-textarea"
+                />
+              </div>
+
+              {/* Botones de acción */}
+              <div className="visit-actions">
+                <button 
+                  className="action-btn complete-btn"
+                  onClick={handleCompleteVisit}
+                  disabled={completedTasks !== totalTasks || loading}
+                >
+                  {loading ? '⏳ Procesando...' : '✅ Finalizar Visita'}
+                </button>
+                
+                <button 
+                  className="action-btn skip-btn"
+                  onClick={() => {
+                    if (window.confirm('¿Estás seguro de que quieres saltar esta tienda?')) {
+                      handleSkipStore('Tienda cerrada');
+                    }
+                  }}
+                >
+                  ⏭️ Saltar Tienda
+                </button>
+              </div>
+
+              {/* Mensaje de finalización */}
+              {completedTasks === totalTasks && (
+                <div className="completion-message">
+                  ✅ Todas las tareas completadas. Revisa que tengas todas las fotos y firmas necesarias antes de finalizar.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'completed':
+        return (
+          <div className="visit-completed">
+            <div className="visit-status completed">
+              <h3>✅ Visita Completada</h3>
+              <p>Esta visita ya fue finalizada anteriormente.</p>
+            </div>
+            <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
+              ➡️ Volver al Dashboard
+            </button>
+          </div>
+        );
+
+      case 'skipped':
+        return (
+          <div className="visit-skipped">
+            <div className="visit-status skipped">
+              <h3>⏭️ Visita Saltada</h3>
+              <p>Esta tienda fue marcada como saltada.</p>
+            </div>
+            <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
+              ➡️ Volver al Dashboard
+            </button>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="visit-pending">
+            <div className="visit-status pending">
+              <h3>🔄 Cargando...</h3>
+              <p>Verificando estado de la visita...</p>
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="store-visit-container">
       {/* Header */}
@@ -780,102 +1067,15 @@ const StoreVisit: React.FC = () => {
           maxTime={40}
         />
         
-        {timeInStore >= 40 && (
+        {timeInStore >= 40 && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && (
           <div className="time-warning">
             ⚠️ Has excedido el tiempo máximo de 40 minutos
           </div>
         )}
       </header>
 
-      {/* Estado de la visita */}
-      <div className={`visit-status ${currentStore.status === 'in-progress' ? 'in-progress' : 'pending'}`}>
-        <h3>
-          {currentStore.status === 'in-progress' ? '🟢 Visita en Progreso' : '🟡 Visita Pendiente'}
-        </h3>
-        <p>
-          {currentStore.status === 'in-progress' 
-            ? `Progreso: ${progressPercentage.toFixed(0)}% completado` 
-            : 'Presiona "Iniciar Visita" para comenzar'
-          }
-        </p>
-      </div>
-
-      {/* Botón para iniciar visita */}
-      {currentStore.status === 'pending' && (
-        <button className="primary-action-btn" onClick={handleStartVisit}>
-          🏪 Iniciar Visita
-        </button>
-      )}
-
-      {/* Lista de tareas cuando la visita está en progreso */}
-      {currentStore.status === 'in-progress' && (
-        <div className="tasks-section">
-          <h3>📋 Checklist de Tareas:</h3>
-          
-          <div className="tasks-list">
-            {tasks.map((task, index) => renderTask(task, index))}
-          </div>
-
-          {/* Reportes de daños */}
-          {damageReports.length > 0 && (
-            <div className="damage-reports">
-              <h4>⚠️ Reportes de Daños ({damageReports.length})</h4>
-              {damageReports.map((report, index) => (
-                <div key={index} className="damage-report-card">
-                  <strong>Producto:</strong> {report.product.name} <br/>
-                  <strong>Código:</strong> {report.barcode} <br/>
-                  <strong>Daño:</strong> {report.damageType} <br/>
-                  <strong>Severidad:</strong> <span style={{ 
-                    color: report.severity === 'high' ? '#dc3545' : 
-                           report.severity === 'medium' ? '#ffc107' : '#28a745',
-                    fontWeight: 'bold'
-                  }}>{report.severity}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Notas de la visita */}
-          <div className="visit-notes">
-            <h4>📝 Notas de la visita</h4>
-            <textarea 
-              value={visitNotes}
-              onChange={(e) => setVisitNotes(e.target.value)}
-              placeholder="Agregar notas adicionales sobre la visita..."
-              className="notes-textarea"
-            />
-          </div>
-
-          {/* Botones de acción */}
-          <div className="visit-actions">
-            <button 
-              className="action-btn complete-btn"
-              onClick={handleCompleteVisit}
-              disabled={completedTasks !== totalTasks || loading}
-            >
-              {loading ? '⏳ Procesando...' : '✅ Finalizar Visita'}
-            </button>
-            
-            <button 
-              className="action-btn skip-btn"
-              onClick={() => {
-                if (window.confirm('¿Estás seguro de que quieres saltar esta tienda?')) {
-                  handleSkipStore('Tienda cerrada');
-                }
-              }}
-            >
-              ⏭️ Saltar Tienda
-            </button>
-          </div>
-
-          {/* Mensaje de finalización */}
-          {completedTasks === totalTasks && (
-            <div className="completion-message">
-              ✅ Todas las tareas completadas. Revisa que tengas todas las fotos y firmas necesarias antes de finalizar.
-            </div>
-          )}
-        </div>
-      )}
+      {/* 🎯 CONTENIDO DINÁMICO BASADO EN EL ESTADO */}
+      {renderVisitContent()}
 
       {/* Modal de Reporte de Daños */}
       {showDamageReport && currentProduct && (

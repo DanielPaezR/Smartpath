@@ -19,15 +19,16 @@ export interface Store {
   updated_at: string;
 }
 
-// Para compatibilidad con tu interfaz existente
+// 🎯 INTERFAZ CORREGIDA - AGREGAR skipReason
 export interface IStore extends Store {
   coordinates: {
     lat: number;
     lng: number;
   };
-  priority: number; // Ya existe como number
+  priority: number;
   category: string;
   zone: string;
+  skipReason?: string; // 🎯 AGREGADO PARA COMPATIBILIDAD
 }
 
 export interface CreateStoreData {
@@ -62,10 +63,10 @@ export const storeService = {
           lat: store.lat,
           lng: store.lng
         },
-        // Convertir priority number a string para compatibilidad
-        priority: store.priority, // Mantener como number
+        priority: store.priority,
         category: 'supermarket', // Valor por defecto
-        zone: 'Centro' // Valor por defecto
+        zone: 'Centro', // Valor por defecto
+        skipReason: undefined // 🎯 INICIALIZADO
       }));
     } catch (error) {
       console.error('Error obteniendo tiendas:', error);

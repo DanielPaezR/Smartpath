@@ -1,6 +1,6 @@
 // backend/src/models/User.js
 import { createConnection } from '../config/database.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 export class User {
   // Obtener usuario por email

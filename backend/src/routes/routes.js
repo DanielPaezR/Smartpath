@@ -14,5 +14,4 @@ router.patch('/update-tasks', routeController.updateStoreTasks);
 router.get('/metrics', routeController.getRouteMetrics);
 router.use('/tracking', trackingRoutes);
 
-
 export default router;

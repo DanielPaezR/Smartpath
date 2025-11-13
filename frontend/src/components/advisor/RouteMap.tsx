@@ -1,4 +1,4 @@
-// frontend/src/components/advisor/RouteMap.tsx
+// frontend/src/components/advisor/RouteMap.tsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,6 +6,9 @@ import { routeService } from '../../services/routeService';
 import type { IRoute } from '../../services/routeService';
 import MapComponent, { type Store } from '../common/MapComponent';
 import '../../styles/RouteMap.css';
+
+// ✅ COORDENADAS POR DEFECTO DE MEDELLÍN
+const DEFAULT_MEDELLIN_COORDS = { lat: 6.244203, lng: -75.581211 };
 
 const RouteMap: React.FC = () => {
   const { user } = useAuth();
@@ -25,7 +28,23 @@ const RouteMap: React.FC = () => {
   const loadCurrentRoute = async () => {
     try {
       setError('');
+      console.log('🛣️ Solicitando ruta para asesor:', user!.id);
       const currentRoute = await routeService.getCurrentRoute(user!.id);
+      console.log('✅ Ruta recibida:', currentRoute);
+      
+      // ✅ DEBUG: Verificar coordenadas de las tiendas
+      if (currentRoute.stores) {
+        console.log('📍 VERIFICANDO COORDENADAS DE TIENDAS:');
+        currentRoute.stores.forEach((store, index) => {
+          console.log(`   ${index + 1}. ${store.storeId?.name}`, {
+            coordinates: store.storeId?.coordinates,
+            hasCoords: !!store.storeId?.coordinates,
+            lat: store.storeId?.coordinates?.lat,
+            lng: store.storeId?.coordinates?.lng
+          });
+        });
+      }
+      
       setRoute(currentRoute);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Error cargando la ruta');
@@ -39,33 +58,45 @@ const RouteMap: React.FC = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const userCoords = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          });
+          };
+          console.log('📍 Ubicación del usuario obtenida:', userCoords);
+          setUserLocation(userCoords);
         },
         (error) => {
-          console.warn('Error obteniendo ubicación:', error);
-          setUserLocation({ lat: 4.710989, lng: -74.072092 }); // Bogotá por defecto
+          console.warn('❌ Error obteniendo ubicación:', error);
+          console.log('📍 Usando coordenadas por defecto de Medellín');
+          setUserLocation(DEFAULT_MEDELLIN_COORDS);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
         }
       );
     } else {
-      setUserLocation({ lat: 4.710989, lng: -74.072092 });
+      console.log('📍 Geolocalización no soportada, usando Medellín');
+      setUserLocation(DEFAULT_MEDELLIN_COORDS);
     }
   };
 
   const handleStoreClick = (store: any) => {
-    console.log('Tienda clickeada:', store);
+    console.log('📍 Tienda clickeada en el mapa:', store);
+    // Aquí puedes agregar lógica adicional cuando se hace click en una tienda del mapa
   };
 
   const openInMaps = (lat: number, lng: number, storeName: string) => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const encodedName = encodeURIComponent(storeName);
     
+    console.log('🗺️ Abriendo en maps:', { storeName, lat, lng });
+    
     if (isMobile) {
       // Intentar con Waze primero
       window.open(`waze://?ll=${lat},${lng}&navigate=yes`, '_blank');
-      // Fallback a Google Maps después de un delay
+      // Fallback a Google Maps
       setTimeout(() => {
         window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
       }, 500);
@@ -75,23 +106,42 @@ const RouteMap: React.FC = () => {
     }
   };
 
-  const startStoreVisit = (storeId: string) => {
-    navigate('/advisor/visit', { state: { storeId } });
+  const startStoreVisit = (storeVisitId: string, routeId: string) => {
+    console.log('🏪 Iniciando visita a tienda:', { storeVisitId, routeId });
+    navigate('/advisor/visit', { 
+      state: { 
+        storeVisitId: storeVisitId,
+        routeId: routeId // 🎯 Asegurar que routeId también se pase
+      } 
+    });
   };
 
-  // Preparar datos para el mapa de forma segura
+  // ✅ PREPARAR DATOS PARA EL MAPA CON COORDENADAS REALES
   const storesForMap: Store[] = route?.stores
     ?.filter(storeVisit => storeVisit?.storeId)
-    .map(storeVisit => {
+    .map((storeVisit, index) => {
       const store = storeVisit.storeId!;
+      const coordinates = store.coordinates || DEFAULT_MEDELLIN_COORDS;
+      
+      console.log(`🏪 Procesando tienda ${index + 1}: ${store.name}`, {
+        coordinates,
+        hasRealCoords: !!store.coordinates,
+        status: storeVisit.status
+      });
+      
       return {
         _id: store.id || `store-${Math.random()}`,
         name: store.name || 'Tienda sin nombre',
         address: store.address || 'Dirección no disponible',
-        coordinates: store.coordinates || { lat: 4.710989, lng: -74.072092 },
+        coordinates: coordinates,
         status: storeVisit.status || 'pending'
       };
     }) || [];
+
+  console.log('🗺️ Stores para mapa:', {
+    total: storesForMap.length,
+    stores: storesForMap.map(s => ({ name: s.name, coords: s.coordinates }))
+  });
 
   if (loading) {
     return (
@@ -130,7 +180,6 @@ const RouteMap: React.FC = () => {
 
   return (
     <div className="route-map-container">
-      {/* Header */}
       <header className="route-map-header">
         <div className="header-content">
           <h1>🗺️ Mapa de Ruta</h1>
@@ -142,9 +191,11 @@ const RouteMap: React.FC = () => {
               day: 'numeric' 
             })}
           </p>
+          <p className="route-info">
+            📍 Mostrando {storesForMap.length} tiendas en Medellín
+          </p>
         </div>
 
-        {/* Estadísticas */}
         <div className="route-stats-grid">
           <div className="stat-card total">
             <span className="stat-icon">🏪</span>
@@ -177,92 +228,23 @@ const RouteMap: React.FC = () => {
         </div>
       </header>
 
-      {/* Mapa */}
       <section className="map-section">
         <div className="section-header">
-          <h2>Vista del Mapa</h2>
-          <p>Visualiza tu ruta y las tiendas asignadas</p>
+          <h2>Vista del Mapa - {storesForMap.length} Tiendas</h2>
+          <p>Mostrando todas las {storesForMap.length} tiendas de tu ruta en Medellín</p>
+          <div className="map-stats">
+            <span className="stat-badge">📍 {storesForMap.length} tiendas</span>
+            <span className="stat-badge">🗺️ Vista completa</span>
+          </div>
         </div>
         <div className="map-container">
           <MapComponent
             stores={storesForMap}
-            userLocation={userLocation || undefined}
+            userLocation={userLocation}
             showRoute={true}
             onStoreClick={handleStoreClick}
+            forceShowAll={true} 
           />
-        </div>
-      </section>
-
-      {/* Lista de Tiendas */}
-      <section className="stores-section">
-        <div className="section-header">
-          <h2>Lista de Tiendas</h2>
-          <p>Gestiona tus visitas del día</p>
-        </div>
-        
-        <div className="stores-list">
-          {route.stores?.map((storeVisit, index) => {
-            if (!storeVisit?.storeId) {
-              console.warn('StoreVisit sin storeId:', storeVisit);
-              return null;
-            }
-
-            const store = storeVisit.storeId;
-            const coordinates = store.coordinates || { lat: 4.710989, lng: -74.072092 };
-            
-            return (
-              <div key={storeVisit.id} className={`store-card ${storeVisit.status}`}>
-                <div className="store-header">
-                  <div className="store-order">#{index + 1}</div>
-                  <div className={`status-badge ${storeVisit.status}`}>
-                    {storeVisit.status === 'completed' && '✅ Completada'}
-                    {storeVisit.status === 'in-progress' && '🟡 En Progreso'}
-                    {storeVisit.status === 'pending' && '⏳ Pendiente'}
-                  </div>
-                </div>
-
-                <div className="store-info">
-                  <h3 className="store-name">{store.name || 'Tienda sin nombre'}</h3>
-                  <p className="store-address">
-                    <span className="icon">📍</span>
-                    {store.address || 'Dirección no disponible'}
-                  </p>
-                  <p className="store-time">
-                    <span className="icon">⏰</span>
-                    {storeVisit.plannedArrival ? 
-                      new Date(storeVisit.plannedArrival).toLocaleTimeString('es-ES', { 
-                        hour: '2-digit', minute: '2-digit' 
-                      }) : 'Horario por definir'}
-                  </p>
-                </div>
-
-                <div className="store-actions">
-                  <button 
-                    className="action-btn navigate-btn"
-                    onClick={() => openInMaps(coordinates.lat, coordinates.lng, store.name || 'Tienda')}
-                    title="Abrir en Maps"
-                  >
-                    <span className="btn-icon">🗺️</span>
-                    <span className="btn-text">Navegar</span>
-                  </button>
-                  
-                  <button 
-                    className={`action-btn visit-btn ${storeVisit.status === 'completed' ? 'completed' : ''}`}
-                    onClick={() => startStoreVisit(store.id)}
-                    disabled={storeVisit.status === 'completed'}
-                    title={storeVisit.status === 'completed' ? 'Visita completada' : 'Iniciar visita'}
-                  >
-                    <span className="btn-icon">
-                      {storeVisit.status === 'completed' ? '✅' : '🏪'}
-                    </span>
-                    <span className="btn-text">
-                      {storeVisit.status === 'completed' ? 'Completada' : 'Visitar'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </section>
     </div>
