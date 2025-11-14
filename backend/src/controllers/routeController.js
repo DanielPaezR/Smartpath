@@ -5,7 +5,8 @@ import { mlService } from '../services/mlService.js';
 console.log('🔄 routeController.js CARGADO - VERSIÓN CON ANALYTICS');
 
 export const routeController = {
-  async getCurrentRoute(req, res) {
+  // En tu routeController.js - dentro de getCurrentRoute
+async getCurrentRoute(req, res) {
     console.log('🚨=== INICIANDO getCurrentRoute ===');
     const connection = await createConnection();
     try {
@@ -16,7 +17,7 @@ export const routeController = {
       // 1. PRIMERO BUSCAR EN RUTAS EXISTENTES PARA HOY
       const [todayRoutes] = await connection.execute(
         `SELECT id, date, total_stores, completed_stores FROM routes 
-         WHERE advisor_id = ? AND date = CURDATE()`,
+        WHERE advisor_id = ? AND date = CURDATE()`,
         [advisorId]
       );
       console.log('🎯 Ruta de HOY en tabla routes:', todayRoutes);
@@ -32,6 +33,16 @@ export const routeController = {
         );
         
         console.log('🔢 Número de tiendas en route_stores:', storesCount[0].count);
+
+        // 🚨 CORREGIR: Si hay inconsistencia entre total_stores y storesCount
+        if (todayRoutes[0].total_stores !== storesCount[0].count) {
+          console.log('🔄 Corrigiendo inconsistencia en total_stores...');
+          await connection.execute(
+            `UPDATE routes SET total_stores = ? WHERE id = ?`,
+            [storesCount[0].count, routeId]
+          );
+          console.log('✅ total_stores actualizado:', storesCount[0].count);
+        }
 
         // 🚨 SI NO HAY TIENDAS, ELIMINAR LA RUTA Y USAR PLANTILLA
         if (storesCount[0].count === 0) {
@@ -50,10 +61,11 @@ export const routeController = {
               s.latitude,
               s.longitude,
               s.zone,
-              s.category
-           FROM route_stores rs 
-           JOIN stores s ON rs.store_id = s.id 
-           WHERE rs.route_id = ? ORDER BY rs.visit_order`,
+              s.category,
+              s.priority
+          FROM route_stores rs 
+          JOIN stores s ON rs.store_id = s.id 
+          WHERE rs.route_id = ? ORDER BY rs.visit_order`,
           [routeId]
         );
 
@@ -63,7 +75,7 @@ export const routeController = {
           id: routeId.toString(),
           advisor_id: advisorId,
           date: todayRoutes[0].date,
-          total_stores: todayRoutes[0].total_stores,
+          total_stores: storesCount[0].count, // ✅ Usar el count real
           completed_stores: todayRoutes[0].completed_stores || 0,
           total_distance: '15 km',
           estimated_duration: '120 min',
@@ -78,7 +90,8 @@ export const routeController = {
                 lng: parseFloat(store.longitude) || -75.581211
               },
               zone: store.zone,
-              category: store.category
+              category: store.category,
+              priority: store.priority
             },
             status: store.status,
             visit_order: store.visit_order

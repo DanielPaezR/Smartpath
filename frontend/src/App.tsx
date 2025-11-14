@@ -7,7 +7,7 @@ import StoresManagement from './components/admin/StoreManagement';
 import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
 import RealTimeTracking from './components/admin/RealTimeTracking';
-import AdvancedMetrics from './components/admin/AdvancedMetrics'; // 🆕 NUEVA IMPORTACIÓN
+import AdvancedMetrics from './components/admin/AdvancedMetrics';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -20,6 +20,12 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div>Cargando...</div>;
   return user && user.role === 'admin' ? <>{children}</> : <Navigate to="/dashboard" />;
+};
+
+const AdvisorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div>Cargando...</div>;
+  return user && user.role === 'advisor' ? <>{children}</> : <Navigate to="/dashboard" />;
 };
 
 // Componente placeholder para páginas en desarrollo
@@ -49,16 +55,23 @@ function App() {
               </ProtectedRoute>
             } />
             
-            <Route path="/advisor/visit" element={
-              <ProtectedRoute>
+            {/* 🆕 RUTA STORE-VISIT FALTANTE */}
+            <Route path="/store-visit" element={
+              <AdvisorRoute>
                 <StoreVisit />
-              </ProtectedRoute>
+              </AdvisorRoute>
+            } />
+            
+            <Route path="/advisor/visit" element={
+              <AdvisorRoute>
+                <StoreVisit />
+              </AdvisorRoute>
             } />
             
             <Route path="/advisor/map" element={
-              <ProtectedRoute>
+              <AdvisorRoute>
                 <RouteMap />
-              </ProtectedRoute>
+              </AdvisorRoute>
             } />
 
             {/* Rutas exclusivas para ADMIN */}
@@ -74,7 +87,6 @@ function App() {
               </AdminRoute>
             } />
             
-            {/* 🆕 RUTA ACTUALIZADA - Métricas avanzadas reales */}
             <Route path="/admin/metrics" element={
               <AdminRoute>
                 <AdvancedMetrics />

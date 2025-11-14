@@ -1,4 +1,4 @@
-// frontend/src/components/advisor/AdvisorDashboard.tsx - CON DEBUG
+// frontend/src/components/advisor/AdvisorDashboard.tsx - CORREGIDO
 import React, { useState, useEffect } from 'react';
 import { routeService } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,9 +16,16 @@ const AdvisorDashboard = () => {
   const { user: currentUser } = useAuth();
 
   useEffect(() => {
-    console.log('🔄=== EFFECT ADVISOR DASHBOARD ===');
-    console.log('👤 Current User:', currentUser);
-    initializeDashboard();
+    console.log('🔄=== EFFECT ADVISOR DASHBOARD EJECUTADO ===');
+    console.log('👤 Current User en effect:', currentUser);
+    
+    if (currentUser && currentUser.id) {
+      console.log('✅ Usuario válido, iniciando carga de ruta...');
+      initializeDashboard();
+    } else {
+      console.log('❌ Usuario no válido o sin ID');
+      setLoading(false);
+    }
   }, [currentUser]);
 
   const initializeDashboard = async () => {
@@ -28,18 +35,13 @@ const AdvisorDashboard = () => {
       console.log('🔄=== INICIALIZANDO DASHBOARD ===');
       console.log('👤 Usuario actual:', currentUser);
       
-      if (!currentUser) {
-        console.error('❌ No hay usuario autenticado');
+      if (!currentUser || !currentUser.id) {
+        console.error('❌ No hay usuario autenticado o sin ID');
         throw new Error('No se pudo obtener la información del usuario');
       }
 
-      if (!currentUser.id) {
-        console.error('❌ Usuario sin ID válido:', currentUser);
-        throw new Error('El usuario no tiene ID válido');
-      }
-
       console.log('✅ Usuario válido, ID:', currentUser.id);
-      await loadRouteData(currentUser.id);
+      await loadRouteData(currentUser.id.toString());
       
     } catch (err) {
       console.error('❌ Error en inicialización:', err);
@@ -50,68 +52,64 @@ const AdvisorDashboard = () => {
 
   const loadRouteData = async (userId) => {
     try {
-      console.log('🔄=== DEBUG COMPLETO ADVISOR DASHBOARD ===');
-      console.log('📡 User ID recibido:', userId);
-      console.log('📞 Llamando a routeService.getCurrentRoute...');
+      console.log('🔄=== CARGANDO DATOS DE RUTA ===');
+      console.log('📡 User ID recibido:', userId, 'Tipo:', typeof userId);
       
       const routeData = await routeService.getCurrentRoute(userId);
-      console.log('📊 Respuesta COMPLETA de routeService:', JSON.stringify(routeData, null, 2));
+      console.log('📊 Respuesta de routeService:', routeData);
       
       if (!routeData) {
-        console.log('❌ routeService devolvió NULL - NO HAY RUTA');
-        setError('No tienes una ruta asignada para hoy');
+        console.log('❌ routeService devolvió NULL');
+        setError('No se pudo cargar la ruta');
         setCurrentRoute(null);
         setStores([]);
         setLoading(false);
         return;
       }
       
-      console.log('✅ RUTA RECIBIDA DEL BACKEND - ANÁLISIS:');
+      console.log('✅ RUTA RECIBIDA DEL BACKEND:');
       console.log('   - ID Ruta:', routeData.id);
       console.log('   - Total tiendas:', routeData.total_stores);
-      console.log('   - Tiendas reales:', routeData.stores?.length);
+      console.log('   - Tiendas en array:', routeData.stores?.length);
       console.log('   - Fecha:', routeData.date);
-      console.log('   - ¿Es hoy?', routeData.date === new Date().toISOString().split('T')[0]);
-      // Agrega esto después de recibir la ruta
-      console.log('🔍 DEBUG COMPLETO RUTA:', {
-        id: currentRoute?.id,
-        total_stores: currentRoute?.total_stores,
-        stores_count: currentRoute?.stores?.length,
-        stores: currentRoute?.stores,
-        is_template: currentRoute?.id?.startsWith('template_'),
-        date: currentRoute?.date
-      });
       
+      // 🆕 NORMALIZAR STATUS DE TIENDAS
+      const normalizedStores = routeData.stores?.map(store => ({
+        ...store,
+        status: normalizeStatus(store.status)
+      })) || [];
       
-      // ANÁLISIS DETALLADO DE LAS TIENDAS
-      console.log('🔍 ANÁLISIS DETALLADO DE TIENDAS:');
-      routeData.stores?.forEach((store, index) => {
-        console.log(`   Tienda ${index + 1}:`, {
-          id: store.id,
-          storeId: store.storeId?.id,
-          name: store.storeId?.name || store.name,
-          status: store.status,
-          visit_order: store.visit_order
-        });
-      });
+      const normalizedRoute = {
+        ...routeData,
+        stores: normalizedStores
+      };
       
-      setCurrentRoute(routeData);
-      setStores(routeData.stores || []);
+      console.log('🔄 Status normalizados:', normalizedStores.map(s => ({id: s.id, status: s.status})));
+      
+      setCurrentRoute(normalizedRoute);
+      setStores(normalizedStores);
       
     } catch (err) {
       console.error('❌ Error en loadRouteData:', err);
       console.error('   - Status:', err.response?.status);
       console.error('   - Message:', err.response?.data?.message);
-      console.error('   - Error completo:', err);
       
       if (err.response?.status === 404) {
         setError('No tienes una ruta asignada para hoy');
+      } else if (err.message?.includes('Sesión expirada')) {
+        setError('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         setError(err.message || 'Error cargando la ruta');
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  // 🆕 FUNCIÓN PARA NORMALIZAR STATUS
+  const normalizeStatus = (status) => {
+    if (status === 'in_progress') return 'in-progress';
+    return status;
   };
 
   const handleRetry = () => {
@@ -130,12 +128,17 @@ const AdvisorDashboard = () => {
       return;
     }
 
-    // Navegar a StoreVisit con los parámetros necesarios
+    console.log('🔍 Datos de la tienda:', {
+      storeId: store.id,
+      routeId: currentRoute.id,
+      storeName: store.storeId?.name
+    });
+
     navigate('/store-visit', {
       state: {
         storeVisitId: storeId,
         routeId: currentRoute.id,
-        storeId: storeId
+        storeId: store.storeId?.id || storeId
       }
     });
   };
@@ -149,16 +152,14 @@ const AdvisorDashboard = () => {
       return;
     }
 
-    // Navegar a StoreVisit con los parámetros necesarios
     navigate('/advisor/visit', {
       state: {
         storeVisitId: storeId,
         routeId: currentRoute.id,
-        storeId: storeId
+        storeId: store.storeId?.id || storeId
       }
     });
   };
-
 
   const handleSkipStore = async (storeId) => {
     if (!window.confirm('¿Estás seguro de que quieres saltar esta tienda?')) {
@@ -174,9 +175,7 @@ const AdvisorDashboard = () => {
         'Saltada desde dashboard'
       );
       
-      // Recargar la ruta para actualizar el estado
-      await loadCurrentRoute();
-      
+      await loadRouteData(currentUser.id.toString());
       alert('✅ Tienda saltada exitosamente');
       
     } catch (error) {
@@ -188,26 +187,12 @@ const AdvisorDashboard = () => {
   // Función para obtener el total de tiendas
   const getTotalStoresCount = () => {
     if (!currentRoute) return 0;
-    
-    // Si es una plantilla, contar las tiendas del array stores
-    if (currentRoute.id?.startsWith('template_')) {
-      return currentRoute.stores?.length || 0;
-    }
-    
-    // Si es una ruta real, usar total_stores
     return currentRoute.total_stores || currentRoute.stores?.length || 0;
   };
 
   // Función para obtener tiendas completadas
   const getCompletedStoresCount = () => {
     if (!currentRoute) return 0;
-    
-    // Si es una plantilla, contar las tiendas con status 'completed'
-    if (currentRoute.id?.startsWith('template_')) {
-      return currentRoute.stores?.filter(store => store.status === 'completed').length || 0;
-    }
-    
-    // Si es una ruta real, usar completed_stores
     return currentRoute.completed_stores || currentRoute.stores?.filter(store => store.status === 'completed').length || 0;
   };
 
@@ -242,7 +227,6 @@ const AdvisorDashboard = () => {
     );
   }
 
-  // ✅ VERIFICACIÓN ADICIONAL POR SI STORES ESTÁ VACÍO
   if (!currentRoute.stores || currentRoute.stores.length === 0) {
     return (
       <div className="dashboard-empty">
@@ -305,7 +289,7 @@ const AdvisorDashboard = () => {
                   <span className="store-order">#{store.visit_order}</span>
                   <span className={`status-badge ${store.status}`}>
                     {store.status === 'pending' && '⏳ Pendiente'}
-                    {store.status === 'in_progress' && '🟡 En Progreso'}
+                    {store.status === 'in-progress' && '🟡 En Progreso'}
                     {store.status === 'completed' && '✅ Completada'}
                     {store.status === 'skipped' && '⏭️ Saltada'}
                   </span>
@@ -315,7 +299,7 @@ const AdvisorDashboard = () => {
                 <p className="store-address">{store.storeId?.address || store.address || 'Dirección no disponible'}</p>
                 <p className="store-zone">📍 {store.storeId?.zone || store.zone || 'Zona no especificada'}</p>
                 
-                {/* 🎯 BOTONES MEJORADOS */}
+                {/* 🎯 BOTONES ESTANDARIZADOS CON GUION MEDIO */}
                 {store.status === 'pending' && (
                   <button 
                     className="action-btn start-visit-btn"
@@ -325,7 +309,7 @@ const AdvisorDashboard = () => {
                   </button>
                 )}
                 
-                {store.status === 'in_progress' && (
+                {store.status === 'in-progress' && (
                   <div className="visit-actions">
                     <button 
                       className="action-btn continue-visit-btn"

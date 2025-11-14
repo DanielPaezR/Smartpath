@@ -1,6 +1,7 @@
 import express from 'express';
 import { routeController } from '../controllers/routeController.js';
 import trackingRoutes from './trackingRoutes.js';
+import { productController } from '../controllers/productController.js';
 
 const router = express.Router();
 
