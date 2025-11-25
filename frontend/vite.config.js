@@ -1,5 +1,3 @@
-# Verificar vite.config.js
-$viteConfig = @'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -13,10 +11,5 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets'
   },
-  // Importante para SPA en producción
   base: './'
 })
-'@
-
-Set-Content -Path "vite.config.js" -Value $viteConfig
-Write-Host "✅ vite.config.js actualizado" -ForegroundColor Green
