@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = 'https://smartpath-backend.onrender.com/api';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -20,7 +20,7 @@ api.interceptors.request.use(
     if (token && !isPublicRoute) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      console.log('??  Sin token para request:', config.url);
+      console.log('⚠️  Sin token para request:', config.url);
     }
     
     return config;
@@ -36,7 +36,7 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.log('? Response error:', error.response?.status, error.config?.url);
+    console.log('❌ Response error:', error.response?.status, error.config?.url);
     
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
