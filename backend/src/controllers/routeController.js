@@ -1,12 +1,37 @@
-// backend/src/controllers/routeController.js - VERSIÓN CON ANALYTICS INTEGRADO
+// backend/src/controllers/routeController.js - VERSIÓN COMPLETA CORREGIDA
 import { createConnection } from '../config/database.js';
 import { mlService } from '../services/mlService.js';
 
-console.log('🔄 routeController.js CARGADO - VERSIÓN CON ANALYTICS');
+// 🎯 NORMALIZADOR INTELIGENTE - Diferencia entre tablas
+const normalizeStatus = (status, table = 'route_stores') => {
+  if (!status) return 'pending';
+  const normalized = status.toLowerCase().trim();
+  
+  // Para route_stores usa 'in-progress' (con guión)
+  if (table === 'route_stores') {
+    if (normalized === 'in_progress' || normalized === 'in-progress' || normalized === 'in progress') {
+      return 'in-progress';
+    }
+  } 
+  // Para routes usa 'in_progress' (con guión bajo)
+  else if (table === 'routes') {
+    if (normalized === 'in_progress' || normalized === 'in-progress' || normalized === 'in progress') {
+      return 'in_progress';
+    }
+  }
+  
+  if (normalized === 'pending' || normalized === 'completed' || normalized === 'skipped') {
+    return normalized;
+  }
+  
+  console.warn(`⚠️ Status desconocido: "${status}", usando "pending" por defecto`);
+  return 'pending';
+};
+
+console.log('🔄 routeController.js CARGADO - VERSIÓN CORREGIDA CON NORMALIZACIÓN INTELIGENTE');
 
 export const routeController = {
-  // En tu routeController.js - dentro de getCurrentRoute
-async getCurrentRoute(req, res) {
+  async getCurrentRoute(req, res) {
     console.log('🚨=== INICIANDO getCurrentRoute ===');
     const connection = await createConnection();
     try {
@@ -75,7 +100,7 @@ async getCurrentRoute(req, res) {
           id: routeId.toString(),
           advisor_id: advisorId,
           date: todayRoutes[0].date,
-          total_stores: storesCount[0].count, // ✅ Usar el count real
+          total_stores: storesCount[0].count,
           completed_stores: todayRoutes[0].completed_stores || 0,
           total_distance: '15 km',
           estimated_duration: '120 min',
@@ -202,30 +227,38 @@ async getCurrentRoute(req, res) {
           name: storeData.name
         });
         
-        // 🎯 CREAR NUEVA RUTA
+        // 🎯 CREAR NUEVA RUTA CON STATUS NORMALIZADO PARA ROUTES
         console.log('🆕 Creando nueva ruta con AUTO_INCREMENT...');
         
+        // 🎯 USAR EL NORMALIZADOR ESPECÍFICO PARA ROUTES
+        const routeStatus = normalizeStatus('in-progress', 'routes');
+        console.log('🔄 Status normalizado para ROUTES:', routeStatus);
+
         const [routeResult] = await connection.execute(
           `INSERT INTO routes (advisor_id, date, total_stores, completed_stores, total_distance, estimated_duration, status) 
-           VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, 'in-progress')`,
-          [req.user?.id || '8']
+           VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, ?)`,
+          [req.user?.id || '8', routeStatus]
         );
 
         const tempRouteId = routeResult.insertId;
         console.log('✅ Ruta creada con ID:', tempRouteId);
 
-        // INSERTAR EN ROUTE_STORES
+        // 🎯 INSERTAR EN ROUTE_STORES CON STATUS NORMALIZADO PARA ROUTE_STORES
         console.log('🔄 Insertando tienda en route_stores...');
+        const storeStatus = normalizeStatus('in-progress', 'route_stores');
+        console.log('🔄 Status normalizado para ROUTE_STORES:', storeStatus);
+
         console.log('📤 Datos de inserción:', {
           route_id: tempRouteId,
           store_id: storeData.store_id,
-          visit_order: storeData.visit_order
+          visit_order: storeData.visit_order,
+          status: storeStatus
         });
 
         const [result] = await connection.execute(
           `INSERT INTO route_stores (route_id, store_id, visit_order, status, start_time) 
-           VALUES (?, ?, ?, 'in-progress', NOW())`,
-          [tempRouteId, storeData.store_id, storeData.visit_order]
+           VALUES (?, ?, ?, ?, NOW())`,
+          [tempRouteId, storeData.store_id, storeData.visit_order, storeStatus]
         );
 
         console.log('📊 Resultado de inserción en route_stores:', {
@@ -276,9 +309,13 @@ async getCurrentRoute(req, res) {
           });
         }
 
+        // 🎯 USAR STATUS NORMALIZADO PARA ROUTE_STORES
+        const status = normalizeStatus('in-progress', 'route_stores');
+        console.log('🔄 Status normalizado para ruta real:', status);
+
         const [result] = await connection.execute(
-          `UPDATE route_stores SET status = 'in-progress', start_time = NOW() WHERE id = ? AND route_id = ?`,
-          [storeVisitId, routeId]
+          `UPDATE route_stores SET status = ?, start_time = NOW() WHERE id = ? AND route_id = ?`,
+          [status, storeVisitId, routeId]
         );
 
         console.log('📊 Resultado de actualización:', result);
@@ -350,15 +387,20 @@ async getCurrentRoute(req, res) {
         duration = visitInfo[0]?.calculated_duration || 0;
       }
 
+      // 🎯 USAR STATUS NORMALIZADO PARA COMPLETAR
+      const status = normalizeStatus('completed', 'route_stores');
+      console.log('🔄 Status normalizado para completar:', status);
+
       const [result] = await connection.execute(
         `UPDATE route_stores 
-         SET status = 'completed', end_time = NOW(),
+         SET status = ?, end_time = NOW(),
              actual_duration = ?, notes = ?,
              before_photo_url = ?, after_photo_url = ?,
              products_damaged = ?, signature_url = ?, barcode_data = ?,
              tasks_completed = ?
          WHERE id = ? AND route_id = ?`,
         [
+          status,
           duration,
           visitData?.notes || '',
           visitData?.beforePhoto || null,
@@ -389,14 +431,13 @@ async getCurrentRoute(req, res) {
         await mlService.captureVisitMetrics(storeVisitId, {
           duration: duration,
           tasksCompleted: visitData?.tasksCompleted || 0,
-          totalTasks: 10, // Asumiendo 10 tareas por tienda
+          totalTasks: 10,
           damageReportsCount: visitData?.productsDamaged || 0,
-          travelTime: 0 // Puedes calcular esto después
+          travelTime: 0
         });
         console.log('📊 Analytics capturados exitosamente');
       } catch (analyticsError) {
         console.error('❌ Error en analytics (no crítico):', analyticsError);
-        // No fallar la request principal por errores de analytics
       }
 
       return res.json({
@@ -443,12 +484,10 @@ async getCurrentRoute(req, res) {
       console.log('🔍 Tipo de ruta:', isTemplateRoute ? 'PLANTILLA' : 'REAL');
 
       if (isTemplateRoute) {
-        // 🎯 MANEJAR PLANTILLA - Crear ruta temporal y marcar como skipped
         const templateId = routeId.replace('template_', '');
         console.log('📋 Template ID:', templateId);
         console.log('🏪 Store Visit ID:', storeVisitId);
 
-        // OBTENER INFORMACIÓN DE LA TIENDA DE LA PLANTILLA
         const [storeInfo] = await connection.execute(
           `SELECT store_id, visit_order FROM route_template_stores WHERE id = ? AND template_id = ?`,
           [storeVisitId, templateId]
@@ -466,21 +505,25 @@ async getCurrentRoute(req, res) {
 
         const storeData = storeInfo[0];
         
-        // 🎯 CREAR RUTA TEMPORAL
+        // 🎯 USAR STATUS NORMALIZADO PARA PLANTILLA
+        const routeStatus = normalizeStatus('in-progress', 'routes');
+        const storeStatus = normalizeStatus('skipped', 'route_stores');
+        console.log('🔄 Status normalizado para routes:', routeStatus);
+        console.log('🔄 Status normalizado para route_stores:', storeStatus);
+
         const [routeResult] = await connection.execute(
           `INSERT INTO routes (advisor_id, date, total_stores, completed_stores, total_distance, estimated_duration, status) 
-           VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, 'in-progress')`,
-          [req.user?.id || '8']
+           VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, ?)`,
+          [req.user?.id || '8', routeStatus]
         );
 
         const tempRouteId = routeResult.insertId;
         console.log('✅ Ruta temporal creada con ID:', tempRouteId);
 
-        // INSERTAR VISITA COMO SKIPPED
         const [result] = await connection.execute(
           `INSERT INTO route_stores (route_id, store_id, visit_order, status, skip_reason, start_time, end_time) 
-           VALUES (?, ?, ?, 'skipped', ?, NOW(), NOW())`,
-          [tempRouteId, storeData.store_id, storeData.visit_order, skipReason || 'Tienda cerrada']
+           VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+          [tempRouteId, storeData.store_id, storeData.visit_order, storeStatus, skipReason || 'Tienda cerrada']
         );
 
         console.log('📊 Resultado de inserción:', {
@@ -506,11 +549,9 @@ async getCurrentRoute(req, res) {
         });
 
       } else {
-        // 🎯 MANEJAR RUTA REAL
         console.log('🛣️ Ruta REAL - ID:', routeId);
         console.log('🏪 Store Visit ID:', storeVisitId);
 
-        // 🎯 VERIFICAR SI LA VISITA EXISTE
         const [existingVisit] = await connection.execute(
           `SELECT id, status FROM route_stores WHERE id = ? AND route_id = ?`,
           [storeVisitId, routeId]
@@ -526,16 +567,19 @@ async getCurrentRoute(req, res) {
           });
         }
 
-        // 🎯 ACTUALIZAR STATUS A 'skipped'
+        // 🎯 USAR STATUS NORMALIZADO PARA RUTA REAL
+        const status = normalizeStatus('skipped', 'route_stores');
+        console.log('🔄 Status normalizado para ruta real:', status);
+
         console.log('🔄 Actualizando visita a skipped...');
         const [result] = await connection.execute(
           `UPDATE route_stores 
-           SET status = 'skipped', 
+           SET status = ?, 
                skip_reason = ?, 
                end_time = NOW(),
                updated_at = NOW()
            WHERE id = ? AND route_id = ?`,
-          [skipReason || 'Tienda cerrada', storeVisitId, routeId]
+          [status, skipReason || 'Tienda cerrada', storeVisitId, routeId]
         );
 
         console.log('📊 Resultado de actualización en BD:', {
@@ -752,7 +796,6 @@ async getCurrentRoute(req, res) {
     }
   },
 
-  // 🆕 ENDPOINT PARA OPTIMIZAR RUTA CON ML
   async optimizeRoute(req, res) {
     try {
       const { stores, advisor, constraints } = req.body;

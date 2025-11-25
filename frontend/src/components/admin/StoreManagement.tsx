@@ -5,6 +5,7 @@ import '../../styles/StoreManagement.css';
 
 const StoreManagement: React.FC = () => {
   const [stores, setStores] = useState<IStore[]>([]);
+  const [filteredStores, setFilteredStores] = useState<IStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingStore, setEditingStore] = useState<IStore | null>(null);
@@ -16,23 +17,41 @@ const StoreManagement: React.FC = () => {
     contact_name: '',
     contact_phone: '',
     contact_email: '',
-    priority: 2, // medium por defecto
+    priority: 2,
     estimated_visit_time: 40,
     category: 'supermarket',
     zone: 'Centro'
   });
   const [searchZone, setSearchZone] = useState('');
   const [searchCategory, setSearchCategory] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     loadStores();
   }, []);
 
+  useEffect(() => {
+    applyFilters();
+  }, [searchZone, searchCategory, stores]);
+
   const loadStores = async () => {
     try {
       setLoading(true);
       const storesData = await storeService.getStores();
+      console.log('📊 Tiendas cargadas:', storesData);
+      
+      // Mostrar información de debug - CORREGIDO
+      const zonasUnicas = Array.from(new Set(storesData.map(store => store.zone)));
+      const categoriasUnicas = Array.from(new Set(storesData.map(store => store.category)));
+      const prioridadesUnicas = Array.from(new Set(storesData.map(store => store.priority)));
+      
+      console.log('🗺️ Zonas en datos:', zonasUnicas);
+      console.log('🏷️ Categorías en datos:', categoriasUnicas);
+      console.log('🎯 Prioridades en datos:', prioridadesUnicas);
+      
       setStores(storesData);
+      setFilteredStores(storesData);
+      setIsSearching(false);
     } catch (error) {
       console.error('Error cargando tiendas:', error);
       alert('Error al cargar las tiendas');
@@ -41,21 +60,66 @@ const StoreManagement: React.FC = () => {
     }
   };
 
+  const applyFilters = () => {
+    let filtered = stores;
+
+    // Filtrar por zona - comparación exacta
+    if (searchZone) {
+      filtered = filtered.filter(store => {
+        const storeZone = store.zone || '';
+        const match = storeZone.toLowerCase() === searchZone.toLowerCase();
+        console.log(`Zona: "${storeZone}" vs "${searchZone}" -> ${match}`);
+        return match;
+      });
+    }
+
+    // Filtrar por categoría - comparación exacta
+    if (searchCategory) {
+      filtered = filtered.filter(store => {
+        const storeCategory = store.category || '';
+        const match = storeCategory.toLowerCase() === searchCategory.toLowerCase();
+        console.log(`Categoría: "${storeCategory}" vs "${searchCategory}" -> ${match}`);
+        return match;
+      });
+    }
+
+    setFilteredStores(filtered);
+  };
+
   const handleSearch = async () => {
     try {
-      setLoading(true);
-      const filters: any = {};
-      if (searchZone) filters.zone = searchZone;
-      if (searchCategory) filters.category = searchCategory;
+      setIsSearching(true);
       
-      const storesData = await storeService.searchStores(filters);
-      setStores(storesData);
+      // Si ambos filtros están vacíos, cargar todas las tiendas
+      if (!searchZone && !searchCategory) {
+        await loadStores();
+        return;
+      }
+
+      // Intentar búsqueda en el backend primero
+      try {
+        const filters: any = {};
+        if (searchZone) filters.zone = searchZone;
+        if (searchCategory) filters.category = searchCategory;
+        
+        const storesData = await storeService.searchStores(filters);
+        setFilteredStores(storesData);
+      } catch (error) {
+        console.warn('Búsqueda backend falló, usando filtros locales:', error);
+        // Fallback a filtros locales
+        applyFilters();
+      }
     } catch (error) {
       console.error('Error buscando tiendas:', error);
       alert('Error al buscar tiendas');
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const handleClearFilters = () => {
+    setSearchZone('');
+    setSearchCategory('');
+    setIsSearching(false);
+    loadStores();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +171,6 @@ const StoreManagement: React.FC = () => {
     }
   };
 
-  // ✅ AGREGADO: Función para asignar tienda a asesor
   const handleAssignStore = async (storeId: number) => {
     const advisorId = prompt('Ingresa el ID del asesor:');
     if (advisorId && !isNaN(parseInt(advisorId))) {
@@ -142,9 +205,9 @@ const StoreManagement: React.FC = () => {
 
   const getPriorityColor = (priority: number) => {
     switch (priority) {
-      case 3: return '#dc3545'; // high
-      case 2: return '#ffc107'; // medium
-      case 1: return '#28a745'; // low
+      case 3: return '#dc3545';
+      case 2: return '#ffc107';
+      case 1: return '#28a745';
       default: return '#6c757d';
     }
   };
@@ -157,6 +220,23 @@ const StoreManagement: React.FC = () => {
       default: return 'No definida';
     }
   };
+
+  // Obtener zonas únicas de las tiendas para los filtros - CORREGIDO
+  const getUniqueZones = () => {
+    const zones = Array.from(new Set(stores.map(store => store.zone).filter(Boolean))) as string[];
+    console.log('Zonas disponibles para filtros:', zones);
+    return zones;
+  };
+
+  // Obtener categorías únicas de las tiendas para los filtros - CORREGIDO
+  const getUniqueCategories = () => {
+    const categories = Array.from(new Set(stores.map(store => store.category).filter(Boolean))) as string[];
+    console.log('Categorías disponibles para filtros:', categories);
+    return categories;
+  };
+
+  // Determinar qué tiendas mostrar
+  const storesToShow = isSearching ? filteredStores : stores;
 
   if (loading) {
     return (
@@ -198,9 +278,9 @@ const StoreManagement: React.FC = () => {
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            {stores.filter(s => s.zone === 'Centro').length}
+            {stores.filter(s => s.zone && s.zone.includes('Norte')).length}
           </div>
-          <div className="stat-label">Zona Centro</div>
+          <div className="stat-label">Zona Norte</div>
         </div>
       </div>
 
@@ -213,11 +293,11 @@ const StoreManagement: React.FC = () => {
             onChange={(e) => setSearchZone(e.target.value)}
           >
             <option value="">Todas las zonas</option>
-            <option value="Centro">Centro</option>
-            <option value="Norte">Norte</option>
-            <option value="Sur">Sur</option>
-            <option value="Oriente">Oriente</option>
-            <option value="Occidente">Occidente</option>
+            {getUniqueZones().map(zone => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
           </select>
           
           <select 
@@ -225,19 +305,32 @@ const StoreManagement: React.FC = () => {
             onChange={(e) => setSearchCategory(e.target.value)}
           >
             <option value="">Todas las categorías</option>
-            <option value="supermarket">Supermercado</option>
-            <option value="minimarket">Minimarket</option>
-            <option value="wholesale">Mayorista</option>
-            <option value="convenience">Tienda de Barrio</option>
+            {getUniqueCategories().map(category => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
           </select>
           
           <button className="btn-secondary" onClick={handleSearch}>
             Buscar
           </button>
-          <button className="btn-outline" onClick={loadStores}>
+          <button className="btn-outline" onClick={handleClearFilters}>
             Mostrar Todas
           </button>
         </div>
+        
+        {/* Indicador de búsqueda activa */}
+        {(searchZone || searchCategory) && (
+          <div className="search-active">
+            <span>
+              Filtros activos: 
+              {searchZone && ` Zona: ${searchZone}`}
+              {searchCategory && ` Categoría: ${searchCategory}`}
+            </span>
+            <span className="results-count">({storesToShow.length} resultados)</span>
+          </div>
+        )}
       </div>
 
       {/* Formulario de tienda */}
@@ -276,11 +369,11 @@ const StoreManagement: React.FC = () => {
                     value={formData.zone}
                     onChange={(e) => setFormData({...formData, zone: e.target.value})}
                   >
-                    <option value="Centro">Centro</option>
-                    <option value="Norte">Norte</option>
-                    <option value="Sur">Sur</option>
-                    <option value="Oriente">Oriente</option>
-                    <option value="Occidente">Occidente</option>
+                    {getUniqueZones().map(zone => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -290,10 +383,11 @@ const StoreManagement: React.FC = () => {
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                   >
-                    <option value="supermarket">Supermercado</option>
-                    <option value="minimarket">Minimarket</option>
-                    <option value="wholesale">Mayorista</option>
-                    <option value="convenience">Tienda de Barrio</option>
+                    {getUniqueCategories().map(category => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -388,19 +482,19 @@ const StoreManagement: React.FC = () => {
 
       {/* Lista de tiendas */}
       <div className="store-list">
-        <h3>📋 Lista de Tiendas ({stores.length})</h3>
+        <h3>📋 Lista de Tiendas ({storesToShow.length})</h3>
         
-        {stores.length === 0 ? (
+        {storesToShow.length === 0 ? (
           <div className="empty-state">
-            <h4>No hay tiendas registradas</h4>
-            <p>Comienza agregando tu primera tienda</p>
-            <button className="btn-primary" onClick={() => setShowForm(true)}>
-              + Agregar Primera Tienda
+            <h4>No se encontraron tiendas</h4>
+            <p>No hay tiendas que coincidan con los filtros aplicados</p>
+            <button className="btn-primary" onClick={handleClearFilters}>
+              Mostrar Todas las Tiendas
             </button>
           </div>
         ) : (
           <div className="store-grid">
-            {stores.map(store => (
+            {storesToShow.map(store => (
               <div key={store.id} className="store-card">
                 <div className="store-card-header">
                   <h4>{store.name}</h4>
@@ -430,7 +524,6 @@ const StoreManagement: React.FC = () => {
                 </div>
 
                 <div className="store-card-actions">
-                  {/* ✅ AGREGADO: Botón de Asignar */}
                   <button 
                     className="btn-assign"
                     onClick={() => handleAssignStore(store.id)}

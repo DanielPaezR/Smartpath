@@ -1,66 +1,85 @@
-// backend/src/server.js - VERSIÓN CORREGIDA CON NOMBRE REAL
+// backend/src/server.js - VERSIÓN PARA PRODUCCIÓN
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import adminRoutes from './routes/adminRoutes.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import routes from './routes/routes.js';
 import authRoutes from './routes/authRoutes.js';
-import productRoutes from '../src/routes/productRoutes.js';
-import storeRoutes from '../src/routes/storeRoutes.js';
-import routeRoutes from '../src/routes/routes.js'; // ✅ NOMBRE CORRECTO
+import storeRoutes from './routes/storeRoutes.js';
 
-// Configurar dotenv
+// Cargar variables de entorno
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
+// Middlewares para producción
+app.use(cors({
+  origin: [
+    'https://smartpath-frontend.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
 
-// ✅ RUTAS PRINCIPALES
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Servir archivos estáticos
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Rutas de API
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/products', productRoutes);
 app.use('/api/stores', storeRoutes);
-app.use('/api/routes', routeRoutes); // ✅ USAR RUTAS REALES
+app.use('/api/routes', routes);
 
-// ✅ HEALTH CHECK (GET)
+// Ruta de salud para Render
 app.get('/api/health', (req, res) => {
   res.json({ 
-    message: 'SmartPath Backend funcionando correctamente', 
+    status: 'OK', 
+    message: 'SmartPath Backend funcionando correctamente',
     timestamp: new Date().toISOString(),
-    database: 'MySQL',
-    status: 'OK'
+    environment: process.env.NODE_ENV
   });
 });
 
-// ✅ RUTA 404
-app.use((req, res) => {
+// Ruta principal
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Bienvenido a SmartPath API',
+    version: '1.0.0',
+    documentation: '/api/health'
+  });
+});
+
+// Manejo de errores 404
+app.use('*', (req, res) => {
   res.status(404).json({ 
-    message: 'Ruta no encontrada',
-    path: req.originalUrl,
-    method: req.method,
-    suggestion: 'Verifica el método HTTP (GET, POST, PATCH)'
+    success: false,
+    message: 'Ruta no encontrada' 
   });
 });
 
-// ✅ INICIAR SERVIDOR
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log('');
-  console.log('📍 ENDPOINTS DISPONIBLES:');
-  console.log(`✅ GET  http://localhost:${PORT}/api/health`);
-  console.log(`✅ GET  http://localhost:${PORT}/api/stores`);
-  console.log(`✅ GET  http://localhost:${PORT}/api/routes/advisor/:id/current`);
-  console.log(`🔐 POST http://localhost:${PORT}/api/auth/login`);
-  console.log(`🔄 PATCH http://localhost:${PORT}/api/routes/start-visit`);
-  console.log('');
-  console.log('🏢 ENDPOINTS ADMIN:');
-  console.log(`📊 GET  http://localhost:${PORT}/api/admin/dashboard/overview`);
-  console.log(`👥 GET  http://localhost:${PORT}/api/admin/tracking/live-status`);
-  console.log('');
-  console.log('👤 CREDENCIALES:');
-  console.log('   📧 admin@vitamarket.com / 🔑 admin123');
-  console.log('   📧 asesor1@vitamarket.com / 🔑 asesor123');
+// Manejo de errores global
+app.use((error, req, res, next) => {
+  console.error('❌ Error global:', error);
+  res.status(500).json({ 
+    success: false,
+    message: 'Error interno del servidor',
+    error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
 });
+
+// Iniciar servidor
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor SmartPath ejecutándose en puerto ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
+});
+
+export default app;

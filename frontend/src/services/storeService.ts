@@ -1,6 +1,8 @@
 // frontend/src/services/storeService.ts
 import { api } from './api';
+import { normalizeStatus, type VisitStatus } from '../utils/statusNormalizer';
 
+// Interfaz para los datos que vienen del backend
 export interface Store {
   id: number;
   name: string;
@@ -12,23 +14,39 @@ export interface Store {
   contact_email: string | null;
   optimal_visit_windows: string;
   assigned_advisor_id: number | null;
-  priority: number;
+  priority: string; // En el backend es 'high', 'medium', 'low'
   estimated_visit_time: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  category?: string;
+  zone?: string;
+  status?: string; // Agregado para normalización
 }
 
-// 🎯 INTERFAZ CORREGIDA - AGREGAR skipReason
-export interface IStore extends Store {
+// Interfaz para el frontend - NO extiende Store para evitar conflictos
+export interface IStore {
+  id: number;
+  name: string;
+  address: string;
   coordinates: {
     lat: number;
     lng: number;
   };
-  priority: number;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string | null;
+  optimal_visit_windows: string;
+  assigned_advisor_id: number | null;
+  priority: number; // En el frontend usamos números
+  estimated_visit_time: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
   category: string;
   zone: string;
-  skipReason?: string; // 🎯 AGREGADO PARA COMPATIBILIDAD
+  skipReason?: string;
+  status?: VisitStatus; // Status normalizado
 }
 
 export interface CreateStoreData {
@@ -50,24 +68,47 @@ export interface UpdateStoreData extends Partial<CreateStoreData> {}
 export type StoreFormData = CreateStoreData;
 
 export const storeService = {
-  // Obtener todas las tiendas
+  // Obtener todas las tiendas - CON NORMALIZACIÓN
   async getStores(): Promise<IStore[]> {
     try {
       const response = await api.get('/stores');
       const stores: Store[] = response.data;
       
-      // Convertir a formato IStore para compatibilidad
-      return stores.map(store => ({
-        ...store,
-        coordinates: {
-          lat: store.lat,
-          lng: store.lng
-        },
-        priority: store.priority,
-        category: 'supermarket', // Valor por defecto
-        zone: 'Centro', // Valor por defecto
-        skipReason: undefined // 🎯 INICIALIZADO
-      }));
+      return stores.map(store => {
+        let priorityNumber = 2;
+        if (typeof store.priority === 'string') {
+          if (store.priority === 'high') priorityNumber = 3;
+          else if (store.priority === 'medium') priorityNumber = 2;
+          else if (store.priority === 'low') priorityNumber = 1;
+        } else if (typeof store.priority === 'number') {
+          priorityNumber = store.priority;
+        }
+        
+        return {
+          id: store.id,
+          name: store.name,
+          address: store.address,
+          coordinates: {
+            lat: store.lat,
+            lng: store.lng
+          },
+          contact_name: store.contact_name,
+          contact_phone: store.contact_phone,
+          contact_email: store.contact_email,
+          optimal_visit_windows: store.optimal_visit_windows,
+          assigned_advisor_id: store.assigned_advisor_id,
+          priority: priorityNumber,
+          estimated_visit_time: store.estimated_visit_time,
+          is_active: store.is_active,
+          created_at: store.created_at,
+          updated_at: store.updated_at,
+          category: store.category || 'supermarket',
+          zone: store.zone || 'Centro',
+          skipReason: undefined,
+          // 🎯 NORMALIZAR EL STATUS SI EXISTE
+          status: store.status ? normalizeStatus(store.status) : 'pending'
+        };
+      });
     } catch (error) {
       console.error('Error obteniendo tiendas:', error);
       throw error;
@@ -75,9 +116,41 @@ export const storeService = {
   },
 
   // Obtener tienda por ID
-  async getStoreById(storeId: number): Promise<Store> {
+  async getStoreById(storeId: number): Promise<IStore> {
     const response = await api.get(`/stores/${storeId}`);
-    return response.data;
+    const store: Store = response.data;
+    
+    // Convertir de Store a IStore
+    let priorityNumber = 2;
+    if (typeof store.priority === 'string') {
+      if (store.priority === 'high') priorityNumber = 3;
+      else if (store.priority === 'medium') priorityNumber = 2;
+      else if (store.priority === 'low') priorityNumber = 1;
+    }
+    
+    return {
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      coordinates: {
+        lat: store.lat,
+        lng: store.lng
+      },
+      contact_name: store.contact_name,
+      contact_phone: store.contact_phone,
+      contact_email: store.contact_email,
+      optimal_visit_windows: store.optimal_visit_windows,
+      assigned_advisor_id: store.assigned_advisor_id,
+      priority: priorityNumber,
+      estimated_visit_time: store.estimated_visit_time,
+      is_active: store.is_active,
+      created_at: store.created_at,
+      updated_at: store.updated_at,
+      category: store.category || 'supermarket',
+      zone: store.zone || 'Centro',
+      skipReason: undefined,
+      status: store.status ? normalizeStatus(store.status) : 'pending'
+    };
   },
 
   // Crear tienda
@@ -105,9 +178,42 @@ export const storeService = {
   },
 
   // Obtener tiendas por asesor
-  async getStoresByAdvisor(advisorId: number): Promise<Store[]> {
+  async getStoresByAdvisor(advisorId: number): Promise<IStore[]> {
     const response = await api.get(`/stores/advisor/${advisorId}`);
-    return response.data;
+    const stores: Store[] = response.data;
+    
+    return stores.map(store => {
+      let priorityNumber = 2;
+      if (typeof store.priority === 'string') {
+        if (store.priority === 'high') priorityNumber = 3;
+        else if (store.priority === 'medium') priorityNumber = 2;
+        else if (store.priority === 'low') priorityNumber = 1;
+      }
+      
+      return {
+        id: store.id,
+        name: store.name,
+        address: store.address,
+        coordinates: {
+          lat: store.lat,
+          lng: store.lng
+        },
+        contact_name: store.contact_name,
+        contact_phone: store.contact_phone,
+        contact_email: store.contact_email,
+        optimal_visit_windows: store.optimal_visit_windows,
+        assigned_advisor_id: store.assigned_advisor_id,
+        priority: priorityNumber,
+        estimated_visit_time: store.estimated_visit_time,
+        is_active: store.is_active,
+        created_at: store.created_at,
+        updated_at: store.updated_at,
+        category: store.category || 'supermarket',
+        zone: store.zone || 'Centro',
+        skipReason: undefined,
+        status: store.status ? normalizeStatus(store.status) : 'pending'
+      };
+    });
   },
 
   // 🆕 Buscar tiendas (para filtros)
