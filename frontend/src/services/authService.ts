@@ -1,14 +1,14 @@
-import api from './api';
+﻿import api from './api';
 
 export const authService = {
   async login(email: string, password: string) {
-    console.log('?? Intentando login para:', email);
+    console.log('🔐 Intentando login para:', email);
     const response = await api.post('/auth/login', { email, password });
 
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      console.log('? Login exitoso, token guardado');
+      console.log('✅ Login exitoso, token guardado');
     }
     
     return response.data;
@@ -22,7 +22,7 @@ export const authService = {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    console.log('?? Sesi�n cerrada');
+    console.log('🚪 Sesión cerrada');
   },
 
   getCurrentUser() {
