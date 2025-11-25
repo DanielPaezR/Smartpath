@@ -96,7 +96,7 @@ const productService = {
 const trackingService = {
   updateLocation: async (latitude: number, longitude: number, currentStoreId?: string, activityStatus?: string) => {
     try {
-      const response = await fetch('https://smartpath-backend.onrender.com/api/tracking/update-location', {
+      const response = await fetch('http://localhost:3000/api/tracking/update-location', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
