@@ -1,25 +1,28 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://smartpath-backend.onrender.com';
+const API_BASE_URL = 'https://smartpath-backend.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 segundos timeout
+  timeout: 10000,
 });
 
-// Interceptor para agregar token automáticamente
+// Interceptor para agregar token a las requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
+    const publicRoutes = ['/auth/login', '/auth/register'];
+    const isPublicRoute = publicRoutes.some(route => config.url?.includes(route));
+
+    if (token && !isPublicRoute) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔐 Token agregado a request:', config.url);
     } else {
-      console.log('⚠️  Sin token para request:', config.url);
+      console.log('??  Sin token para request:', config.url);
     }
+    
     return config;
   },
   (error) => {
@@ -27,38 +30,21 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor para manejar errores de respuesta
+// Interceptor para manejar respuestas
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ Response success:', response.status, response.config.url);
     return response;
   },
   (error) => {
-    console.error('❌ Response error:', error.response?.status, error.config?.url);
+    console.log('? Response error:', error.response?.status, error.config?.url);
     
-    // Manejar errores de autenticación
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log('🔐 Error de autenticación detectado');
-      
-      // Solo redirigir si no es una ruta pública
-      const publicRoutes = ['/auth/login', '/auth/register'];
-      const isPublicRoute = publicRoutes.some(route => error.config?.url?.includes(route));
-      
-      if (!isPublicRoute) {
-        console.log('🔐 Limpiando token y redirigiendo al login...');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        // Usar window.location para redirección confiable
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-      }
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
     }
     
     return Promise.reject(error);
   }
 );
 
-export { api };
 export default api;
