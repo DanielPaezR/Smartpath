@@ -8,12 +8,12 @@
   margin: 0 auto;
 }
 
-/* Header */
+/* ========== HEADER ========== */
 .store-visit-header {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 1.5rem;
   text-align: center;
 }
@@ -32,16 +32,18 @@
   line-height: 1.4;
 }
 
-/* Progreso */
-.progress-section {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 1.5rem;
+.time-warning {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #f5c6cb;
+  font-weight: 600;
+  margin-top: 1rem;
 }
 
-/* Estado de la visita */
+/* ========== ESTADOS DE VISITA ========== */
 .visit-status {
   padding: 1.25rem;
   border-radius: 12px;
@@ -63,6 +65,18 @@
   border-color: #ffeaa7;
 }
 
+.visit-status.completed {
+  background: #d1ecf1;
+  color: #0c5460;
+  border-color: #bee5eb;
+}
+
+.visit-status.skipped {
+  background: #f8d7da;
+  color: #721c24;
+  border-color: #f5c6cb;
+}
+
 .visit-status h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1.2rem;
@@ -74,7 +88,12 @@
   opacity: 0.9;
 }
 
-/* Botón principal */
+.time-elapsed {
+  margin-top: 0.5rem;
+  font-weight: normal;
+}
+
+/* ========== BOTONES ========== */
 .primary-action-btn {
   width: 100%;
   padding: 1.25rem;
@@ -106,12 +125,62 @@
   box-shadow: none;
 }
 
-/* Sección de tareas */
+.secondary-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.secondary-btn.primary {
+  background: #28a745;
+  color: white;
+}
+
+.secondary-btn.primary:hover {
+  background: #229954;
+  transform: translateY(-1px);
+}
+
+.secondary-btn.warning {
+  background: #ffc107;
+  color: #212529;
+}
+
+.secondary-btn.warning:hover {
+  background: #e0a800;
+  transform: translateY(-1px);
+}
+
+.secondary-btn.success {
+  background-color: #22c55e;
+  color: white;
+}
+
+.secondary-btn.success:hover {
+  background-color: #16a34a;
+}
+
+.secondary-btn.outline {
+  background-color: transparent;
+  border: 1px solid #22c55e;
+  color: #22c55e;
+}
+
+.secondary-btn.outline:hover {
+  background-color: #22c55e;
+  color: white;
+}
+
+/* ========== SECCIÓN DE TAREAS ========== */
 .tasks-section {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 1.5rem;
 }
 
@@ -123,14 +192,13 @@
   text-align: center;
 }
 
-/* Lista de tareas */
 .tasks-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-/* Tarjetas de tarea */
+/* ========== TARJETAS DE TAREA ========== */
 .task-card {
   border: 2px solid #e9ecef;
   border-radius: 12px;
@@ -162,7 +230,7 @@
 
 .task-card:not(.completed):hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   border-color: #3498db;
 }
 
@@ -170,7 +238,22 @@
   background: #3498db;
 }
 
-/* Contenido de la tarea */
+/* Tarea especial de daños */
+.damage-check-task {
+  border-left: 4px solid #f59e0b;
+}
+
+.no-damages-task {
+  background-color: #f0f9ff;
+  border-left: 4px solid #22c55e;
+}
+
+.no-damages-task.completed {
+  background-color: #f0fdf4;
+  border-color: #16a34a;
+}
+
+/* ========== CONTENIDO DE TAREA ========== */
 .task-content {
   display: flex;
   align-items: flex-start;
@@ -208,7 +291,7 @@
   text-decoration: line-through;
 }
 
-/* Badges de requisitos */
+/* ========== BADGES ========== */
 .task-requirements {
   display: flex;
   gap: 0.5rem;
@@ -237,22 +320,360 @@
   color: #212529;
 }
 
-/* Secciones adicionales dentro de tareas */
+.requirement-badge.success {
+  background-color: #22c55e;
+  color: white;
+}
+
+/* ========== SECCIONES ADICIONALES ========== */
 .task-additional {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #e9ecef;
 }
 
-/* Subida de fotos */
-.photos-section {
+.task-status {
+  margin-top: 10px;
+  padding: 10px;
   background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.status-success {
+  color: #28a745;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.task-actions {
+  margin-top: 10px;
+}
+
+.task-instruction {
+  color: #666;
+  font-size: 14px;
+  margin: 10px 0;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+}
+
+.task-timestamp {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.success-timestamp {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 0.9em;
+  margin-top: 8px;
+}
+
+/* ========== OPCIONES DE DAÑOS ========== */
+.damage-check-options {
+  display: flex;
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.option-card {
+  flex: 1;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.option-card h4 {
+  margin-top: 0;
+  color: #1e293b;
+  font-size: 1em;
+}
+
+.option-description {
+  color: #64748b;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.option-requirements {
+  list-style: none;
+  padding-left: 0;
+  margin: 10px 0;
+  font-size: 0.9em;
+}
+
+.option-requirements li {
+  padding: 5px 0;
+  color: #475569;
+}
+
+.option-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.option-divider::before,
+.option-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: #e2e8f0;
+  margin: 0 10px;
+}
+
+.option-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 10px;
+}
+
+.damage-btn {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.damage-btn:hover {
+  background-color: #d97706;
+}
+
+.no-damage-btn {
+  background-color: #22c55e;
+  color: white;
+}
+
+.no-damage-btn:hover {
+  background-color: #16a34a;
+}
+
+.completed-no-damages {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: #f0fdf4;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.success-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.success-icon {
+  font-size: 1.5em;
+}
+
+.success-message h4 {
+  margin: 0;
+  color: #16a34a;
+}
+
+.success-note {
+  margin: 5px 0 0 0;
+  color: #64748b;
+  font-size: 0.9em;
+}
+
+/* ========== CÁMARA ========== */
+.camera-upload-container {
+  margin: 15px 0;
+}
+
+.camera-open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.camera-open-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.camera-open-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.photos-preview {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.photos-preview h5 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+}
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.photo-preview {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid #dee2e6;
+}
+
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-photo-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* Modal de cámara */
+.camera-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.camera-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.camera-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #2c3e50;
+  color: white;
+}
+
+.close-camera-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.camera-view {
+  width: 100%;
+  height: 400px;
+  background: #000;
+  position: relative;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-controls {
+  padding: 20px;
+  text-align: center;
+  background: #f8f9fa;
+}
+
+.capture-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 15px 40px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.capture-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.camera-instruction {
+  color: #666;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* ========== PRODUCTOS ESCANEADOS ========== */
+.scanned-items {
+  background: #e8f5e8;
   padding: 1rem;
   border-radius: 8px;
   margin-top: 0.75rem;
 }
 
-/* Productos escaneados */
+.scanned-items p {
+  margin: 0;
+  color: #155724;
+}
+
 .scanned-products {
   background: #e8f5e8;
   padding: 1rem;
@@ -263,6 +684,12 @@
 .scanned-products h5 {
   margin: 0 0 0.5rem 0;
   color: #155724;
+}
+
+.scanned-products h6 {
+  margin: 10px 0 5px 0;
+  color: #155724;
+  font-size: 0.9em;
 }
 
 .barcode-tags {
@@ -282,7 +709,11 @@
   font-weight: 500;
 }
 
-/* Firma digital */
+.scanned-preview {
+  margin-top: 10px;
+}
+
+/* ========== FIRMA DIGITAL ========== */
 .signature-section {
   background: #fff3cd;
   padding: 1rem;
@@ -302,38 +733,7 @@
   margin-bottom: 0.75rem;
 }
 
-/* Botones secundarios */
-.secondary-btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: all 0.3s ease;
-}
-
-.secondary-btn.primary {
-  background: #28a745;
-  color: white;
-}
-
-.secondary-btn.primary:hover {
-  background: #229954;
-  transform: translateY(-1px);
-}
-
-.secondary-btn.warning {
-  background: #ffc107;
-  color: #212529;
-}
-
-.secondary-btn.warning:hover {
-  background: #e0a800;
-  transform: translateY(-1px);
-}
-
-/* Reportes de daños */
+/* ========== REPORTES DE DAÑOS ========== */
 .damage-reports {
   background: #fff3cd;
   padding: 1.5rem;
@@ -354,7 +754,7 @@
   border: 1px solid #dee2e6;
 }
 
-/* Notas de visita */
+/* ========== NOTAS DE VISITA ========== */
 .visit-notes {
   margin-top: 1.5rem;
 }
@@ -381,7 +781,7 @@
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
-/* Acciones finales */
+/* ========== ACCIONES FINALES ========== */
 .visit-actions {
   display: flex;
   gap: 1rem;
@@ -431,7 +831,6 @@
   box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
 }
 
-/* Mensaje de finalización */
 .completion-message {
   background: #28a745;
   color: white;
@@ -443,14 +842,14 @@
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
 }
 
-/* Modal de reporte de daños */
+/* ========== MODAL DE REPORTE DE DAÑOS ========== */
 .damage-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -466,7 +865,7 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .damage-modal h3 {
@@ -476,7 +875,21 @@
   text-align: center;
 }
 
-/* Información del producto en modal */
+.modal-status {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.product-count,
+.photos-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .product-info {
   background: #f8f9fa;
   padding: 1.25rem;
@@ -495,7 +908,6 @@
   color: #555;
 }
 
-/* Formularios en modal */
 .modal-form-group {
   margin-bottom: 1.25rem;
 }
@@ -529,7 +941,14 @@
   min-height: 80px;
 }
 
-/* Acciones del modal */
+.photo-note,
+.photo-instruction {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-top: 5px;
+  font-style: italic;
+}
+
 .modal-actions {
   display: flex;
   gap: 0.75rem;
@@ -573,6 +992,12 @@
   transform: none;
 }
 
+.modal-loading {
+  text-align: center;
+  margin-top: 1rem;
+  color: #6c757d;
+}
+
 /* ========== RESPONSIVE DESIGN ========== */
 
 /* Tablets */
@@ -580,11 +1005,11 @@
   .store-visit-container {
     padding: 0.75rem;
   }
-  
+
   .visit-actions {
     flex-direction: column;
   }
-  
+
   .action-btn {
     min-width: auto;
   }
@@ -593,28 +1018,31 @@
 /* Tablets Pequeñas */
 @media (max-width: 768px) {
   .store-visit-header,
-  .progress-section,
   .tasks-section {
     padding: 1.25rem;
   }
-  
+
   .store-visit-header h2 {
     font-size: 1.3rem;
   }
-  
+
   .task-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .task-label {
     min-width: auto;
   }
-  
+
   .damage-modal {
     padding: 1.5rem;
     margin: 1rem;
+  }
+
+  .damage-check-options {
+    flex-direction: column;
   }
 }
 
@@ -623,35 +1051,34 @@
   .store-visit-container {
     padding: 0.5rem;
   }
-  
+
   .store-visit-header,
-  .progress-section,
   .tasks-section {
     padding: 1rem;
     border-radius: 8px;
   }
-  
+
   .store-visit-header h2 {
     font-size: 1.1rem;
   }
-  
+
   .primary-action-btn {
     padding: 1rem;
     font-size: 1rem;
   }
-  
+
   .task-card {
     padding: 1rem;
   }
-  
+
   .task-content {
     gap: 0.75rem;
   }
-  
+
   .modal-actions {
     flex-direction: column;
   }
-  
+
   .modal-btn {
     min-width: auto;
     width: 100%;
@@ -661,15 +1088,14 @@
 /* Móviles muy pequeños */
 @media (max-width: 360px) {
   .store-visit-header,
-  .progress-section,
   .tasks-section {
     padding: 0.75rem;
   }
-  
+
   .task-card {
     padding: 0.75rem;
   }
-  
+
   .task-requirements {
     justify-content: center;
   }
@@ -677,6 +1103,7 @@
 
 /* Mejoras de accesibilidad */
 @media (prefers-reduced-motion: reduce) {
+
   .task-card,
   .primary-action-btn,
   .action-btn,
@@ -692,9 +1119,8 @@
     background-color: #1a1a1a;
     color: #e0e0e0;
   }
-  
+
   .store-visit-header,
-  .progress-section,
   .tasks-section,
   .task-card,
   .damage-modal,
@@ -702,20 +1128,20 @@
     background: #2d2d2d;
     color: #e0e0e0;
   }
-  
+
   .store-visit-header h2,
   .task-label {
     color: #ffffff;
   }
-  
+
   .store-address {
     color: #b0b0b0;
   }
-  
+
   .task-card {
     border-color: #4d4d4d;
   }
-  
+
   .notes-textarea,
   .modal-select,
   .modal-textarea {
@@ -724,23 +1150,9 @@
     color: #e0e0e0;
   }
 
-  /* Advertencia de tiempo */
-    .time-warning {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: 0.75rem;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #f5c6cb;
-    font-weight: 600;
-    margin-top: 1rem;
-    }
-
-    /* Timestamp de tarea */
-    .task-timestamp {
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
-    color: #6c757d;
-    font-style: italic;
-    }
+  .time-warning {
+    background-color: #3c2a2a;
+    color: #ffb3b3;
+    border-color: #5c3c3c;
+  }
 }

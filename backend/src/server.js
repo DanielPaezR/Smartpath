@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import routes from './routes/routes.js';
 import authRoutes from './routes/authRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -32,11 +33,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Servir archivos estáticos
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/admin', adminRoutes);
 
 // Rutas de API
 app.use('/api/auth', authRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/routes', routes);
+app.use('/api/admin', adminRoutes);
 
 // Ruta de salud para Render
 app.get('/api/health', (req, res) => {

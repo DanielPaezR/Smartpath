@@ -39,98 +39,177 @@ export const routeController = {
       
       console.log('👤 Advisor ID recibido:', advisorId);
 
-      // 1. PRIMERO BUSCAR EN RUTAS EXISTENTES PARA HOY
+      // 1. VERIFICAR SI HAY RUTAS VÁLIDAS PARA HOY
       const [todayRoutes] = await connection.execute(
         `SELECT id, date, total_stores, completed_stores FROM routes 
-        WHERE advisor_id = ? AND date = CURDATE()`,
+        WHERE advisor_id = ? AND date = CURDATE()
+        ORDER BY id`,
         [advisorId]
       );
-      console.log('🎯 Ruta de HOY en tabla routes:', todayRoutes);
 
-      // 🎯 SI HAY RUTA PERO NO TIENE TIENDAS, ELIMINARLA Y USAR PLANTILLA
-      if (todayRoutes.length > 0) {
-        const routeId = todayRoutes[0].id;
-        
-        // VERIFICAR SI HAY TIENDAS EN ROUTE_STORES
-        const [storesCount] = await connection.execute(
-          `SELECT COUNT(*) as count FROM route_stores WHERE route_id = ?`,
-          [routeId]
-        );
-        
-        console.log('🔢 Número de tiendas en route_stores:', storesCount[0].count);
+      console.log('🎯 Rutas de HOY encontradas:', todayRoutes.length);
 
-        // 🚨 CORREGIR: Si hay inconsistencia entre total_stores y storesCount
-        if (todayRoutes[0].total_stores !== storesCount[0].count) {
-          console.log('🔄 Corrigiendo inconsistencia en total_stores...');
-          await connection.execute(
-            `UPDATE routes SET total_stores = ? WHERE id = ?`,
-            [storesCount[0].count, routeId]
-          );
-          console.log('✅ total_stores actualizado:', storesCount[0].count);
-        }
-
-        // 🚨 SI NO HAY TIENDAS, ELIMINAR LA RUTA Y USAR PLANTILLA
-        if (storesCount[0].count === 0) {
-          console.log('🗑️ Ruta existe pero sin tiendas, eliminando ruta', routeId);
-          await connection.execute(`DELETE FROM routes WHERE id = ?`, [routeId]);
-          console.log('🔄 Continuando con plantilla...');
-          return await getTemplateRoute(connection, advisorId, res);
-        }
-
-        // 🎯 SI HAY TIENDAS, CONTINUAR NORMALMENTE
-        const [stores] = await connection.execute(
-          `SELECT 
-              rs.*, 
-              s.name, 
-              s.address,
-              s.latitude,
-              s.longitude,
-              s.zone,
-              s.category,
-              s.priority
-          FROM route_stores rs 
-          JOIN stores s ON rs.store_id = s.id 
-          WHERE rs.route_id = ? ORDER BY rs.visit_order`,
-          [routeId]
-        );
-
-        console.log('🏪 Tiendas REALES en BD:', stores.length);
-
-        const response = {
-          id: routeId.toString(),
-          advisor_id: advisorId,
-          date: todayRoutes[0].date,
-          total_stores: storesCount[0].count,
-          completed_stores: todayRoutes[0].completed_stores || 0,
-          total_distance: '15 km',
-          estimated_duration: '120 min',
-          stores: stores.map(store => ({
-            id: store.id.toString(),
-            storeId: {
-              id: store.store_id.toString(),
-              name: store.name,
-              address: store.address,
-              coordinates: {
-                lat: parseFloat(store.latitude) || 6.244203,
-                lng: parseFloat(store.longitude) || -75.581211
-              },
-              zone: store.zone,
-              category: store.category,
-              priority: store.priority
-            },
-            status: store.status,
-            visit_order: store.visit_order
-          }))
-        };
-
-        console.log('🚀 ENVIANDO AL FRONTEND - RUTA EXISTENTE CON TIENDAS');
-        res.json(response);
-        return;
+      let mainRouteId = null;
+      let allStores = [];
+      
+      // 2. SI NO HAY RUTAS O TODAS ESTÁN VACÍAS, USAR PLANTILLA
+      if (todayRoutes.length === 0) {
+        console.log('🔄 No hay rutas para hoy, usando plantillas...');
+        return await getTemplateRoute(connection, advisorId, res);
       }
 
-      // 2. SI NO HAY RUTA PARA HOY, USAR PLANTILLAS
-      console.log('🔄 No hay ruta para hoy, usando PLANTILLAS del día actual');
-      return await getTemplateRoute(connection, advisorId, res);
+      // 3. BUSCAR LA MEJOR RUTA PARA USAR (la que tenga más tiendas)
+      let bestRoute = null;
+      let maxStores = 0;
+      
+      for (const route of todayRoutes) {
+        const [storesCount] = await connection.execute(
+          `SELECT COUNT(*) as count FROM route_stores WHERE route_id = ?`,
+          [route.id]
+        );
+        
+        const storesInRoute = storesCount[0].count;
+        console.log(`🏪 Ruta ${route.id} tiene ${storesInRoute} tiendas`);
+        
+        if (storesInRoute > maxStores) {
+          maxStores = storesInRoute;
+          bestRoute = route;
+        }
+        
+        // ELIMINAR RUTAS VACÍAS
+        if (storesInRoute === 0) {
+          console.log(`🗑️ Eliminando ruta vacía ${route.id}...`);
+          await connection.execute(`DELETE FROM routes WHERE id = ?`, [route.id]);
+        }
+      }
+
+      // 4. SI NO HAY RUTAS VÁLIDAS DESPUÉS DE LIMPIAR
+      if (!bestRoute || maxStores === 0) {
+        console.log('🔄 Todas las rutas estaban vacías, usando plantilla...');
+        return await getTemplateRoute(connection, advisorId, res);
+      }
+
+      mainRouteId = bestRoute.id;
+      console.log(`🎯 Usando ruta principal: ${mainRouteId} con ${maxStores} tiendas`);
+
+      // 5. OBTENER TODAS LAS TIENDAS DE LA RUTA PRINCIPAL
+      const [stores] = await connection.execute(
+        `SELECT 
+            rs.*, 
+            s.name, 
+            s.address,
+            s.latitude,
+            s.longitude,
+            s.zone,
+            s.category,
+            s.priority
+        FROM route_stores rs 
+        JOIN stores s ON rs.store_id = s.id 
+        WHERE rs.route_id = ? ORDER BY rs.visit_order`,
+        [mainRouteId]
+      );
+
+      console.log('🏪 Tiendas en ruta principal:', stores.length);
+
+      // 6. VERIFICAR SI FALTAN TIENDAS DE LA PLANTILLA
+      if (stores.length < 10) { // 10 es el número esperado según la plantilla
+        console.log(`⚠️ Faltan tiendas: ${stores.length}/10, verificando plantilla...`);
+        
+        // OBTENER PLANTILLA DEL DÍA
+        const currentDay = new Date().toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
+        const [templates] = await connection.execute(
+          `SELECT rt.id, COUNT(rts.id) as total_stores
+          FROM route_templates rt
+          LEFT JOIN route_template_stores rts ON rt.id = rts.template_id
+          WHERE rt.advisor_id = ? AND rt.day_of_week = ? AND rt.is_active = TRUE
+          GROUP BY rt.id
+          LIMIT 1`,
+          [advisorId, currentDay]
+        );
+        
+        if (templates.length > 0 && templates[0].total_stores > stores.length) {
+          console.log(`🔄 Agregando ${templates[0].total_stores - stores.length} tiendas faltantes...`);
+          
+          // AGREGAR TIENDAS FALTANTES DE LA PLANTILLA
+          await connection.execute(`
+            INSERT INTO route_stores (route_id, store_id, visit_order, status)
+            SELECT 
+              ? as route_id,
+              rts.store_id,
+              rts.visit_order,
+              'pending' as status
+            FROM route_template_stores rts
+            WHERE rts.template_id = ?
+              AND rts.store_id NOT IN (
+                SELECT store_id FROM route_stores WHERE route_id = ?
+              )
+            ORDER BY rts.visit_order
+          `, [mainRouteId, templates[0].id, mainRouteId]);
+          
+          // VOLVER A OBTENER TIENDAS ACTUALIZADAS
+          const [updatedStores] = await connection.execute(
+            `SELECT 
+                rs.*, 
+                s.name, 
+                s.address,
+                s.latitude,
+                s.longitude,
+                s.zone,
+                s.category,
+                s.priority
+            FROM route_stores rs 
+            JOIN stores s ON rs.store_id = s.id 
+            WHERE rs.route_id = ? ORDER BY rs.visit_order`,
+            [mainRouteId]
+          );
+          
+          allStores = updatedStores;
+          console.log(`✅ Tiendas actualizadas: ${updatedStores.length}`);
+        } else {
+          allStores = stores;
+        }
+      } else {
+        allStores = stores;
+      }
+
+      // 7. ACTUALIZAR total_stores EN LA RUTA
+      await connection.execute(
+        `UPDATE routes SET total_stores = ? WHERE id = ?`,
+        [allStores.length, mainRouteId]
+      );
+
+      // 8. CONSTRUIR RESPUESTA
+      const response = {
+        id: mainRouteId.toString(),
+        advisor_id: advisorId,
+        date: bestRoute.date,
+        total_stores: allStores.length,
+        completed_stores: bestRoute.completed_stores || 0,
+        total_distance: '15 km',
+        estimated_duration: '120 min',
+        stores: allStores.map((store, index) => ({
+          id: store.id.toString(),
+          storeId: {
+            id: store.store_id.toString(),
+            name: store.name,
+            address: store.address,
+            coordinates: {
+              lat: parseFloat(store.latitude) || 6.244203,
+              lng: parseFloat(store.longitude) || -75.581211
+            },
+            zone: store.zone,
+            category: store.category,
+            priority: store.priority
+          },
+          status: store.status,
+          visit_order: store.visit_order,
+          route_id: mainRouteId
+        }))
+      };
+
+      console.log('🚀 ENVIANDO AL FRONTEND - RUTA COMPLETA');
+      console.log(`📊 Total tiendas enviadas: ${response.stores.length}`);
+      res.json(response);
 
     } catch (error) {
       console.error('❌ ERROR en getCurrentRoute:', error);
@@ -205,9 +284,9 @@ export const routeController = {
         // OBTENER INFORMACIÓN COMPLETA DE LA TIENDA
         const [storeInfo] = await connection.execute(
           `SELECT rts.store_id, rts.visit_order, s.name, s.address 
-           FROM route_template_stores rts
-           JOIN stores s ON rts.store_id = s.id
-           WHERE rts.id = ? AND rts.template_id = ?`,
+          FROM route_template_stores rts
+          JOIN stores s ON rts.store_id = s.id
+          WHERE rts.id = ? AND rts.template_id = ?`,
           [numericStoreVisitId, templateId]
         );
 
@@ -227,71 +306,182 @@ export const routeController = {
           name: storeData.name
         });
         
-        // 🎯 CREAR NUEVA RUTA CON STATUS NORMALIZADO PARA ROUTES
-        console.log('🆕 Creando nueva ruta con AUTO_INCREMENT...');
+        // 🎯 PRIMERO BUSCAR SI YA EXISTE UNA RUTA PARA HOY
+        let existingRouteId = null;
+        let isNewRoute = false;
         
-        // 🎯 USAR EL NORMALIZADOR ESPECÍFICO PARA ROUTES
-        const routeStatus = normalizeStatus('in-progress', 'routes');
-        console.log('🔄 Status normalizado para ROUTES:', routeStatus);
-
-        const [routeResult] = await connection.execute(
-          `INSERT INTO routes (advisor_id, date, total_stores, completed_stores, total_distance, estimated_duration, status) 
-           VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, ?)`,
-          [req.user?.id || '8', routeStatus]
+        const [existingRoutes] = await connection.execute(
+          `SELECT id FROM routes 
+          WHERE advisor_id = ? AND date = CURDATE()
+          ORDER BY id LIMIT 1`,
+          [req.user?.id || '8']
         );
 
-        const tempRouteId = routeResult.insertId;
-        console.log('✅ Ruta creada con ID:', tempRouteId);
+        if (existingRoutes.length > 0) {
+          // 🎯 USAR RUTA EXISTENTE
+          existingRouteId = existingRoutes[0].id;
+          console.log('🎯 Usando ruta existente:', existingRouteId);
+          
+          // Verificar si la tienda ya existe en esta ruta
+          const [existingStore] = await connection.execute(
+            `SELECT id FROM route_stores WHERE route_id = ? AND store_id = ?`,
+            [existingRouteId, storeData.store_id]
+          );
+          
+          if (existingStore.length > 0) {
+            // Si la tienda ya existe, usar esa visita
+            console.log('🔄 Tienda ya existe en ruta, usando visita existente');
+            const existingVisitId = existingStore[0].id;
+            
+            // 🎯 VERIFICAR SI ESTÁ SKIPPED PARA REINICIAR
+            const [visitDetails] = await connection.execute(
+              `SELECT status FROM route_stores WHERE id = ?`,
+              [existingVisitId]
+            );
+            
+            if (visitDetails.length > 0 && visitDetails[0].status === 'skipped') {
+              console.log('🔄 Reiniciando tienda previamente saltada desde plantilla...');
+              
+              const storeStatus = normalizeStatus('in-progress', 'route_stores');
+              const [result] = await connection.execute(
+                `UPDATE route_stores 
+                SET status = ?, 
+                    start_time = NOW(),
+                    end_time = NULL,
+                    skip_reason = NULL,
+                    updated_at = NOW()
+                WHERE id = ?`,
+                [storeStatus, existingVisitId]
+              );
+              
+              if (result.affectedRows === 0) {
+                return res.status(500).json({
+                  success: false,
+                  message: 'No se pudo reiniciar la visita saltada'
+                });
+              }
+              
+              console.log('✅ Tienda saltada reiniciada exitosamente');
+              return res.json({
+                success: true,
+                message: 'Visita saltada reiniciada exitosamente',
+                visitId: existingVisitId,
+                routeId: existingRouteId.toString(),
+                startTime: new Date().toISOString(),
+                isTemplate: true,
+                wasSkipped: true
+              });
+            }
+          } else {
+            // Si no existe, actualizar total_stores
+            await connection.execute(
+              `UPDATE routes SET total_stores = total_stores + 1 WHERE id = ?`,
+              [existingRouteId]
+            );
+          }
+        } else {
+          // 🎯 CREAR NUEVA RUTA SOLO SI NO EXISTE
+          console.log('🆕 Creando nueva ruta...');
+          const routeStatus = normalizeStatus('in-progress', 'routes');
+          console.log('🔄 Status normalizado para ROUTES:', routeStatus);
+          
+          const [routeResult] = await connection.execute(
+            `INSERT INTO routes (advisor_id, date, total_stores, completed_stores, total_distance, estimated_duration, status) 
+            VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, ?)`,
+            [req.user?.id || '8', routeStatus]
+          );
+          
+          existingRouteId = routeResult.insertId;
+          isNewRoute = true;
+          console.log('✅ Nueva ruta creada con ID:', existingRouteId);
+        }
 
         // 🎯 INSERTAR EN ROUTE_STORES CON STATUS NORMALIZADO PARA ROUTE_STORES
         console.log('🔄 Insertando tienda en route_stores...');
         const storeStatus = normalizeStatus('in-progress', 'route_stores');
         console.log('🔄 Status normalizado para ROUTE_STORES:', storeStatus);
 
-        console.log('📤 Datos de inserción:', {
-          route_id: tempRouteId,
-          store_id: storeData.store_id,
-          visit_order: storeData.visit_order,
-          status: storeStatus
-        });
+        let result;
+        let visitId;
 
-        const [result] = await connection.execute(
-          `INSERT INTO route_stores (route_id, store_id, visit_order, status, start_time) 
-           VALUES (?, ?, ?, ?, NOW())`,
-          [tempRouteId, storeData.store_id, storeData.visit_order, storeStatus]
+        // Verificar nuevamente si la tienda ya existe
+        const [checkStore] = await connection.execute(
+          `SELECT id, status FROM route_stores WHERE route_id = ? AND store_id = ?`,
+          [existingRouteId, storeData.store_id]
         );
+
+        if (checkStore.length > 0) {
+          // Actualizar visita existente
+          visitId = checkStore[0].id;
+          const currentStatus = checkStore[0].status;
+          
+          // 🎯 VERIFICAR SI ESTÁ SKIPPED
+          if (currentStatus === 'skipped') {
+            console.log('🔄 Reiniciando tienda saltada:', visitId);
+            
+            [result] = await connection.execute(
+              `UPDATE route_stores 
+              SET status = ?, 
+                  start_time = NOW(),
+                  end_time = NULL,
+                  skip_reason = NULL,
+                  updated_at = NOW()
+              WHERE id = ?`,
+              [storeStatus, visitId]
+            );
+          } else {
+            console.log('🔄 Actualizando visita existente:', visitId);
+            
+            [result] = await connection.execute(
+              `UPDATE route_stores SET status = ?, start_time = NOW() WHERE id = ?`,
+              [storeStatus, visitId]
+            );
+          }
+        } else {
+          // Insertar nueva visita
+          console.log('📤 Datos de inserción:', {
+            route_id: existingRouteId,
+            store_id: storeData.store_id,
+            visit_order: storeData.visit_order,
+            status: storeStatus
+          });
+
+          [result] = await connection.execute(
+            `INSERT INTO route_stores (route_id, store_id, visit_order, status, start_time) 
+            VALUES (?, ?, ?, ?, NOW())`,
+            [existingRouteId, storeData.store_id, storeData.visit_order, storeStatus]
+          );
+          
+          visitId = result.insertId;
+        }
 
         console.log('📊 Resultado de inserción en route_stores:', {
           insertId: result.insertId,
-          affectedRows: result.affectedRows
+          affectedRows: result.affectedRows,
+          changedRows: result.changedRows
         });
 
         if (result.affectedRows === 0) {
-          console.log('❌ No se pudo crear la visita en route_stores');
+          console.log('❌ No se pudo crear/actualizar la visita en route_stores');
           return res.status(500).json({
             success: false,
-            message: 'No se pudo crear la visita'
+            message: 'No se pudo crear/actualizar la visita'
           });
         }
-
-        // VERIFICAR QUE REALMENTE SE INSERTÓ
-        const [verify] = await connection.execute(
-          `SELECT * FROM route_stores WHERE id = ?`,
-          [result.insertId]
-        );
-        console.log('🔍 Verificación de inserción:', verify);
 
         console.log('✅ Visita de plantilla iniciada exitosamente');
         return res.json({
           success: true,
           message: 'Visita de plantilla iniciada exitosamente',
-          visitId: result.insertId,
-          routeId: tempRouteId.toString(),
+          visitId: visitId,
+          routeId: existingRouteId.toString(),
           startTime: new Date().toISOString(),
-          isTemplate: true
+          isTemplate: true,
+          isNewRoute: isNewRoute
         });
 
       } else {
+        // 🎯 RUTA REAL
         console.log('🛣️ Ruta REAL - ID:', routeId);
         console.log('🏪 Store Visit ID:', storeVisitId);
 
@@ -309,7 +499,67 @@ export const routeController = {
           });
         }
 
-        // 🎯 USAR STATUS NORMALIZADO PARA ROUTE_STORES
+        const currentStatus = existingVisit[0].status;
+        
+        // 🎯 PERMITIR REINICIAR TIENDAS SALTADAS
+        if (currentStatus === 'skipped') {
+          console.log('🔄 Reiniciando tienda previamente saltada...');
+          
+          const status = normalizeStatus('in-progress', 'route_stores');
+          const [result] = await connection.execute(
+            `UPDATE route_stores 
+            SET status = ?, 
+                start_time = NOW(),
+                end_time = NULL,
+                skip_reason = NULL,
+                updated_at = NOW()
+            WHERE id = ? AND route_id = ?`,
+            [status, storeVisitId, routeId]
+          );
+          
+          if (result.affectedRows === 0) {
+            return res.status(500).json({
+              success: false,
+              message: 'No se pudo reiniciar la visita saltada'
+            });
+          }
+          
+          console.log('✅ Tienda saltada reiniciada exitosamente');
+          return res.json({
+            success: true,
+            message: 'Visita saltada reiniciada exitosamente',
+            visitId: storeVisitId,
+            routeId: routeId,
+            startTime: new Date().toISOString(),
+            isTemplate: false,
+            wasSkipped: true
+          });
+        }
+
+        // 🎯 SI YA ESTÁ EN PROGRESO O COMPLETADA
+        if (currentStatus === 'in-progress' || currentStatus === 'in_progress' || currentStatus === 'completed') {
+          console.log('ℹ️ La visita ya está en estado:', currentStatus);
+          
+          if (currentStatus === 'completed') {
+            return res.status(400).json({
+              success: false,
+              message: 'Esta visita ya fue completada y no puede reiniciarse'
+            });
+          }
+          
+          // Si ya está en progreso, solo devolver éxito
+          return res.json({
+            success: true,
+            message: 'La visita ya está en progreso',
+            visitId: storeVisitId,
+            routeId: routeId,
+            startTime: new Date().toISOString(),
+            isTemplate: false,
+            alreadyInProgress: true
+          });
+        }
+
+        // 🎯 INICIAR VISITA NORMALMENTE
         const status = normalizeStatus('in-progress', 'route_stores');
         console.log('🔄 Status normalizado para ruta real:', status);
 
@@ -318,7 +568,10 @@ export const routeController = {
           [status, storeVisitId, routeId]
         );
 
-        console.log('📊 Resultado de actualización:', result);
+        console.log('📊 Resultado de actualización:', {
+          affectedRows: result.affectedRows,
+          changedRows: result.changedRows
+        });
 
         if (result.affectedRows === 0) {
           return res.status(500).json({
@@ -332,6 +585,7 @@ export const routeController = {
           success: true,
           message: 'Visita iniciada exitosamente',
           visitId: storeVisitId,
+          routeId: routeId,
           startTime: new Date().toISOString(),
           isTemplate: false
         });
@@ -369,6 +623,7 @@ export const routeController = {
       const { routeId, storeVisitId, visitData } = req.body;
 
       console.log('✅ COMPLETE STORE VISIT - DATOS:', { routeId, storeVisitId });
+      console.log('📦 visitData recibido:', visitData);
 
       if (!routeId || !storeVisitId) {
         return res.status(400).json({ 
@@ -381,7 +636,7 @@ export const routeController = {
       if (!duration) {
         const [visitInfo] = await connection.execute(
           `SELECT TIMESTAMPDIFF(MINUTE, start_time, NOW()) as calculated_duration
-           FROM route_stores WHERE id = ? AND route_id = ?`,
+          FROM route_stores WHERE id = ? AND route_id = ?`,
           [storeVisitId, routeId]
         );
         duration = visitInfo[0]?.calculated_duration || 0;
@@ -391,21 +646,39 @@ export const routeController = {
       const status = normalizeStatus('completed', 'route_stores');
       console.log('🔄 Status normalizado para completar:', status);
 
+      // 🎯 PREPARAR DATOS PARA PRODUCTS_DAMAGED (debe ser JSON válido o null)
+      let productsDamagedValue = null;
+      if (visitData?.productsDamaged !== undefined && visitData?.productsDamaged !== null) {
+        // Si es un número, convertirlo a objeto JSON
+        if (typeof visitData.productsDamaged === 'number') {
+          productsDamagedValue = JSON.stringify({
+            count: visitData.productsDamaged,
+            reports: visitData?.damageReports || []
+          });
+        } else if (typeof visitData.productsDamaged === 'object') {
+          // Si ya es un objeto, stringificarlo
+          productsDamagedValue = JSON.stringify(visitData.productsDamaged);
+        }
+      }
+      
+      console.log('🔍 productsDamaged preparado:', productsDamagedValue);
+
+      // 🎯 QUERY CORREGIDA
       const [result] = await connection.execute(
         `UPDATE route_stores 
-         SET status = ?, end_time = NOW(),
-             actual_duration = ?, notes = ?,
-             before_photo_url = ?, after_photo_url = ?,
-             products_damaged = ?, signature_url = ?, barcode_data = ?,
-             tasks_completed = ?
-         WHERE id = ? AND route_id = ?`,
+        SET status = ?, end_time = NOW(),
+            actual_duration = ?, notes = ?,
+            before_photo_url = ?, after_photo_url = ?,
+            products_damaged = ?, signature_url = ?, barcode_data = ?,
+            tasks_completed = ?
+        WHERE id = ? AND route_id = ?`,
         [
           status,
           duration,
           visitData?.notes || '',
           visitData?.beforePhoto || null,
           visitData?.afterPhoto || null,
-          visitData?.productsDamaged || 0,
+          productsDamagedValue,  // ✅ Ahora es JSON válido o null
           visitData?.signature || null,
           visitData?.barcodeData || null,
           visitData?.tasksCompleted || 0,
@@ -414,6 +687,11 @@ export const routeController = {
         ]
       );
 
+      console.log('📊 Resultado de actualización:', {
+        affectedRows: result.affectedRows,
+        changedRows: result.changedRows
+      });
+
       if (result.affectedRows === 0) {
         return res.status(404).json({ 
           success: false,
@@ -421,12 +699,15 @@ export const routeController = {
         });
       }
 
+      // Actualizar contador de tiendas completadas
       await connection.execute(
         `UPDATE routes SET completed_stores = completed_stores + 1 WHERE id = ?`,
         [routeId]
       );
 
-      // 🎯 CAPTURAR ANALYTICS DESPUÉS DE COMPLETAR VISITA
+      console.log('✅ Visita completada exitosamente en BD');
+
+      // 🎯 CAPTURAR ANALYTICS
       try {
         await mlService.captureVisitMetrics(storeVisitId, {
           duration: duration,
@@ -449,6 +730,13 @@ export const routeController = {
 
     } catch (error) {
       console.error('❌ Error completando visita:', error);
+      console.error('📋 Detalles del error:', {
+        message: error.message,
+        code: error.code,
+        sql: error.sql,
+        sqlState: error.sqlState
+      });
+      
       res.status(500).json({
         success: false,
         message: 'Error completando visita',
@@ -456,6 +744,7 @@ export const routeController = {
       });
     } finally {
       await connection.end();
+      console.log('🚨=== FINALIZANDO completeStoreVisit ===');
     }
   },
 
@@ -505,34 +794,90 @@ export const routeController = {
 
         const storeData = storeInfo[0];
         
+        // 🎯 PRIMERO BUSCAR SI YA EXISTE UNA RUTA PARA HOY
+        let existingRouteId = null;
+        let isNewRoute = false;
+        
+        const [existingRoutes] = await connection.execute(
+          `SELECT id FROM routes 
+          WHERE advisor_id = ? AND date = CURDATE()
+          ORDER BY id LIMIT 1`,
+          [req.user?.id || '8']
+        );
+
+        if (existingRoutes.length > 0) {
+          // 🎯 USAR RUTA EXISTENTE
+          existingRouteId = existingRoutes[0].id;
+          console.log('🎯 Usando ruta existente:', existingRouteId);
+        } else {
+          // 🎯 CREAR NUEVA RUTA SOLO SI NO EXISTE
+          console.log('🆕 Creando nueva ruta...');
+          const routeStatus = normalizeStatus('in-progress', 'routes');
+          const [routeResult] = await connection.execute(
+            `INSERT INTO routes (advisor_id, date, total_stores, completed_stores, total_distance, estimated_duration, status) 
+            VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, ?)`,
+            [req.user?.id || '8', routeStatus]
+          );
+          existingRouteId = routeResult.insertId;
+          isNewRoute = true;
+          console.log('✅ Nueva ruta creada:', existingRouteId);
+        }
+
         // 🎯 USAR STATUS NORMALIZADO PARA PLANTILLA
-        const routeStatus = normalizeStatus('in-progress', 'routes');
         const storeStatus = normalizeStatus('skipped', 'route_stores');
-        console.log('🔄 Status normalizado para routes:', routeStatus);
         console.log('🔄 Status normalizado para route_stores:', storeStatus);
 
-        const [routeResult] = await connection.execute(
-          `INSERT INTO routes (advisor_id, date, total_stores, completed_stores, total_distance, estimated_duration, status) 
-           VALUES (?, CURDATE(), 1, 0, 15.00, 120.00, ?)`,
-          [req.user?.id || '8', routeStatus]
+        // Verificar si la tienda ya existe en esta ruta
+        const [existingStore] = await connection.execute(
+          `SELECT id FROM route_stores WHERE route_id = ? AND store_id = ?`,
+          [existingRouteId, storeData.store_id]
         );
 
-        const tempRouteId = routeResult.insertId;
-        console.log('✅ Ruta temporal creada con ID:', tempRouteId);
+        let result;
+        let visitId;
 
-        const [result] = await connection.execute(
-          `INSERT INTO route_stores (route_id, store_id, visit_order, status, skip_reason, start_time, end_time) 
-           VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-          [tempRouteId, storeData.store_id, storeData.visit_order, storeStatus, skipReason || 'Tienda cerrada']
-        );
+        if (existingStore.length === 0) {
+          // Insertar nueva tienda saltada
+          console.log('🆕 Insertando nueva tienda saltada...');
+          
+          [result] = await connection.execute(
+            `INSERT INTO route_stores (route_id, store_id, visit_order, status, skip_reason, start_time, end_time) 
+            VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+            [existingRouteId, storeData.store_id, storeData.visit_order, storeStatus, skipReason || 'Tienda cerrada']
+          );
+          
+          visitId = result.insertId;
+          
+          // Actualizar total_stores de la ruta
+          await connection.execute(
+            `UPDATE routes SET total_stores = total_stores + 1 WHERE id = ?`,
+            [existingRouteId]
+          );
+          
+          console.log('✅ Nueva tienda saltada agregada a ruta:', existingRouteId);
+        } else {
+          // Actualizar tienda existente
+          visitId = existingStore[0].id;
+          console.log('🔄 Actualizando tienda existente como saltada:', visitId);
+          
+          [result] = await connection.execute(
+            `UPDATE route_stores 
+            SET status = ?, skip_reason = ?, end_time = NOW()
+            WHERE id = ? AND route_id = ?`,
+            [storeStatus, skipReason || 'Tienda cerrada', visitId, existingRouteId]
+          );
+          
+          console.log('✅ Tienda existente actualizada como saltada');
+        }
 
-        console.log('📊 Resultado de inserción:', {
-          insertId: result.insertId,
-          affectedRows: result.affectedRows
+        console.log('📊 Resultado de operación:', {
+          insertId: result?.insertId,
+          affectedRows: result.affectedRows,
+          changedRows: result.changedRows
         });
 
         if (result.affectedRows === 0) {
-          console.log('❌ No se pudo insertar la visita skipped');
+          console.log('❌ No se pudo procesar la visita skipped');
           return res.status(500).json({ 
             success: false,
             message: 'No se pudo saltar la visita' 
@@ -543,9 +888,10 @@ export const routeController = {
         return res.json({
           success: true,
           message: 'Visita saltada exitosamente',
-          visitId: result.insertId,
-          routeId: tempRouteId.toString(),
-          isTemplate: true
+          visitId: visitId,
+          routeId: existingRouteId.toString(),
+          isTemplate: true,
+          isNewRoute: isNewRoute
         });
 
       } else {
@@ -574,11 +920,11 @@ export const routeController = {
         console.log('🔄 Actualizando visita a skipped...');
         const [result] = await connection.execute(
           `UPDATE route_stores 
-           SET status = ?, 
-               skip_reason = ?, 
-               end_time = NOW(),
-               updated_at = NOW()
-           WHERE id = ? AND route_id = ?`,
+          SET status = ?, 
+              skip_reason = ?, 
+              end_time = NOW(),
+              updated_at = NOW()
+          WHERE id = ? AND route_id = ?`,
           [status, skipReason || 'Tienda cerrada', storeVisitId, routeId]
         );
 
@@ -638,10 +984,10 @@ export const routeController = {
 
       const [result] = await connection.execute(
         `UPDATE route_stores 
-         SET tasks_completed = ?, before_photo_url = ?, after_photo_url = ?,
-             products_damaged = ?, signature_url = ?, barcode_data = ?,
-             notes = ?
-         WHERE id = ?`,
+        SET tasks_completed = ?, before_photo_url = ?, after_photo_url = ?,
+            products_damaged = ?, signature_url = ?, barcode_data = ?,
+            notes = ?
+        WHERE id = ?`,
         [
           taskData.tasksCompleted || 0,
           taskData.beforePhoto || null,

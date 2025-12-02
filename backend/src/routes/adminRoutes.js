@@ -17,8 +17,8 @@ router.get('/notifications', adminController.getNotifications);
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
 router.get('/metrics/advanced', advancedAdminController.getAdvancedMetrics);
 router.post('/routes/optimize', advancedAdminController.generateOptimizedRoute);
-router.get('/ml/training-data', advancedAdminController.getMLTrainingData);
+
 router.get('/reports/damage', advancedAdminController.getDamageReports);
-router.get('/analytics/sales', advancedAdminController.getSalesAnalytics);
+
 
 export default router;

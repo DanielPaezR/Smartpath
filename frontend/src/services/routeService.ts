@@ -1,4 +1,4 @@
-// frontend/src/services/routeService.ts - CON DEBUG COMPLETO
+// frontend/src/services/routeService.ts - COMPLETO CON FUNCIÓN updateStoreStatus
 import { api } from './api';
 
 export interface IStore {
@@ -104,6 +104,27 @@ export const routeService = {
         throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
       }
       
+      throw error;
+    }
+  },
+
+  // 🆕 FUNCIÓN AGREGADA: Actualizar estado de tienda
+  async updateStoreStatus(routeId: string, storeVisitId: string, status: string): Promise<any> {
+    try {
+      console.log('🔄 [routeService] Actualizando estado de tienda:', { 
+        routeId, 
+        storeVisitId, 
+        status 
+      });
+      
+      const response = await api.patch(`/routes/${routeId}/stores/${storeVisitId}/status`, {
+        status
+      });
+      
+      console.log('✅ [routeService] Estado actualizado exitosamente:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [routeService] Error actualizando estado:', error);
       throw error;
     }
   },

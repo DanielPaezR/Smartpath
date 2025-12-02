@@ -152,7 +152,7 @@ const AdvisorDashboard = () => {
       return;
     }
 
-    navigate('/advisor/visit', {
+    navigate('/store-visit', {
       state: {
         storeVisitId: storeId,
         routeId: currentRoute.id,
@@ -181,6 +181,55 @@ const AdvisorDashboard = () => {
     } catch (error) {
       console.error('❌ Error saltando tienda:', error);
       alert('Error al saltar la tienda');
+    }
+  };
+
+
+  // 🆕 FUNCIÓN CORREGIDA PARA REINICIAR VISITA QUE FUE SALTADA
+  const handleRestartSkippedVisit = async (storeId) => {
+    if (!window.confirm('¿Quieres reiniciar esta visita que fue saltada?')) {
+      return;
+    }
+
+    try {
+      console.log('🔄 Reiniciando visita saltada:', storeId);
+      
+      // NOTA: No necesitamos updateStoreStatus porque el backend
+      // probablemente maneja el cambio de status al iniciar la visita
+      
+      // Simplemente iniciar la visita normalmente
+      await routeService.startVisit(
+        currentRoute.id,
+        storeId
+      );
+      
+      // Recargar los datos
+      await loadRouteData(currentUser.id.toString());
+      alert('✅ Visita reiniciada exitosamente');
+      
+      // Navegar a la visita
+      const store = currentRoute.stores.find(s => s.id === storeId);
+      if (store) {
+        navigate('/store-visit', {
+          state: {
+            storeVisitId: storeId,
+            routeId: currentRoute.id,
+            storeId: store.storeId?.id || storeId
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error reiniciando visita:', error);
+      
+      // Mensaje más específico
+      if (error.response?.status === 404) {
+        alert('Error: El endpoint no existe. Contacta al administrador.');
+      } else if (error.message?.includes('No se puede iniciar')) {
+        alert('Esta visita no puede reiniciarse porque ya fue completada o está en progreso.');
+      } else {
+        alert('Error al reiniciar la visita: ' + error.message);
+      }
     }
   };
 
@@ -333,8 +382,17 @@ const AdvisorDashboard = () => {
                 )}
 
                 {store.status === 'skipped' && (
-                  <div className="skipped-badge">
-                    ⏭️ Visita Saltada
+                  <div className="skipped-actions">
+                    <div className="skipped-badge">
+                      ⏭️ Visita Saltada
+                    </div>
+                    {/* 🆕 BOTÓN PARA REINICIAR VISITA SALTADA */}
+                    <button 
+                      className="action-btn restart-visit-btn"
+                      onClick={() => handleRestartSkippedVisit(store.id)}
+                    >
+                      🔄 Reiniciar Visita
+                    </button>
                   </div>
                 )}
               </div>

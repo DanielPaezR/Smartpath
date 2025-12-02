@@ -1,6 +1,6 @@
-// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CORREGIDA
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN FINAL SIMPLIFICADA
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
 import PhotoUpload from '../common/PhotoUpload';
@@ -48,21 +48,169 @@ interface IDamageReport {
   reportedBy: string;
 }
 
+// 🆕 COMPONENTE PARA CÁMARA DIRECTA - SIMPLIFICADO
+const CameraButton: React.FC<{
+  onCapture: (photos: string[]) => void;
+  existingPhotos?: string[];
+  maxPhotos?: number;
+  disabled?: boolean;
+}> = ({ onCapture, existingPhotos = [], maxPhotos = 5, disabled = false }) => {
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [capturedPhotos, setCapturedPhotos] = useState<string[]>(existingPhotos);
+
+  const openCamera = async () => {
+    try {
+      if (capturedPhotos.length >= maxPhotos) {
+        alert(`Máximo ${maxPhotos} fotos permitidas`);
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      
+      setCameraStream(stream);
+      setIsCameraOpen(true);
+    } catch (error) {
+      console.error('Error al abrir la cámara:', error);
+      alert('No se pudo acceder a la cámara. Verifica los permisos.');
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!cameraStream) return;
+
+    const video = document.createElement('video');
+    video.srcObject = cameraStream;
+    video.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    setTimeout(() => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        const newPhotos = [...capturedPhotos, photoData];
+        setCapturedPhotos(newPhotos);
+        onCapture(newPhotos);
+        
+        if (newPhotos.length >= maxPhotos) {
+          closeCamera();
+        }
+      }
+    }, 500);
+  };
+
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraOpen(false);
+  };
+
+  const removePhoto = (index: number) => {
+    const newPhotos = capturedPhotos.filter((_, i) => i !== index);
+    setCapturedPhotos(newPhotos);
+    onCapture(newPhotos);
+  };
+
+  return (
+    <div className="camera-upload-container">
+      {/* 🆕 BOTÓN SIMPLIFICADO - SOLO "TOMAR FOTO" */}
+      <button
+        type="button"
+        onClick={openCamera}
+        disabled={disabled || capturedPhotos.length >= maxPhotos}
+        className="camera-open-btn"
+      >
+        📸 Tomar Foto
+      </button>
+
+      {/* PREVIEW DE FOTOS TOMADAS */}
+      {capturedPhotos.length > 0 && (
+        <div className="photos-preview">
+          <p><strong>Fotos tomadas ({capturedPhotos.length}):</strong></p>
+          <div className="photos-grid">
+            {capturedPhotos.map((photo, index) => (
+              <div key={index} className="photo-preview">
+                <img src={photo} alt={`Foto ${index + 1}`} />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(index)}
+                  className="remove-photo-btn"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CÁMARA */}
+      {isCameraOpen && (
+        <div className="camera-modal-overlay">
+          <div className="camera-modal">
+            <div className="camera-header">
+              <h3>📸 Tomar Foto</h3>
+              <button onClick={closeCamera} className="close-camera-btn">×</button>
+            </div>
+            
+            <div className="camera-view">
+              {cameraStream && (
+                <video
+                  ref={(video) => {
+                    if (video) video.srcObject = cameraStream;
+                  }}
+                  autoPlay
+                  playsInline
+                  className="camera-video"
+                />
+              )}
+            </div>
+            
+            <div className="camera-controls">
+              <button onClick={capturePhoto} className="capture-btn">
+                CAPTURAR
+              </button>
+              <p className="camera-instruction">
+                Asegúrate de que el producto sea visible en la foto
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Servicio para productos
 const productService = {
   getProductByBarcode: async (barcode: string): Promise<IProduct | null> => {
     try {
-      const response = await fetch(`/api/products/barcode/${barcode}`, {
+      const response = await fetch(`/api/routes/products/barcode/${barcode}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
       if (!response.ok) {
-        throw new Error('Producto no encontrado');
+        if (response.status === 404) {
+          throw new Error('Producto no encontrado');
+        }
+        throw new Error(`Error del servidor: ${response.status}`);
       }
       
       return await response.json();
+      
     } catch (error) {
       console.error('Error buscando producto:', error);
       return null;
@@ -71,53 +219,48 @@ const productService = {
 
   reportDamage: async (damageReport: Omit<IDamageReport, 'id' | 'timestamp'>) => {
     try {
-      const response = await fetch('/api/products/report-damage', {
+      const reportToSend = {
+        barcode: damageReport.barcode,
+        product: {
+          id: damageReport.product.id,
+          name: damageReport.product.name,
+          brand: damageReport.product.brand,
+          category: damageReport.product.category,
+          price: damageReport.product.price,
+          stock: damageReport.product.stock
+        },
+        damageType: damageReport.damageType,
+        description: damageReport.description,
+        severity: damageReport.severity,
+        storeId: damageReport.storeId,
+        reportedBy: damageReport.reportedBy,
+        photosMetadata: damageReport.photos ? damageReport.photos.map((photo, index) => ({
+          index: index,
+          hasPhoto: !!photo,
+          isBase64: photo?.startsWith('data:image'),
+          length: photo?.length || 0
+        })) : []
+      };
+      
+      const response = await fetch('/api/routes/products/report-damage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(damageReport)
+        body: JSON.stringify(reportToSend)
       });
       
       if (!response.ok) {
-        throw new Error('Error reportando daño');
+        const errorText = await response.text();
+        throw new Error('Error reportando daño en el servidor');
       }
       
       return await response.json();
+      
     } catch (error) {
       console.error('Error reportando daño:', error);
       throw error;
-    }
-  }
-};
-
-// Servicio de tracking
-const trackingService = {
-  updateLocation: async (latitude: number, longitude: number, currentStoreId?: string, activityStatus?: string) => {
-    try {
-      const response = await fetch('http://localhost:3000/api/tracking/update-location', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          latitude,
-          longitude,
-          currentStoreId: null,
-          activityStatus: 'active', 
-          batteryLevel: 80 
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Error updating location');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error en tracking:', error);
     }
   }
 };
@@ -129,12 +272,6 @@ const StoreVisit: React.FC = () => {
 
   const { storeVisitId, routeId } = location.state || {};
   
-  console.log('📍 Parámetros recibidos en StoreVisit:', {
-    storeVisitId,
-    routeId,
-    locationState: location.state
-  });
-  
   const [route, setRoute] = useState<IRoute | null>(null);
   const [currentStoreIndex, setCurrentStoreIndex] = useState(0);
   const [timeInStore, setTimeInStore] = useState(0);
@@ -145,21 +282,24 @@ const StoreVisit: React.FC = () => {
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showDamageReport, setShowDamageReport] = useState(false);
+  
+  // Estados para formulario de daños
   const [currentBarcode, setCurrentBarcode] = useState<string>('');
   const [currentProduct, setCurrentProduct] = useState<IProduct | null>(null);
   const [damageDescription, setDamageDescription] = useState('');
   const [damageType, setDamageType] = useState('');
   const [damageSeverity, setDamageSeverity] = useState<'low' | 'medium' | 'high'>('low');
   const [damagePhotos, setDamagePhotos] = useState<string[]>([]);
+  
   const [visitNotes, setVisitNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🎯 ESTADOS MEJORADOS - SOPORTE PARA in_progress E in-progress
+  // Estados de visita
   const [visitStatus, setVisitStatus] = useState<'pending' | 'in-progress' | 'in_progress' | 'completed' | 'skipped'>('pending');
-  const [currentVisitData, setCurrentVisitData] = useState<any>(null);
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
+  const [hasInitializedTasks, setHasInitializedTasks] = useState(false);
 
-  // Tareas mejoradas
+  // Tareas
   const taskDefinitions: ITask[] = [
     { 
       key: 'evidenceBefore', 
@@ -205,7 +345,7 @@ const StoreVisit: React.FC = () => {
     },
     { 
       key: 'damageCheck', 
-      label: '⚠️ Revisar en bodega las averías (evidencia fotográfica y escaneo)', 
+      label: '⚠️ Reportar productos dañados en bodega', 
       requiresPhotos: true,
       requiresBarcode: true,
       completed: false
@@ -218,79 +358,43 @@ const StoreVisit: React.FC = () => {
     }
   ];
 
-  // 🎯 FUNCIÓN MEJORADA: Normalizar status (soporta ambos formatos)
-  const normalizeStatus = (status: string): 'pending' | 'in-progress' | 'completed' | 'skipped' => {
+  const normalizeStatus = useCallback((status: string): 'pending' | 'in-progress' | 'completed' | 'skipped' => {
     if (status === 'in_progress' || status === 'in-progress') {
       return 'in-progress';
     }
     return status as 'pending' | 'in-progress' | 'completed' | 'skipped';
-  };
+  }, []);
 
-  // 🎯 FUNCIÓN MEJORADA: Verificar estado de visita
-  const checkVisitStatus = () => {
-    if (!route || !storeVisitId) {
-      console.log('❌ No hay ruta o storeVisitId para verificar estado');
-      return;
-    }
+  const checkVisitStatus = useCallback(() => {
+    if (!route || !storeVisitId) return;
     
-    console.log('🔍 VERIFICANDO ESTADO DE VISITA - DEBUG COMPLETO:', {
-      routeId: route.id,
-      storeVisitId,
-      totalStores: route.stores?.length,
-      stores: route.stores?.map(s => ({ id: s.id, status: s.status, name: s.storeId?.name }))
-    });
-
-    // Buscar la visita actual en las tiendas de la ruta
     const currentStoreVisit = route.stores?.find(
       store => store.id.toString() === storeVisitId.toString()
     );
 
-    console.log('🏪 VISITA ACTUAL ENCONTRADA:', currentStoreVisit);
-
     if (currentStoreVisit) {
-      // 🎯 NORMALIZAR EL STATUS (soporta in_progress e in-progress)
       const normalizedStatus = normalizeStatus(currentStoreVisit.status || 'pending');
-      
-      console.log('🔄 ACTUALIZANDO ESTADO DE VISITA:', {
-        estadoOriginal: currentStoreVisit.status,
-        estadoNormalizado: normalizedStatus,
-        storeVisitId
-      });
-      
       setVisitStatus(normalizedStatus);
-      setCurrentVisitData(currentStoreVisit);
       
       if (normalizedStatus === 'in-progress') {
-        console.log('✅ VISITA EN PROGRESO DETECTADA - Inicializando tareas...');
         setIsTimerRunning(true);
         initializeTasks();
         
-        // 🎯 CALCULAR TIEMPO TRANSCURRIDO si ya estaba en progreso
         if (currentStoreVisit.start_time) {
           const startTime = new Date(currentStoreVisit.start_time);
           const now = new Date();
           const diffMs = now.getTime() - startTime.getTime();
           const minutesElapsed = Math.floor(diffMs / 60000);
           setTimeInStore(minutesElapsed);
-          console.log(`⏱️ Tiempo transcurrido calculado: ${minutesElapsed} minutos`);
-        } else {
-          console.log('ℹ️ No hay start_time disponible, iniciando desde 0');
-          setTimeInStore(0);
         }
-      } else if (normalizedStatus === 'pending') {
-        console.log('⏳ VISITA PENDIENTE - Mostrando botón de inicio');
-        setIsTimerRunning(false);
-        setTimeInStore(0);
       }
       
       setHasCheckedStatus(true);
     } else {
-      console.error('❌ NO SE ENCONTRÓ LA VISITA EN LA RUTA');
       setHasCheckedStatus(true);
     }
-  };
+  }, [route, storeVisitId, normalizeStatus]);
 
-  // 🆕 FUNCIÓN PARA NAVEGACIÓN A MAPS
   const openInMaps = () => {
     if (!route?.stores?.[currentStoreIndex]?.storeId?.coordinates) {
       alert('No hay coordenadas disponibles para esta tienda');
@@ -300,122 +404,116 @@ const StoreVisit: React.FC = () => {
     const store = route.stores[currentStoreIndex].storeId;
     const lat = store.coordinates?.lat || 4.710989;
     const lng = store.coordinates?.lng || -74.072092;
-    const storeName = encodeURIComponent(store.name || 'Tienda');
     
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      window.open(`waze://?ll=${lat},${lng}&navigate=yes`, '_blank');
-      setTimeout(() => {
-        window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
-      }, 500);
-    } else {
-      window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
-    }
+    window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
   };
 
-  // Función para actualizar ubicación
-  const updateAdvisorLocation = async (storeId?: string, activityStatus: string = 'at_store') => {
-    try {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            trackingService.updateLocation(
-              position.coords.latitude,
-              position.coords.longitude,
-              storeId,
-              activityStatus
-            ).then(() => {
-              console.log('📍 Ubicación actualizada');
-            }).catch((error) => {
-              console.warn('Error actualizando ubicación:', error);
-            });
-          },
-          (error) => {
-            console.warn('No se pudo obtener la ubicación:', error);
-            trackingService.updateLocation(0, 0, storeId, activityStatus)
-              .then(() => console.log('📍 Ubicación actualizada (fallback)'))
-              .catch(err => console.warn('Error actualizando ubicación fallback:', err));
-          },
-          { 
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000 
-          }
-        );
-      } else {
-        trackingService.updateLocation(0, 0, storeId, activityStatus)
-          .then(() => console.log('📍 Ubicación actualizada (sin geolocalización)'))
-          .catch(err => console.warn('Error actualizando ubicación sin geolocalización:', err));
+  const handleSignatureSave = (signatureData: string) => {
+    if (currentTaskIndex !== null && signatureData) {
+      const updatedTasks = [...tasks];
+      updatedTasks[currentTaskIndex].signature = signatureData;
+      
+      if (updatedTasks[currentTaskIndex].requiresSignature) {
+        updatedTasks[currentTaskIndex].completed = true;
+        updatedTasks[currentTaskIndex].timestamp = new Date();
       }
-    } catch (error) {
-      console.error('Error en updateAdvisorLocation:', error);
+      
+      setTasks(updatedTasks);
+      setShowSignaturePad(false);
+      setCurrentTaskIndex(null);
     }
   };
 
-  const loadCurrentRoute = async () => {
+  // 🆕 FUNCIÓN SIMPLIFICADA PARA TAREA DE DAÑOS - DOS OPCIONES
+  const handleDamageCheckTask = (taskIndex: number) => {
+    const task = tasks[taskIndex];
+    
+    if (task.completed) {
+      // Desmarcar si ya está completada
+      const updatedTasks = [...tasks];
+      updatedTasks[taskIndex].completed = false;
+      updatedTasks[taskIndex].timestamp = undefined;
+      updatedTasks[taskIndex].additionalData = undefined;
+      setTasks(updatedTasks);
+    } else {
+      // 🆕 MOSTRAR OPCIÓN: REPORTAR DAÑOS O SIN DAÑOS
+      const option = window.confirm(
+        '¿Cómo quieres completar la revisión de bodega?\n\n' +
+        '✅ Aceptar = Reportar productos dañados\n' +
+        '❌ Cancelar = Marcar como "Sin daños"'
+      );
+      
+      if (option) {
+        // OPCIÓN 1: REPORTAR DAÑOS
+        setCurrentTaskIndex(taskIndex);
+        setShowBarcodeScanner(true);
+      } else {
+        // OPCIÓN 2: SIN DAÑOS
+        const confirmNoDamages = window.confirm(
+          '¿Confirmas que NO encontraste productos dañados en la bodega?\n\n' +
+          'Esta acción marcará la tarea como completada sin reportes de daño.'
+        );
+        
+        if (confirmNoDamages) {
+          const updatedTasks = [...tasks];
+          updatedTasks[taskIndex].completed = true;
+          updatedTasks[taskIndex].timestamp = new Date();
+          updatedTasks[taskIndex].additionalData = { noDamages: true };
+          setTasks(updatedTasks);
+        }
+      }
+    }
+  };
+
+  const loadCurrentRoute = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
-      console.log('🔄 Cargando ruta actual para usuario:', user?.id);
-      const currentRoute = await routeService.getCurrentRoute(user!.id);
+      const currentRoute = await routeService.getCurrentRoute(user.id);
+      
+      if (!currentRoute) {
+        console.error('❌ No se pudo cargar la ruta');
+        return;
+      }
+      
       setRoute(currentRoute);
       
-      if (currentRoute) {
-        console.log('✅ Ruta cargada:', {
-          id: currentRoute.id,
-          totalStores: currentRoute.stores?.length,
-          stores: currentRoute.stores?.map(s => ({ id: s.id, status: s.status, name: s.storeId?.name }))
-        });
-
-        // Buscar el índice de la tienda actual
-        let currentIndex = 0;
-        if (storeVisitId) {
-          currentIndex = currentRoute.stores.findIndex(
-            store => store.id.toString() === storeVisitId.toString()
-          );
-          console.log('🎯 Buscando índice para storeVisitId:', {
-            storeVisitId,
-            encontradoEnIndice: currentIndex,
-            totalStores: currentRoute.stores.length
-          });
-        }
-
-        if (currentIndex === -1) {
-          currentIndex = 0;
-          console.warn('⚠️ No se encontró la tienda, usando índice 0');
-        }
-
-        setCurrentStoreIndex(currentIndex);
-        
-        // 🎯 VERIFICAR ESTADO DE VISITA INMEDIATAMENTE
-        setTimeout(() => {
-          checkVisitStatus();
-        }, 100);
+      let currentIndex = 0;
+      if (storeVisitId) {
+        currentIndex = currentRoute.stores.findIndex(
+          store => store.id.toString() === storeVisitId.toString()
+        );
       }
+
+      if (currentIndex === -1) currentIndex = 0;
+      setCurrentStoreIndex(currentIndex);
+      
+      setTimeout(() => {
+        checkVisitStatus();
+      }, 100);
+      
     } catch (error) {
       console.error('❌ Error cargando ruta:', error);
       alert('Error cargando la ruta. Intenta nuevamente.');
     }
-  };
+  }, [user, storeVisitId, checkVisitStatus]);
 
-  const initializeTasks = () => {
-    console.log('🔄 Inicializando tareas...');
+  const initializeTasks = useCallback(() => {
+    if (hasInitializedTasks && tasks.length > 0) return;
+    
     setTasks([...taskDefinitions]);
-  };
+    setHasInitializedTasks(true);
+  }, [hasInitializedTasks, tasks.length]);
 
   const handleStartVisit = async () => {
     if (!route) return;
     
     try {
-      console.log('🔄 Iniciando visita...');
-      
-      const result = await routeService.startVisit(
+      await routeService.startVisit(
         route.id,
         route.stores[currentStoreIndex].id
       );
       
-      console.log('✅ Visita iniciada:', result);
-      
-      // Actualizar el estado local para reflejar que la visita comenzó
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
         ...updatedStores[currentStoreIndex],
@@ -431,85 +529,23 @@ const StoreVisit: React.FC = () => {
       setVisitStatus('in-progress');
       initializeTasks();
       
-      // ACTUALIZAR TRACKING - Asesor llega a la tienda
-      await updateAdvisorLocation(route.stores[currentStoreIndex].storeId?.id?.toString(), 'at_store');
-      
     } catch (error) {
       console.error('❌ Error iniciando visita:', error);
       alert('Error al iniciar la visita. Intenta nuevamente.');
     }
   };
 
-  // 🎯 FUNCIÓN MEJORADA: Continuar visita existente
-  const handleContinueVisit = () => {
-    console.log('🔄 CONTINUANDO VISITA EXISTENTE...');
-    setIsTimerRunning(true);
-    setVisitStatus('in-progress');
-    initializeTasks();
-    
-    console.log('✅ Estado actualizado:', {
-      isTimerRunning: true,
-      visitStatus: 'in-progress',
-      tasksInicializadas: tasks.length
-    });
-  };
-
-  // Manejo mejorado de tareas
-  const handleTaskComplete = (taskIndex: number) => {
-    const task = tasks[taskIndex];
-    
-    // Validaciones antes de marcar como completada
-    if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-      alert('⚠️ Esta tarea requiere al menos una foto');
-      return;
-    }
-    
-    if (task.requiresBarcode && (!task.barcodes || task.barcodes.length === 0)) {
-      setCurrentTaskIndex(taskIndex);
-      setShowBarcodeScanner(true);
-      return;
-    }
-    
-    if (task.requiresSignature && !task.signature) {
-      setCurrentTaskIndex(taskIndex);
-      setShowSignaturePad(true);
-      return;
-    }
-
-    const updatedTasks = [...tasks];
-    updatedTasks[taskIndex].completed = !updatedTasks[taskIndex].completed;
-    updatedTasks[taskIndex].timestamp = new Date();
-    
-    setTasks(updatedTasks);
-  };
-
-  // Manejo de fotos con compresión
+  // Manejo de fotos con cámara
   const handlePhotosChange = (taskIndex: number, photos: string[]) => {
     const updatedTasks = [...tasks];
     updatedTasks[taskIndex].photos = photos;
     setTasks(updatedTasks);
   };
 
-  // Manejo de firma digital
-  const handleSignatureSave = (signatureData: string) => {
-    if (currentTaskIndex !== null) {
-      const updatedTasks = [...tasks];
-      updatedTasks[currentTaskIndex].signature = signatureData;
-      updatedTasks[currentTaskIndex].completed = true;
-      updatedTasks[currentTaskIndex].timestamp = new Date();
-      
-      setTasks(updatedTasks);
-      setShowSignaturePad(false);
-      setCurrentTaskIndex(null);
-    }
-  };
-
-  // Manejo de códigos de barras CONEXIÓN A BD
+  // Manejo de códigos de barras
   const handleBarcodeScanned = async (barcode: string) => {
     setLoading(true);
     try {
-      console.log('🔍 Buscando producto con código:', barcode);
-      
       const product = await productService.getProductByBarcode(barcode);
       
       if (product) {
@@ -517,9 +553,8 @@ const StoreVisit: React.FC = () => {
         setCurrentProduct(product);
         setShowBarcodeScanner(false);
         setShowDamageReport(true);
-        console.log('✅ Producto encontrado:', product);
       } else {
-        alert('❌ Producto no encontrado en la base de datos. Verifica el código de barras.');
+        alert('❌ Producto no encontrado en la base de datos.');
       }
     } catch (error) {
       console.error('Error al buscar producto:', error);
@@ -529,7 +564,12 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // Manejo de reportes de daños
+  // 🆕 FUNCIÓN PARA MANEJAR FOTOS DE DAÑOS
+  const handleDamagePhotosChange = (photos: string[]) => {
+    setDamagePhotos(photos);
+  };
+
+  // 🆕 FUNCIÓN MEJORADA PARA GUARDAR REPORTE
   const handleAddDamageReport = async () => {
     if (!currentProduct || !route) return;
     
@@ -548,7 +588,6 @@ const StoreVisit: React.FC = () => {
 
       const savedReport = await productService.reportDamage(newReport);
       
-      // Agregar a la lista local
       const reportWithId: IDamageReport = {
         ...savedReport,
         timestamp: new Date()
@@ -556,7 +595,7 @@ const StoreVisit: React.FC = () => {
       
       setDamageReports(prev => [...prev, reportWithId]);
       
-      // Actualizar la tarea de daños
+      // ACTUALIZAR LA TAREA
       const damageTaskIndex = tasks.findIndex(t => t.key === 'damageCheck');
       if (damageTaskIndex !== -1) {
         const updatedTasks = [...tasks];
@@ -564,19 +603,45 @@ const StoreVisit: React.FC = () => {
           updatedTasks[damageTaskIndex].barcodes = [];
         }
         updatedTasks[damageTaskIndex].barcodes!.push(currentBarcode);
+        
+        // Marcar como completada si tiene fotos y código
+        if (damagePhotos.length > 0 && currentBarcode) {
+          updatedTasks[damageTaskIndex].completed = true;
+          updatedTasks[damageTaskIndex].timestamp = new Date();
+          updatedTasks[damageTaskIndex].additionalData = { hasDamages: true };
+          
+          // Guardar fotos en la tarea también
+          updatedTasks[damageTaskIndex].photos = damagePhotos;
+        }
+        
         setTasks(updatedTasks);
       }
       
-      // Resetear formulario
-      setShowDamageReport(false);
-      setCurrentBarcode('');
-      setCurrentProduct(null);
-      setDamageDescription('');
-      setDamageType('');
-      setDamageSeverity('low');
-      setDamagePhotos([]);
+      alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
       
-      alert('✅ Reporte de daño guardado exitosamente');
+      // Preguntar si quiere agregar otro
+      const continueAdding = window.confirm(
+        `¿Quieres agregar otro producto dañado?\n\n` +
+        `✅ Aceptar = Escanear otro producto\n` +
+        `❌ Cancelar = Volver a tareas`
+      );
+      
+      if (continueAdding) {
+        // Resetear para nuevo reporte
+        setCurrentBarcode('');
+        setCurrentProduct(null);
+        setDamageDescription('');
+        setDamageType('');
+        setDamageSeverity('low');
+        // Mantener las fotos existentes
+        // setDamagePhotos([]); // No limpiar fotos
+        
+        setShowDamageReport(false);
+        setShowBarcodeScanner(true);
+      } else {
+        // Cerrar todo
+        handleCloseDamageReport();
+      }
       
     } catch (error) {
       console.error('Error guardando reporte de daño:', error);
@@ -586,21 +651,40 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // Validación completa antes de finalizar
+  const handleCloseDamageReport = () => {
+    setShowDamageReport(false);
+    setCurrentBarcode('');
+    setCurrentProduct(null);
+    setDamageDescription('');
+    setDamageType('');
+    setDamageSeverity('low');
+  };
+
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
     const missingTasks: string[] = [];
     
     tasks.forEach(task => {
+      if (task.key === 'damageCheck') {
+        if (!task.completed) {
+          missingTasks.push('Debes completar la revisión de averías');
+        }
+        return;
+      }
+      
       if (!task.completed) {
         missingTasks.push(task.label);
       }
       
       if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-        missingTasks.push(`${task.label} (fotos requeridas)`);
+        if (!task.completed) {
+          missingTasks.push(`${task.label} (fotos requeridas)`);
+        }
       }
       
       if (task.requiresSignature && !task.signature) {
-        missingTasks.push(`${task.label} (firma requerida)`);
+        if (!task.completed) {
+          missingTasks.push(`${task.label} (firma requerida)`);
+        }
       }
     });
     
@@ -613,7 +697,6 @@ const StoreVisit: React.FC = () => {
   const handleCompleteVisit = async () => {
     if (!route) return;
 
-    // Validación completa
     const validation = validateVisitCompletion();
     if (!validation.isValid) {
       alert(`❌ No puedes finalizar la visita. Tareas pendientes:\n\n• ${validation.missingTasks.join('\n• ')}`);
@@ -621,9 +704,7 @@ const StoreVisit: React.FC = () => {
     }
 
     try {
-      console.log('✅ Completando visita...');
-      
-      const result = await routeService.completeVisit(
+      await routeService.completeVisit(
         route.id,
         route.stores[currentStoreIndex].id,
         {
@@ -634,9 +715,6 @@ const StoreVisit: React.FC = () => {
         }
       );
       
-      console.log('✅ Visita completada:', result);
-      
-      // Actualizar el estado local
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
         ...updatedStores[currentStoreIndex],
@@ -651,9 +729,9 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(false);
       setVisitStatus('completed');
-      await updateAdvisorLocation(undefined, 'traveling');
       
-      // Navegar con resumen
+      localStorage.removeItem('storeVisitState');
+      
       navigate('/dashboard', { 
         state: { 
           message: `¡Visita a ${storeInfo.name} completada!`,
@@ -661,8 +739,7 @@ const StoreVisit: React.FC = () => {
             tasksCompleted: completedTasks,
             totalTasks,
             timeSpent: timeInStore,
-            damageReports: damageReports.length,
-            photosTaken: tasks.reduce((acc, task) => acc + (task.photos?.length || 0), 0)
+            damageReports: damageReports.length
           }
         } 
       });
@@ -673,27 +750,16 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // 🎯 FUNCIÓN CORREGIDA - SIN skipReason
   const handleSkipStore = async (reason: string) => {
     if (!route) return;
 
     try {
-      console.log('⏭️ Saltando tienda:', {
-        routeId: route.id,
-        storeVisitId: route.stores[currentStoreIndex].id,
-        reason: reason
-      });
-      
-      // 🎯 LLAMAR AL SERVICIO PARA SALTAR LA TIENDA
-      const result = await routeService.skipStoreVisit(
+      await routeService.skipStoreVisit(
         route.id, 
         route.stores[currentStoreIndex].id, 
         reason
       );
       
-      console.log('✅ Resultado de saltar tienda:', result);
-      
-      // 🎯 ACTUALIZAR ESTADO LOCAL
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
         ...updatedStores[currentStoreIndex],
@@ -707,154 +773,220 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(false);
       setVisitStatus('skipped');
-      
-      // 🎯 ACTUALIZAR TRACKING - Asesor sale sin completar
-      await updateAdvisorLocation(undefined, 'traveling');
-      
-      // 🎯 MOSTRAR CONFIRMACIÓN
       alert('✅ Tienda saltada exitosamente');
-      
-      // 🎯 NAVEGAR AL DASHBOARD
       navigate('/dashboard');
       
     } catch (error) {
       console.error('❌ Error saltando tienda:', error);
-      
-      // 🎯 MEJOR MANEJO DE ERRORES
-      let errorMessage = 'Error al saltar la tienda';
-      
-      if (error.response) {
-        // Error del servidor
-        errorMessage = error.response.data?.message || `Error del servidor: ${error.response.status}`;
-      } else if (error.request) {
-        // Error de red
-        errorMessage = 'Error de conexión. Verifica tu internet.';
-      } else {
-        // Otro error
-        errorMessage = error.message || 'Error desconocido';
-      }
-      
-      alert(`❌ ${errorMessage}`);
+      alert('Error al saltar la tienda');
     }
   };
 
-  // Componente de tarea mejorado
-  const renderTask = (task: ITask, index: number) => (
-    <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
-      <div className="task-content">
-        <input 
-          type="checkbox" 
-          checked={task.completed}
-          onChange={() => handleTaskComplete(index)}
-          className="task-checkbox"
-        />
-        
-        <div className="task-info">
-          <div className="task-header">
-            <span className="task-label">
-              {task.label}
-            </span>
-            <div className="task-requirements">
-              {task.requiresPhotos && <span className="requirement-badge photos">📸</span>}
-              {task.requiresBarcode && <span className="requirement-badge barcode">📱</span>}
-              {task.requiresSignature && <span className="requirement-badge signature">✍️</span>}
-            </div>
-          </div>
-          
-          {/* Subida de fotos con compresión */}
-          {task.requiresPhotos && (
-            <div className="task-additional">
-              <PhotoUpload 
-                onPhotosChange={(photos) => handlePhotosChange(index, photos)}
-                existingPhotos={task.photos || []}
-                maxPhotos={5}
-                enableCompression={true}
-                maxSizeMB={2}
+  // Componente de tarea con cámara
+  const renderTask = (task: ITask, index: number) => {
+    // 🆕 TAREA DE DAMAGE CHECK SIMPLIFICADA
+    if (task.key === 'damageCheck') {
+      return (
+        <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
+          <div className="task-content">
+            <div className="task-header">
+              <input 
+                type="checkbox" 
+                checked={task.completed}
+                onChange={() => handleDamageCheckTask(index)}
+                className="task-checkbox"
               />
-            </div>
-          )}
-          
-          {/* Escáner de códigos de barras */}
-          {task.requiresBarcode && task.barcodes && task.barcodes.length > 0 && (
-            <div className="scanned-products">
-              <h5>Productos escaneados ({task.barcodes.length}):</h5>
-              <div className="barcode-tags">
-                {task.barcodes.map((barcode, i) => (
-                  <span key={i} className="barcode-tag">
-                    {barcode}
-                  </span>
-                ))}
+              
+              <span className="task-label">
+                {task.label}
+              </span>
+              
+              <div className="task-requirements">
+                {task.requiresPhotos && <span className="requirement-badge">📸</span>}
+                {task.requiresBarcode && <span className="requirement-badge">📱</span>}
               </div>
-              <button 
-                className="secondary-btn primary"
-                onClick={() => {
-                  setCurrentTaskIndex(index);
-                  setShowBarcodeScanner(true);
-                }}
-              >
-                📱 Escanear más productos
-              </button>
             </div>
-          )}
+            
+            {/* Estado de la tarea */}
+            {task.completed ? (
+              <div className="task-status">
+                <p className="status-success">
+                  ✅ {task.additionalData?.hasDamages 
+                    ? `Reporte completado (${task.barcodes?.length || 0} productos)`
+                    : 'Revisión completada sin daños'
+                  }
+                </p>
+                <button 
+                  className="secondary-btn outline"
+                  onClick={() => handleDamageCheckTask(index)}
+                >
+                  ✏️ Cambiar
+                </button>
+              </div>
+            ) : (
+              <div className="task-actions">
+                <p className="task-instruction">
+                  Haz clic en el checkbox para revisar daños en bodega
+                </p>
+              </div>
+            )}
+            
+            {/* Timestamp */}
+            {task.timestamp && (
+              <div className="task-timestamp">
+                Actualizado: {task.timestamp.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // 🎯 TAREAS NORMALES CON CÁMARA
+    return (
+      <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
+        <div className="task-content">
+          <input 
+            type="checkbox" 
+            checked={task.completed}
+            onChange={() => {
+              if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
+                alert('⚠️ Esta tarea requiere fotos');
+                return;
+              }
+              if (task.requiresSignature && !task.signature) {
+                setCurrentTaskIndex(index);
+                setShowSignaturePad(true);
+                return;
+              }
+              if (task.requiresBarcode && (!task.barcodes || task.barcodes.length === 0)) {
+                setCurrentTaskIndex(index);
+                setShowBarcodeScanner(true);
+                return;
+              }
+              
+              const updatedTasks = [...tasks];
+              updatedTasks[index].completed = !updatedTasks[index].completed;
+              updatedTasks[index].timestamp = new Date();
+              setTasks(updatedTasks);
+            }}
+            className="task-checkbox"
+          />
           
-          {/* Firma digital */}
-          {task.requiresSignature && task.signature && (
-            <div className="signature-section">
-              <h5>Firma capturada:</h5>
-              <img src={task.signature} alt="Firma" className="signature-image" />
-              <button 
-                className="secondary-btn warning"
-                onClick={() => {
-                  setCurrentTaskIndex(index);
-                  setShowSignaturePad(true);
-                }}
-              >
-                ✍️ Cambiar firma
-              </button>
+          <div className="task-info">
+            <div className="task-header">
+              <span className="task-label">
+                {task.label}
+              </span>
+              <div className="task-requirements">
+                {task.requiresPhotos && <span className="requirement-badge">📸</span>}
+                {task.requiresBarcode && <span className="requirement-badge">📱</span>}
+                {task.requiresSignature && <span className="requirement-badge">✍️</span>}
+              </div>
             </div>
-          )}
-          
-          {/* Timestamp */}
-          {task.timestamp && (
-            <div className="task-timestamp">
-              Completado: {task.timestamp.toLocaleTimeString()}
-            </div>
-          )}
+            
+            {/* 🆕 SUBIDA DE FOTOS CON CÁMARA */}
+            {task.requiresPhotos && (
+              <div className="task-additional">
+                <CameraButton 
+                  onCapture={(photos) => handlePhotosChange(index, photos)}
+                  existingPhotos={task.photos || []}
+                  maxPhotos={5}
+                  disabled={task.completed}
+                />
+              </div>
+            )}
+            
+            {/* Estado */}
+            {task.timestamp && (
+              <div className="task-timestamp">
+                Completado: {task.timestamp.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  // Actualizar ubicación periódicamente mientras está en tienda
+  // Efectos optimizados
   useEffect(() => {
-    let locationInterval: ReturnType<typeof setInterval>;
+    let timeoutId: ReturnType<typeof setTimeout>;
     
-    if (isTimerRunning && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
-      updateAdvisorLocation(route?.stores?.[currentStoreIndex]?.storeId?.id?.toString(), 'at_store');
-      
-      locationInterval = setInterval(() => {
-        updateAdvisorLocation(route?.stores?.[currentStoreIndex]?.storeId?.id?.toString(), 'at_store');
-      }, 120000);
-    }
+    const saveState = () => {
+      if (tasks.length > 0 && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
+        const stateToSave = {
+          tasks,
+          timeInStore,
+          damageReports,
+          visitNotes,
+          storeVisitId,
+          routeId: route?.id,
+          currentStoreIndex,
+          saveTimestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem('storeVisitState', JSON.stringify(stateToSave));
+      }
+    };
+    
+    timeoutId = setTimeout(saveState, 2000);
     
     return () => {
-      if (locationInterval) clearInterval(locationInterval);
+      clearTimeout(timeoutId);
     };
-  }, [isTimerRunning, visitStatus, route, currentStoreIndex]);
+  }, [tasks, timeInStore, damageReports, visitNotes, visitStatus, route?.id, currentStoreIndex, storeVisitId]);
 
   useEffect(() => {
-    if (user) {
+    if (hasCheckedStatus && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && tasks.length === 0) {
+      const savedState = localStorage.getItem('storeVisitState');
+      
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          
+          if (parsedState.storeVisitId === storeVisitId) {
+            if (parsedState.tasks && parsedState.tasks.length > 0) {
+              setTasks(parsedState.tasks);
+              setHasInitializedTasks(true);
+            }
+            
+            if (parsedState.timeInStore !== undefined) {
+              setTimeInStore(parsedState.timeInStore);
+            }
+            
+            if (parsedState.damageReports) {
+              setDamageReports(parsedState.damageReports);
+            }
+            
+            if (parsedState.visitNotes) {
+              setVisitNotes(parsedState.visitNotes);
+            }
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Error recuperando estado:', error);
+        }
+      }
+      
+      if (!hasInitializedTasks) {
+        initializeTasks();
+      }
+    }
+  }, [hasCheckedStatus, visitStatus, storeVisitId, hasInitializedTasks, tasks.length, initializeTasks]);
+
+  useEffect(() => {
+    if (user && !route) {
       loadCurrentRoute();
     }
-  }, [user]);
+  }, [user, route, loadCurrentRoute]);
 
-  // 🎯 EFECTO MEJORADO: Verificar estado cuando la ruta se carga
   useEffect(() => {
     if (route && !hasCheckedStatus) {
-      console.log('🔄 Ruta cargada, verificando estado de visita...');
       checkVisitStatus();
     }
-  }, [route, hasCheckedStatus]);
+  }, [route, hasCheckedStatus, checkVisitStatus]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
@@ -865,17 +997,32 @@ const StoreVisit: React.FC = () => {
       }, 60000);
     }
 
-    return () => clearInterval(timer);
-  }, [isTimerRunning, visitStatus, timeInStore]);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isTimerRunning, visitStatus]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if ((visitStatus === 'in-progress' || visitStatus === 'in_progress') && tasks.some(t => !t.completed)) {
+        e.preventDefault();
+        e.returnValue = 'Tienes una visita en progreso. ¿Estás seguro de que quieres salir?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [visitStatus, tasks]);
 
   if (!route) {
     return (
       <div className="store-visit-container">
         <div className="visit-status pending">
-          <h3>No hay ruta asignada para hoy</h3>
-          <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
-            Volver al Dashboard
-          </button>
+          <h3>Cargando ruta...</h3>
         </div>
       </div>
     );
@@ -888,7 +1035,6 @@ const StoreVisit: React.FC = () => {
       <div className="store-visit-container">
         <div className="visit-status pending">
           <h3>Error: Tienda no encontrada</h3>
-          <p>No se pudo cargar la información de la tienda actual.</p>
           <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
             Volver al Dashboard
           </button>
@@ -898,20 +1044,15 @@ const StoreVisit: React.FC = () => {
   }
 
   const storeInfo = {
-    name: currentStore.storeId?.name || 'Tienda no disponible',
-    address: currentStore.storeId?.address || 'Dirección no disponible',
-    coordinates: currentStore.storeId?.coordinates || { lat: 4.710989, lng: -74.072092 }
+    name: currentStore.storeId?.name || 'Tienda',
+    address: currentStore.storeId?.address || 'Dirección no disponible'
   };
 
   const completedTasks = tasks.filter(task => task.completed).length;
   const totalTasks = tasks.length;
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // 🎯 RENDERIZADO CONDICIONAL MEJORADO CON SOPORTE PARA in_progress
   const renderVisitContent = () => {
-    console.log('🎨 Renderizando contenido para estado:', visitStatus);
-    
-    // 🎯 NORMALIZAR EL STATUS PARA RENDERIZADO
     const normalizedStatus = normalizeStatus(visitStatus);
     
     switch (normalizedStatus) {
@@ -934,7 +1075,7 @@ const StoreVisit: React.FC = () => {
             <div className="visit-status in-progress">
               <h3>🟢 Visita en Progreso</h3>
               <p>Progreso: {progressPercentage.toFixed(0)}% completado</p>
-              <p className="time-elapsed">⏱️ Tiempo transcurrido: {timeInStore} minutos</p>
+              <p className="time-elapsed">⏱️ Tiempo: {timeInStore} minutos</p>
             </div>
 
             <div className="tasks-section">
@@ -944,37 +1085,22 @@ const StoreVisit: React.FC = () => {
                 {tasks.map((task, index) => renderTask(task, index))}
               </div>
 
-              {/* Reportes de daños */}
               {damageReports.length > 0 && (
                 <div className="damage-reports">
                   <h4>⚠️ Reportes de Daños ({damageReports.length})</h4>
-                  {damageReports.map((report, index) => (
-                    <div key={index} className="damage-report-card">
-                      <strong>Producto:</strong> {report.product.name} <br/>
-                      <strong>Código:</strong> {report.barcode} <br/>
-                      <strong>Daño:</strong> {report.damageType} <br/>
-                      <strong>Severidad:</strong> <span style={{ 
-                        color: report.severity === 'high' ? '#dc3545' : 
-                               report.severity === 'medium' ? '#ffc107' : '#28a745',
-                        fontWeight: 'bold'
-                      }}>{report.severity}</span>
-                    </div>
-                  ))}
                 </div>
               )}
 
-              {/* Notas de la visita */}
               <div className="visit-notes">
-                <h4>📝 Notas de la visita</h4>
+                <h4>📝 Notas</h4>
                 <textarea 
                   value={visitNotes}
                   onChange={(e) => setVisitNotes(e.target.value)}
-                  placeholder="Agregar notas adicionales sobre la visita..."
+                  placeholder="Agregar notas adicionales..."
                   className="notes-textarea"
                 />
               </div>
 
-              {/* Botones de acción */}
               <div className="visit-actions">
                 <button 
                   className="action-btn complete-btn"
@@ -996,10 +1122,9 @@ const StoreVisit: React.FC = () => {
                 </button>
               </div>
 
-              {/* Mensaje de finalización */}
               {completedTasks === totalTasks && (
                 <div className="completion-message">
-                  ✅ Todas las tareas completadas. Revisa que tengas todas las fotos y firmas necesarias antes de finalizar.
+                  ✅ Todas las tareas completadas.
                 </div>
               )}
             </div>
@@ -1011,7 +1136,6 @@ const StoreVisit: React.FC = () => {
           <div className="visit-completed">
             <div className="visit-status completed">
               <h3>✅ Visita Completada</h3>
-              <p>Esta visita ya fue finalizada anteriormente.</p>
             </div>
             <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
               ➡️ Volver al Dashboard
@@ -1024,7 +1148,6 @@ const StoreVisit: React.FC = () => {
           <div className="visit-skipped">
             <div className="visit-status skipped">
               <h3>⏭️ Visita Saltada</h3>
-              <p>Esta tienda fue marcada como saltada.</p>
             </div>
             <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
               ➡️ Volver al Dashboard
@@ -1037,7 +1160,6 @@ const StoreVisit: React.FC = () => {
           <div className="visit-pending">
             <div className="visit-status pending">
               <h3>🔄 Cargando...</h3>
-              <p>Verificando estado de la visita...</p>
             </div>
           </div>
         );
@@ -1046,12 +1168,10 @@ const StoreVisit: React.FC = () => {
 
   return (
     <div className="store-visit-container">
-      {/* Header */}
       <header className="store-visit-header">
         <h2>🏪 {storeInfo.name}</h2>
         <p className="store-address">📍 {storeInfo.address}</p>
         
-        {/* 🆕 BOTÓN DE NAVEGACIÓN */}
         <button 
           className="secondary-btn primary"
           onClick={openInMaps}
@@ -1069,42 +1189,48 @@ const StoreVisit: React.FC = () => {
         
         {timeInStore >= 40 && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && (
           <div className="time-warning">
-            ⚠️ Has excedido el tiempo máximo de 40 minutos
+            ⚠️ Has excedido el tiempo máximo
           </div>
         )}
       </header>
 
-      {/* 🎯 CONTENIDO DINÁMICO BASADO EN EL ESTADO */}
       {renderVisitContent()}
 
-      {/* Modal de Reporte de Daños */}
+      {/* Modal de Reporte de Daños con cámara */}
       {showDamageReport && currentProduct && (
         <div className="damage-modal-overlay">
           <div className="damage-modal">
-            <h3>⚠️ Reportar Daño</h3>
+            <h3>⚠️ Reportar Producto Dañado</h3>
             
-            {/* Información del producto */}
             <div className="product-info">
-              <h4>Producto Escaneado</h4>
-              <p><strong>Nombre:</strong> {currentProduct.name}</p>
+              <h4>Producto: {currentProduct.name}</h4>
               <p><strong>Código:</strong> {currentBarcode}</p>
               <p><strong>Marca:</strong> {currentProduct.brand}</p>
-              <p><strong>Categoría:</strong> {currentProduct.category}</p>
             </div>
 
-            {/* Formulario de daño */}
+            {/* 🆕 CÁMARA PARA TOMAR FOTOS */}
+            <div className="modal-form-group">
+              <label className="modal-label">📸 Fotos del daño:</label>
+              <CameraButton 
+                onCapture={handleDamagePhotosChange}
+                existingPhotos={damagePhotos}
+                maxPhotos={5}
+                disabled={loading}
+              />
+            </div>
+
             <div className="modal-form-group">
               <label className="modal-label">Tipo de Daño:</label>
               <select 
                 value={damageType}
                 onChange={(e) => setDamageType(e.target.value)}
                 className="modal-select"
+                disabled={loading}
               >
-                <option value="">Seleccionar tipo de daño</option>
+                <option value="">Seleccionar tipo</option>
                 <option value="empaque_danado">Empaque dañado</option>
                 <option value="producto_vencido">Producto vencido</option>
                 <option value="producto_abierto">Producto abierto</option>
-                <option value="etiqueta_danada">Etiqueta dañada</option>
                 <option value="producto_roto">Producto roto</option>
                 <option value="otro">Otro</option>
               </select>
@@ -1116,6 +1242,7 @@ const StoreVisit: React.FC = () => {
                 value={damageSeverity}
                 onChange={(e) => setDamageSeverity(e.target.value as 'low' | 'medium' | 'high')}
                 className="modal-select"
+                disabled={loading}
               >
                 <option value="low">Baja</option>
                 <option value="medium">Media</option>
@@ -1130,39 +1257,31 @@ const StoreVisit: React.FC = () => {
                 onChange={(e) => setDamageDescription(e.target.value)}
                 placeholder="Describir el daño encontrado..."
                 className="modal-textarea"
-              />
-            </div>
-
-            <div className="modal-form-group">
-              <label className="modal-label">Fotos del Daño:</label>
-              <PhotoUpload 
-                onPhotosChange={setDamagePhotos}
-                existingPhotos={damagePhotos}
-                maxPhotos={3}
-                enableCompression={true}
+                disabled={loading}
+                rows={3}
               />
             </div>
 
             <div className="modal-actions">
               <button 
                 className="modal-btn cancel"
-                onClick={() => setShowDamageReport(false)}
+                onClick={handleCloseDamageReport}
+                disabled={loading}
               >
                 Cancelar
               </button>
               <button 
                 className="modal-btn report"
                 onClick={handleAddDamageReport}
-                disabled={!damageType || !damageDescription || loading}
+                disabled={!damageType || !damageDescription || damagePhotos.length === 0 || loading}
               >
-                {loading ? '⏳ Guardando...' : '📝 Reportar Daño'}
+                {loading ? '⏳ Guardando...' : '📝 Guardar'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modales para funcionalidades avanzadas */}
       {showSignaturePad && (
         <SignaturePad 
           onSave={handleSignatureSave}

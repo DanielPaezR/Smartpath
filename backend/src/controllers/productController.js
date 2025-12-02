@@ -48,105 +48,69 @@ export const productController = {
   async reportDamage(req, res) {
     const connection = await createConnection();
     try {
-      const {
-        barcode,
-        product,
-        damageType,
-        description,
-        photos,
-        severity,
-        storeId,
-        reportedBy
-      } = req.body;
-
-      // Validar datos requeridos
-      if (!barcode || !damageType || !storeId || !reportedBy) {
-        return res.status(400).json({ 
-          message: 'Datos incompletos: barcode, damageType, storeId y reportedBy son requeridos' 
-        });
+      console.log('📝 Recibiendo reporte de daño');
+      
+      // Manejar FormData
+      let damageData;
+      let photos = [];
+      
+      if (req.headers['content-type']?.includes('multipart/form-data')) {
+        // Usando multer o similar para manejar archivos
+        damageData = JSON.parse(req.body.data);
+        
+        // Procesar archivos subidos
+        if (req.files && req.files.length > 0) {
+          photos = req.files.map(file => ({
+            filename: file.filename,
+            path: file.path,
+            url: `/uploads/damages/${file.filename}`
+          }));
+        }
+      } else {
+        // Método antiguo JSON
+        damageData = req.body;
+        photos = req.body.photos || [];
       }
-
-      console.log('📦 Reportando daño de producto:', { 
-        barcode, 
-        damageType, 
-        storeId, 
-        reportedBy 
+      
+      const { barcode, product, damageType, description, severity, storeId, reportedBy } = damageData;
+      
+      console.log('📊 Datos del reporte:', {
+        barcode,
+        productName: product?.name,
+        damageType,
+        severity,
+        photosCount: photos.length
       });
-
-      // Insertar reporte de daño
+      
+      // Guardar en la base de datos
       const [result] = await connection.execute(
         `INSERT INTO damage_reports 
-         (barcode, product_name, product_brand, product_category, damage_type, description, photos, severity, store_id, reported_by, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        (barcode, product_name, damage_type, description, severity, store_id, reported_by, photos) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           barcode,
-          product?.name || 'Desconocido',
-          product?.brand || 'Desconocido',
-          product?.category || 'Desconocido',
+          product?.name || 'Producto desconocido',
           damageType,
-          description || '',
-          JSON.stringify(photos || []),
-          severity || 'medium',
+          description,
+          severity,
           storeId,
-          reportedBy
+          reportedBy,
+          JSON.stringify(photos) // Guardar como JSON
         ]
       );
-
-      const reportId = result.insertId;
-
-      // Obtener el reporte creado
-      const [reports] = await connection.execute(
-        `SELECT * FROM damage_reports WHERE id = ?`,
-        [reportId]
-      );
-
-      const damageReport = reports[0];
-
-      // Formatear respuesta
-      const formattedReport = {
-        id: damageReport.id.toString(),
-        barcode: damageReport.barcode,
-        product: {
-          id: product?.id || null,
-          name: damageReport.product_name,
-          brand: damageReport.product_brand,
-          category: damageReport.product_category
-        },
-        damageType: damageReport.damage_type,
-        description: damageReport.description,
-        photos: JSON.parse(damageReport.photos || '[]'),
-        severity: damageReport.severity,
-        storeId: damageReport.store_id,
-        reportedBy: damageReport.reported_by,
-        timestamp: damageReport.created_at
-      };
-
-      // 🎯 CAPTURAR ANALYTICS DE DAÑOS PARA ML
-      try {
-        await mlService.captureDamageAnalytics({
-          barcode: barcode,
-          product: product,
-          damageType: damageType,
-          description: description,
-          photos: photos,
-          severity: severity,
-          storeId: storeId,
-          reportedBy: reportedBy
-        });
-        console.log('📊 Analytics de daño capturados exitosamente');
-      } catch (analyticsError) {
-        console.error('❌ Error en analytics de daño (no crítico):', analyticsError);
-        // No fallar la request principal por errores de analytics
-      }
-
-      console.log('✅ Reporte de daño creado exitosamente - ID:', reportId);
-      res.status(201).json(formattedReport);
-
+      
+      res.status(201).json({
+        success: true,
+        message: 'Reporte de daño guardado exitosamente',
+        reportId: result.insertId
+      });
+      
     } catch (error) {
-      console.error('❌ Error reportando daño:', error);
+      console.error('❌ Error guardando reporte de daño:', error);
       res.status(500).json({ 
-        message: 'Error reportando daño',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        success: false,
+        message: 'Error guardando reporte de daño',
+        error: error.message 
       });
     } finally {
       await connection.end();

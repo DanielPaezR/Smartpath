@@ -1,192 +1,184 @@
-// frontend/src/components/common/PhotoUpload.tsx
-import React, { useState, useRef } from 'react';
+// frontend/src/components/common/PhotoUpload.tsx - VERSIÓN CORREGIDA
+import React, { useState, useRef, useEffect } from 'react';
 
 interface PhotoUploadProps {
   onPhotosChange: (photos: string[]) => void;
-  existingPhotos: string[];
-  maxPhotos: number;
+  existingPhotos?: string[];
+  maxPhotos?: number;
   enableCompression?: boolean;
   maxSizeMB?: number;
+  disabled?: boolean; // 🆕 AÑADE ESTA LÍNEA
 }
 
 const PhotoUpload: React.FC<PhotoUploadProps> = ({
   onPhotosChange,
-  existingPhotos,
-  maxPhotos,
+  existingPhotos = [],
+  maxPhotos = 5,
   enableCompression = false,
-  maxSizeMB = 5
+  maxSizeMB = 5,
+  disabled = false // 🆕 VALOR POR DEFECTO
 }) => {
+  const [photos, setPhotos] = useState<string[]>(existingPhotos);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Función para comprimir imagen
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        // Redimensionar imagen manteniendo aspecto
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
-        let { width, height } = img;
+  useEffect(() => {
+    setPhotos(existingPhotos);
+  }, [existingPhotos]);
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        // Convertir a base64 con calidad reducida
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        resolve(compressedBase64);
-      };
-
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return; // 🆕 NO HACER NADA SI ESTÁ DESHABILITADO
+    
+    const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    if (existingPhotos.length + files.length > maxPhotos) {
-      alert(`Solo puedes subir máximo ${maxPhotos} fotos`);
+    if (photos.length + files.length > maxPhotos) {
+      alert(`Solo puedes subir un máximo de ${maxPhotos} fotos`);
       return;
     }
 
     setUploading(true);
+    const newPhotos: string[] = [];
 
-    try {
-      const newPhotos: string[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        // Validar tamaño
-        if (file.size > maxSizeMB * 1024 * 1024) {
-          alert(`La imagen ${file.name} es muy grande. Máximo ${maxSizeMB}MB`);
-          continue;
-        }
-
-        let photoBase64: string;
-
-        if (enableCompression) {
-          photoBase64 = await compressImage(file);
-        } else {
-          // Convertir a base64 sin compresión
-          photoBase64 = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target?.result as string);
-            reader.readAsDataURL(file);
-          });
-        }
-
-        newPhotos.push(photoBase64);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Validar tamaño
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        alert(`La foto ${file.name} excede el tamaño máximo de ${maxSizeMB}MB`);
+        continue;
       }
 
-      // Agregar nuevas fotos a las existentes
-      const allPhotos = [...existingPhotos, ...newPhotos].slice(0, maxPhotos);
-      onPhotosChange(allPhotos);
-
-    } catch (error) {
-      console.error('Error procesando imágenes:', error);
-      alert('Error al procesar las imágenes');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      try {
+        const photoDataUrl = await compressImageIfNeeded(file, enableCompression);
+        newPhotos.push(photoDataUrl);
+      } catch (error) {
+        console.error('Error procesando imagen:', error);
+        alert(`Error al procesar ${file.name}`);
       }
+    }
+
+    if (newPhotos.length > 0) {
+      const updatedPhotos = [...photos, ...newPhotos];
+      setPhotos(updatedPhotos);
+      onPhotosChange(updatedPhotos);
+    }
+
+    setUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
+  const compressImageIfNeeded = (file: File, compress: boolean): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        if (!compress || !e.target?.result) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Reducir tamaño si es muy grande
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 1200;
+          
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            } else {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        
+        img.onerror = reject;
+        img.src = e.target.result as string;
+      };
+      
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const removePhoto = (index: number) => {
-    const updatedPhotos = existingPhotos.filter((_, i) => i !== index);
+    if (disabled) return; // 🆕 NO PERMITIR SI ESTÁ DESHABILITADO
+    
+    const updatedPhotos = photos.filter((_, i) => i !== index);
+    setPhotos(updatedPhotos);
     onPhotosChange(updatedPhotos);
   };
 
   return (
-    <div style={{ marginTop: '10px' }}>
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept="image/*"
-        multiple
-        onChange={handleFileSelect}
-        style={{ display: 'none' }}
-      />
-      
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading || existingPhotos.length >= maxPhotos}
-        style={{
-          padding: '8px 12px',
-          backgroundColor: '#007bff',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '14px',
-          opacity: (uploading || existingPhotos.length >= maxPhotos) ? 0.6 : 1
-        }}
-      >
-        {uploading ? '⏳ Subiendo...' : `📸 Agregar Fotos (${existingPhotos.length}/${maxPhotos})`}
-      </button>
-
-      {enableCompression && (
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-          ⚡ Compresión activada - Máx: {maxSizeMB}MB
-        </div>
-      )}
-
-      {/* Vista previa de fotos */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
-        {existingPhotos.map((photo, index) => (
-          <div key={index} style={{ position: 'relative' }}>
-            <img
-              src={photo}
-              alt={`Preview ${index + 1}`}
-              style={{
-                width: '80px',
-                height: '80px',
-                objectFit: 'cover',
-                borderRadius: '4px',
-                border: '1px solid #dee2e6'
-              }}
-            />
-            <button
-              onClick={() => removePhoto(index)}
-              style={{
-                position: 'absolute',
-                top: '-5px',
-                right: '-5px',
-                background: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              ×
-            </button>
+    <div className={`photo-upload-container ${disabled ? 'disabled' : ''}`}>
+      <div className="photos-grid">
+        {photos.map((photo, index) => (
+          <div key={index} className="photo-preview">
+            <img src={photo} alt={`Foto ${index + 1}`} />
+            {!disabled && (
+              <button 
+                type="button" 
+                className="remove-photo-btn"
+                onClick={() => removePhoto(index)}
+                disabled={uploading}
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
+        
+        {photos.length < maxPhotos && !disabled && (
+          <div className="photo-upload-area">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              disabled={uploading || disabled}
+              className="file-input"
+            />
+            <div className="upload-placeholder">
+              {uploading ? (
+                <div className="uploading-indicator">
+                  <div className="spinner"></div>
+                  <span>Subiendo...</span>
+                </div>
+              ) : (
+                <>
+                  <span className="upload-icon">📸</span>
+                  <span className="upload-text">Agregar foto</span>
+                  <span className="upload-hint">
+                    Máx. {maxPhotos} fotos • {maxSizeMB}MB c/u
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="photo-stats">
+        <span>{photos.length} / {maxPhotos} fotos</span>
+        {enableCompression && (
+          <span className="compression-badge">Comprimido</span>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import AdminDashboard from './components/admin/AdminDashboard'; // 🆕 IMPORTAR
 import StoresManagement from './components/admin/StoreManagement';
 import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
@@ -45,24 +46,29 @@ function App() {
             {/* Rutas públicas */}
             <Route path="/login" element={<Login />} />
             
-            {/* Ruta principal */}
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            {/* Ruta principal - Redirige según rol */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <NavigateToDashboard />
+              </ProtectedRoute>
+            } />
             
-            {/* Rutas protegidas (para todos los usuarios autenticados) */}
+            {/* Dashboard general (para todos) */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Dashboard />
+                <RoleBasedDashboard />
               </ProtectedRoute>
+            } />
+            
+            {/* 🆕 DASHBOARD ESPECÍFICO DE ADMIN */}
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
             } />
             
             {/* 🆕 RUTA STORE-VISIT FALTANTE */}
             <Route path="/store-visit" element={
-              <AdvisorRoute>
-                <StoreVisit />
-              </AdvisorRoute>
-            } />
-            
-            <Route path="/advisor/visit" element={
               <AdvisorRoute>
                 <StoreVisit />
               </AdvisorRoute>
@@ -119,5 +125,30 @@ function App() {
     </AuthProvider>
   );
 }
+
+// 🆕 COMPONENTE PARA REDIRIGIR AL DASHBOARD CORRECTO SEGÚN ROL
+const NavigateToDashboard: React.FC = () => {
+  const { user } = useAuth();
+  
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" />;
+  } else if (user?.role === 'advisor') {
+    return <Navigate to="/dashboard" />;
+  } else {
+    return <Navigate to="/login" />;
+  }
+};
+
+// 🆕 COMPONENTE PARA MOSTRAR DASHBOARD SEGÚN ROL
+const RoleBasedDashboard: React.FC = () => {
+  const { user } = useAuth();
+  
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" />;
+  } else {
+    // Aquí iría el Dashboard del asesor
+    return <Dashboard />;
+  }
+};
 
 export default App;
