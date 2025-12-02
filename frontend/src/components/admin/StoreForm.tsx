@@ -36,7 +36,7 @@ const StoreForm: React.FC<StoreFormProps> = ({ store, isOpen, onClose, onSuccess
         contact_name: store.contact_name,
         contact_phone: store.contact_phone,
         contact_email: store.contact_email || '',
-        priority: store.priority,
+        priority: store.priority === 'high' ? 1 : store.priority === 'medium' ? 2 : 3,
         estimated_visit_time: store.estimated_visit_time
       });
     } else {
