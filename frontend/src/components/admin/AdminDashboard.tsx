@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../services/api';
 
 // Componente de Header reutilizable
 const DashboardHeader = ({ user, onLogout, title, subtitle }) => {
@@ -224,7 +225,7 @@ const AdminDashboard: React.FC = () => {
   // Verificar si el backend está disponible
   const checkBackendHealth = async (): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:5000/api/health');
+      const response = await fetch('http://localhost:10000/api/health');
       return response.ok;
     } catch {
       return false;
@@ -252,7 +253,7 @@ const AdminDashboard: React.FC = () => {
         throw new Error('No hay token de autenticación');
       }
 
-      const response = await fetch('http://localhost:5000/api/admin/dashboard/overview', {
+      const response = await fetch(`${API_BASE_URL}/health`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
