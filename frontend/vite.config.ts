@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/~daniel.paez/smartpath/',  // ← IMPORTANTE: Ruta base completa
+  base: '/~daniel.paez/smartpath/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
