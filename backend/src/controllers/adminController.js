@@ -32,7 +32,7 @@ class AdminController {
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedStores,
           SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as inProgressStores
          FROM route_stores 
-         WHERE DATE(visit_date) = ?`,
+         WHERE DATE(start_date) = ?`,
         [today]
       );
 
