@@ -225,9 +225,16 @@ const AdminDashboard: React.FC = () => {
   // Verificar si el backend está disponible
   const checkBackendHealth = async (): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:10000/api/health');
-      return response.ok;
-    } catch {
+      console.log('🔍 Verificando backend en:', `${API_BASE_URL}/health`);
+      
+      const response = await fetch(`${API_BASE_URL}/health`);
+      const isOk = response.ok;
+      
+      console.log('✅ Backend status:', isOk ? 'Disponible' : 'No disponible');
+      return isOk;
+      
+    } catch (error) {
+      console.error('❌ No se pudo conectar al backend:', error);
       return false;
     }
   };
@@ -253,7 +260,9 @@ const AdminDashboard: React.FC = () => {
         throw new Error('No hay token de autenticación');
       }
 
-      const response = await fetch(`${API_BASE_URL}/health`, {
+      // ⚠️⚠️⚠️ ¡ESTA ES LA LÍNEA ERRADA! ⚠️⚠️⚠️
+      // Estás consultando /health en lugar de /admin/dashboard/overview
+      const response = await fetch(`${API_BASE_URL}/admin/dashboard/overview`, {  // ← CORREGIDO
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -452,7 +461,7 @@ const AdminDashboard: React.FC = () => {
               <div style={{ marginTop: '10px', fontSize: '13px', color: '#9ca3af' }}>
                 <p>Para usar todas las funciones, asegúrate de:</p>
                 <ol style={{ margin: '5px 0', paddingLeft: '20px' }}>
-                  <li>Ejecutar el backend en <code>localhost:5000</code></li>
+                  <li>Ejecutar el backend en <code>localhost:10000</code></li>
                   <li>Agregar <code>app.use('/api/admin', adminRoutes)</code> en server.js</li>
                   <li>Implementar <code>getDashboardOverview</code> en adminController.js</li>
                 </ol>
