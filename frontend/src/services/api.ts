@@ -1,13 +1,17 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://ingenieria.unac.edu.co:10000/api';
+// SOLUCIÓN TEMPORAL: Usar HTTP porque el backend no tiene HTTPS
+// SOLUCIÓN PERMANENTE: Solicitar proxy reverso en Apache (/api/ -> http://localhost:10000/)
+const API_BASE_URL = 'http://ingenieria.unac.edu.co:10000/api';
+
+console.log('🌐 Conectando a backend HTTP:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 segundos timeout
+  timeout: 10000,
 });
 
 // Interceptor para agregar token automáticamente
@@ -16,9 +20,6 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔐 Token agregado a request:', config.url);
-    } else {
-      console.log('⚠️  Sin token para request:', config.url);
     }
     return config;
   },
@@ -27,33 +28,23 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor para manejar errores de respuesta
+// Interceptor para manejar errores
 api.interceptors.response.use(
-  (response) => {
-    console.log('✅ Response success:', response.status, response.config.url);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error('❌ Response error:', error.response?.status, error.config?.url);
+    console.error('❌ Error:', error.message, error.config?.url);
     
-    // Manejar errores de autenticación
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log('🔐 Error de autenticación detectado');
-      
-      // Solo redirigir si no es una ruta pública
-      const publicRoutes = ['/auth/login', '/auth/register'];
-      const isPublicRoute = publicRoutes.some(route => error.config?.url?.includes(route));
-      
-      if (!isPublicRoute) {
-        console.log('🔐 Limpiando token y redirigiendo al login...');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        // Usar window.location para redirección confiable
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-      }
+    // Si es error de red (backend no responde)
+    if (error.code === 'ERR_NETWORK') {
+      console.error('🔌 Error de red - Verificar que el backend esté corriendo en puerto 10000');
+    }
+    
+    // Si es error de autenticación
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Redirigir al login con HashRouter
+      window.location.href = '/~daniel.paez/smartpath/#/login';
     }
     
     return Promise.reject(error);
