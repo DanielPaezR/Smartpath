@@ -1,9 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import AdminDashboard from './components/admin/AdminDashboard'; // 🆕 IMPORTAR
+import AdminDashboard from './components/admin/AdminDashboard';
 import StoresManagement from './components/admin/StoreManagement';
 import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
