@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // SOLUCIÓN TEMPORAL: Usar HTTP porque el backend no tiene HTTPS
 // SOLUCIÓN PERMANENTE: Solicitar proxy reverso en Apache (/api/ -> http://localhost:10000/)
-const API_BASE_URL = 'https://ingenieria.unac.edu.co:10000/api';
+const API_BASE_URL = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath/api';
 
 console.log('🌐 Conectando a backend HTTP:', API_BASE_URL);
 
