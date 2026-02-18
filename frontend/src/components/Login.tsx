@@ -1,8 +1,8 @@
-// frontend/src/components/auth/Login.tsx
+// frontend/src/components/common/Login.tsx
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import '../styles/common/Login.css';
+import '../../src/styles/common/Login.css';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -66,6 +66,7 @@ const Login: React.FC = () => {
               className="form-input"
               required
               disabled={loading}
+              autoComplete="email"
             />
           </div>
 
@@ -82,6 +83,7 @@ const Login: React.FC = () => {
               className="form-input"
               required
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
 
@@ -100,6 +102,19 @@ const Login: React.FC = () => {
             )}
           </button>
         </form>
+
+        {/* Footer con credenciales de demo (opcional) */}
+        <div className="login-footer">
+          <div className="demo-credentials">
+            <h4>🔐 Credenciales de prueba:</h4>
+            <p className="credential-item">
+              <strong>Admin:</strong> admin@vitamarket.com / admin123
+            </p>
+            <p className="credential-item">
+              <strong>Asesor:</strong> asesor@vitamarket.com / asesor123
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

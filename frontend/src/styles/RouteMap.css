@@ -1,53 +1,78 @@
 /* frontend/src/styles/RouteMap.css */
+
 .route-map-container {
-  padding: 1rem;
+  padding: clamp(0.5rem, 2vw, 1rem);
   background-color: #f8f9fa;
   min-height: 100vh;
   color: #333;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
-/* Header */
+/* ===== HEADER ===== */
 .route-map-header {
   background: white;
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 1.5rem;
+  margin-bottom: clamp(1rem, 3vw, 1.5rem);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header-content h1 {
   color: #2c3e50;
   margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
+  font-size: clamp(1.1rem, 4vw, 1.5rem);
   font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .route-date {
   color: #7f8c8d;
-  margin: 0;
-  font-size: 0.95rem;
+  margin: 0 0 0.5rem 0;
+  font-size: clamp(0.8rem, 3vw, 0.95rem);
+  line-height: 1.4;
 }
 
-/* ESTADÍSTICAS - FORZANDO COLOR BLANCO */
+.route-info {
+  color: #6c757d;
+  margin: 0;
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+  padding: 0.5rem 0;
+  border-top: 1px solid #e9ecef;
+  margin-top: 0.5rem;
+}
+
+/* ===== ESTADÍSTICAS - FORZANDO COLOR BLANCO ===== */
 .route-map-container .route-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: clamp(0.75rem, 2vw, 1rem);
   margin-top: 1.5rem;
 }
 
 .route-map-container .stat-card {
-  padding: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.25rem);
   border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  transition: transform 0.3s ease;
+  gap: clamp(0.5rem, 2vw, 0.75rem);
+  transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.route-map-container .stat-card:hover {
-  transform: translateY(-3px);
+/* Solo hover en dispositivos que lo soporten */
+@media (hover: hover) {
+  .route-map-container .stat-card:hover {
+    transform: translateY(-3px);
+  }
+}
+
+.route-map-container .stat-card:active {
+  transform: scale(0.98);
 }
 
 .route-map-container .stat-card.total {
@@ -73,34 +98,41 @@
 }
 
 .route-map-container .stat-icon {
-  font-size: 1.8rem;
+  font-size: clamp(1.5rem, 5vw, 1.8rem);
   opacity: 0.9;
   color: white !important;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .route-map-container .stat-info {
   display: flex;
   flex-direction: column;
+  min-width: 0; /* Para evitar overflow */
 }
 
 .route-map-container .stat-value {
-  font-size: 1.5rem;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: 800;
   line-height: 1.2;
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
   color: white !important;
+  word-break: break-word;
 }
 
 .route-map-container .stat-label {
-  font-size: 0.85rem;
+  font-size: clamp(0.75rem, 2.5vw, 0.85rem);
   font-weight: 600;
   opacity: 0.95;
   text-shadow: 0 1px 1px rgba(0,0,0,0.2);
   letter-spacing: 0.3px;
   color: white !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Secciones */
+/* ===== SECCIONES ===== */
 .section-header {
   margin-bottom: 1.5rem;
 }
@@ -108,55 +140,84 @@
 .section-header h2 {
   color: #2c3e50;
   margin: 0 0 0.5rem 0;
-  font-size: 1.3rem;
+  font-size: clamp(1rem, 4vw, 1.3rem);
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .section-header p {
   color: #7f8c8d;
-  margin: 0;
-  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0;
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+  line-height: 1.4;
 }
 
-/* Mapa */
+.map-stats {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.stat-badge {
+  background: #e9ecef;
+  color: #495057;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: clamp(0.7rem, 2.5vw, 0.8rem);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ===== MAPA ===== */
 .map-section {
   background: white;
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   margin-bottom: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .map-container {
   border-radius: 8px;
   overflow: hidden;
-  min-height: 400px;
+  min-height: min(400px, 50vh);
+  height: 50vh;
+  max-height: 600px;
   border: 1px solid #e9ecef;
+  width: 100%;
 }
 
-/* Lista de Tiendas */
+/* ===== LISTA DE TIENDAS (si se agrega después) ===== */
 .stores-section {
   background: white;
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .stores-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
 }
 
-/* Tarjetas de Tienda */
+/* ===== TARJETAS DE TIENDA ===== */
 .store-card {
   border: 1px solid #e9ecef;
   border-radius: 12px;
-  padding: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.25rem);
   background: white;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .store-card::before {
@@ -181,9 +242,15 @@
   background: #27ae60;
 }
 
-.store-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+@media (hover: hover) {
+  .store-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  }
+}
+
+.store-card:active {
+  transform: scale(0.99);
 }
 
 .store-header {
@@ -191,22 +258,26 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .store-order {
   background: #2c3e50;
   color: white;
-  padding: 0.4rem 0.8rem;
+  padding: 0.3rem 0.7rem;
   border-radius: 20px;
-  font-size: 0.8rem;
+  font-size: clamp(0.7rem, 2.5vw, 0.8rem);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .status-badge {
-  padding: 0.4rem 0.8rem;
+  padding: 0.3rem 0.7rem;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: clamp(0.65rem, 2.5vw, 0.75rem);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .status-badge.pending {
@@ -231,27 +302,30 @@
 .store-name {
   color: #2c3e50;
   margin: 0 0 0.75rem 0;
-  font-size: 1.1rem;
+  font-size: clamp(0.95rem, 3vw, 1.1rem);
   font-weight: 600;
   line-height: 1.3;
+  word-break: break-word;
 }
 
 .store-address,
 .store-time {
   color: #666;
   margin: 0.5rem 0;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   line-height: 1.4;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  word-break: break-word;
 }
 
 .icon {
   font-size: 1rem;
+  flex-shrink: 0;
 }
 
-/* Acciones */
+/* ===== ACCIONES ===== */
 .store-actions {
   display: flex;
   gap: 0.75rem;
@@ -260,7 +334,7 @@
 
 .action-btn {
   border: none;
-  padding: 0.75rem 1rem;
+  padding: clamp(0.6rem, 2vw, 0.75rem) clamp(0.8rem, 3vw, 1rem);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
@@ -268,10 +342,12 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
-  flex: 1;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  flex: 1 1 auto;
   min-width: 120px;
   justify-content: center;
+  min-height: 44px; /* Tamaño mínimo táctil */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .navigate-btn {
@@ -279,9 +355,11 @@
   color: white;
 }
 
-.navigate-btn:hover {
-  background: #2980b9;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .navigate-btn:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+  }
 }
 
 .visit-btn {
@@ -289,9 +367,11 @@
   color: white;
 }
 
-.visit-btn:hover:not(.completed):not(:disabled) {
-  background: #229954;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .visit-btn:hover:not(.completed):not(:disabled) {
+    background: #229954;
+    transform: translateY(-1px);
+  }
 }
 
 .visit-btn.completed {
@@ -307,13 +387,15 @@
 
 .btn-icon {
   font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .btn-text {
   white-space: nowrap;
+  font-size: clamp(0.75rem, 2.5vw, 0.85rem);
 }
 
-/* Estados de Loading y Error */
+/* ===== ESTADOS DE LOADING Y ERROR ===== */
 .route-map-loading,
 .route-map-error,
 .route-map-empty {
@@ -321,17 +403,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: clamp(2rem, 8vw, 3rem);
   text-align: center;
   min-height: 50vh;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .spinner {
   border: 4px solid #f3f3f3;
   border-top: 4px solid #3498db;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: min(50px, 15vw);
+  height: min(50px, 15vw);
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
@@ -346,6 +430,7 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border-left: 4px solid #e74c3c;
+  margin: 1rem;
 }
 
 .route-map-empty {
@@ -353,11 +438,12 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border-left: 4px solid #f39c12;
+  margin: 1rem;
 }
 
 .error-icon,
 .empty-icon {
-  font-size: 3rem;
+  font-size: clamp(2rem, 8vw, 3rem);
   margin-bottom: 1rem;
 }
 
@@ -365,22 +451,25 @@
   background: #3498db;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: clamp(0.6rem, 2.5vw, 0.75rem) clamp(1rem, 4vw, 1.5rem);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   margin-top: 1rem;
   transition: background 0.3s;
+  min-height: 44px;
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .primary-btn:hover {
   background: #2980b9;
 }
 
-/* ========== RESPONSIVE DESIGN ========== */
+/* ===== RESPONSIVE AVANZADO ===== */
 
 /* Tablets */
-@media (max-width: 1024px) {
+@media screen and (max-width: 1024px) {
   .route-map-container .route-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -391,18 +480,17 @@
   
   .action-btn {
     min-width: auto;
+    width: 100%;
   }
 }
 
-/* Tablets Pequeñas */
-@media (max-width: 768px) {
+/* Tablets pequeñas */
+@media screen and (max-width: 768px) {
   .route-map-container {
     padding: 0.75rem;
   }
   
-  .route-map-header,
-  .map-section,
-  .stores-section {
+  .route-map-header {
     padding: 1.25rem;
   }
   
@@ -423,20 +511,32 @@
     font-size: 1.3rem;
   }
   
-  .section-header h2 {
-    font-size: 1.1rem;
+  .map-section {
+    padding: 1rem;
+  }
+  
+  .map-container {
+    min-height: 350px;
+    height: 45vh;
+  }
+  
+  .store-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .store-order {
+    align-self: flex-start;
   }
 }
 
 /* Móviles */
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
   .route-map-container {
     padding: 0.5rem;
   }
   
-  .route-map-header,
-  .map-section,
-  .stores-section {
+  .route-map-header {
     padding: 1rem;
     border-radius: 8px;
   }
@@ -450,58 +550,216 @@
   }
   
   .route-map-container .stat-value {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
   }
   
   .route-map-container .stat-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
   
-  .store-card {
-    padding: 1rem;
+  .map-section {
+    padding: 0.875rem;
   }
   
-  .store-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
+  .map-container {
+    min-height: 300px;
+    height: 40vh;
   }
   
-  .store-order {
-    align-self: flex-start;
-  }
-  
-  .store-name {
+  .section-header h2 {
     font-size: 1rem;
   }
   
+  .section-header p {
+    font-size: 0.8rem;
+  }
+  
+  .stat-badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+  }
+  
+  .store-card {
+    padding: 0.875rem;
+  }
+  
+  .store-name {
+    font-size: 0.95rem;
+  }
+  
   .action-btn {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    min-height: 40px;
   }
   
   .btn-text {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
   }
 }
 
 /* Móviles muy pequeños */
-@media (max-width: 360px) {
-  .route-map-header,
-  .map-section,
-  .stores-section {
+@media screen and (max-width: 360px) {
+  .route-map-container {
+    padding: 0.25rem;
+  }
+  
+  .route-map-header {
     padding: 0.75rem;
   }
   
-  .route-map-container .stat-card {
+  .map-section {
     padding: 0.75rem;
+  }
+  
+  .map-container {
+    min-height: 250px;
+    height: 35vh;
   }
   
   .store-card {
     padding: 0.75rem;
   }
   
-  .store-actions {
-    gap: 0.5rem;
+  .store-header {
+    gap: 0.25rem;
+  }
+  
+  .store-order {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+  }
+  
+  .status-badge {
+    font-size: 0.55rem;
+    padding: 0.2rem 0.5rem;
+  }
+  
+  .store-name {
+    font-size: 0.85rem;
+  }
+  
+  .store-address {
+    font-size: 0.7rem;
+  }
+  
+  .action-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.7rem;
+    min-height: 36px;
+  }
+}
+
+/* Orientación horizontal en móviles */
+@media screen and (max-height: 600px) and (orientation: landscape) {
+  .map-container {
+    min-height: 250px;
+    height: 50vh;
+  }
+  
+  .route-map-loading,
+  .route-map-error,
+  .route-map-empty {
+    min-height: 100vh;
+  }
+}
+
+/* Soporte para notch */
+@supports (padding: max(0px)) {
+  .route-map-container {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+}
+
+/* ===== MODO OSCURO ===== */
+@media (prefers-color-scheme: dark) {
+  .route-map-container {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .route-map-header,
+  .map-section,
+  .stores-section,
+  .store-card,
+  .route-map-error,
+  .route-map-empty {
+    background: #2d2d2d;
+    border-color: #404040;
+  }
+  
+  .header-content h1,
+  .section-header h2,
+  .store-name {
+    color: #ffffff;
+  }
+  
+  .route-date,
+  .route-info,
+  .section-header p,
+  .store-address,
+  .store-time {
+    color: #b0b0b0;
+  }
+  
+  .store-card {
+    border-color: #404040;
+  }
+  
+  .stat-badge {
+    background: #404040;
+    color: #e0e0e0;
+  }
+  
+  .primary-btn {
+    background: #2980b9;
+  }
+  
+  /* Estadísticas mantienen su color */
+  .route-map-container .stat-card.total {
+    background: linear-gradient(135deg, #2980b9, #1f618d) !important;
+  }
+  
+  .route-map-container .stat-card.completed {
+    background: linear-gradient(135deg, #229954, #1e7e34) !important;
+  }
+  
+  .route-map-container .stat-card.progress {
+    background: linear-gradient(135deg, #e67e22, #d35400) !important;
+  }
+  
+  .route-map-container .stat-card.pending {
+    background: linear-gradient(135deg, #7f8c8d, #6c757d) !important;
+  }
+}
+
+/* Reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .route-map-container .stat-card,
+  .store-card,
+  .action-btn,
+  .store-card::before {
+    transition: none;
+    animation: none;
+  }
+  
+  .spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  .stat-card,
+  .store-card,
+  .action-btn,
+  .primary-btn {
+    border: 2px solid currentColor;
+  }
+  
+  .status-badge {
+    border: 1px solid currentColor;
   }
 }

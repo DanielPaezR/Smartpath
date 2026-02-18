@@ -1,146 +1,9 @@
-// frontend/src/components/admin/AdminDashboard.tsx - CON HEADER SUPERIOR
+// frontend/src/components/admin/AdminDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../services/api';
-
-// Componente de Header reutilizable
-const DashboardHeader = ({ user, onLogout, title, subtitle }) => {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    if (window.confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      onLogout();
-      navigate('/login');
-    }
-  };
-
-  return (
-    <div style={{
-      backgroundColor: '#ffffff',
-      borderBottom: '1px solid #e5e7eb',
-      padding: '20px 30px',
-      marginBottom: '30px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        maxWidth: '1200px',
-        margin: '0 auto'
-      }}>
-        <div>
-          <h1 style={{
-            margin: '0 0 8px 0',
-            color: '#1f2937',
-            fontSize: '28px',
-            fontWeight: '700'
-          }}>
-            {title}
-          </h1>
-          <p style={{
-            margin: 0,
-            color: '#6b7280',
-            fontSize: '16px'
-          }}>
-            {subtitle}
-          </p>
-          <div style={{
-            marginTop: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px',
-            fontSize: '14px'
-          }}>
-            <span style={{
-              backgroundColor: '#dbeafe',
-              color: '#1e40af',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontWeight: '500'
-            }}>
-              👑 Administrador
-            </span>
-            <span style={{ color: '#6b7280' }}>
-              ID: {user?.id || 'N/A'}
-            </span>
-          </div>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '15px'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            backgroundColor: '#f8fafc',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb'
-          }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              backgroundColor: '#3b82f6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: '14px'
-            }}>
-              {user?.name?.charAt(0)?.toUpperCase() || 'A'}
-            </div>
-            <div>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                {user?.name || 'Administrador'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                {user?.email || 'admin@vitamarket.com'}
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#f3f4f6',
-              color: '#6b7280',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              fontSize: '14px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#fef2f2';
-              e.currentTarget.style.color = '#dc2626';
-              e.currentTarget.style.borderColor = '#fca5a5';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#f3f4f6';
-              e.currentTarget.style.color = '#6b7280';
-              e.currentTarget.style.borderColor = '#d1d5db';
-            }}
-          >
-            <span>🚪</span>
-            Cerrar Sesión
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+import '../../styles/AdminDashboard.css'; // Importamos los estilos CSS
 
 // Interfaces para los datos
 interface DashboardOverview {
@@ -152,64 +15,26 @@ interface DashboardOverview {
   avg_visit_duration: number;
 }
 
-// Interfaz para la respuesta del backend
 interface ApiResponse {
   success: boolean;
   data?: DashboardOverview;
   message?: string;
 }
 
-// Componente de tarjeta reutilizable
-interface DashboardCardProps {
-  title: string;
-  description: string;
-  onClick: () => void;
+// Componente de tarjeta usando clases CSS
+const DashboardCard: React.FC<{ 
+  title: string; 
+  description: string; 
+  onClick: () => void; 
   icon?: string;
-}
-
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, description, onClick, icon }) => {
+}> = ({ title, description, onClick, icon }) => {
   return (
-    <div 
-      onClick={onClick}
-      style={{
-        border: '1px solid #e1e5e9',
-        borderRadius: '12px',
-        padding: '25px',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
-        e.currentTarget.style.borderColor = '#3b82f6';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-        e.currentTarget.style.borderColor = '#e1e5e9';
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
-        {icon && <span style={{ fontSize: '24px', marginRight: '12px' }}>{icon}</span>}
-        <h3 style={{ 
-          margin: 0, 
-          color: '#1f2937', 
-          fontSize: '18px',
-          fontWeight: '600'
-        }}>
-          {title}
-        </h3>
+    <div className="dashboard-card" onClick={onClick}>
+      <div className="card-header">
+        {icon && <span className="card-icon">{icon}</span>}
+        <h3 className="card-title">{title}</h3>
       </div>
-      <p style={{ 
-        margin: 0, 
-        color: '#6b7280', 
-        fontSize: '14px',
-        lineHeight: '1.5'
-      }}>
-        {description}
-      </p>
+      <p className="card-description">{description}</p>
     </div>
   );
 };
@@ -222,24 +47,17 @@ const AdminDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [backendAvailable, setBackendAvailable] = useState<boolean>(true);
 
-  // Verificar si el backend está disponible
   const checkBackendHealth = async (): Promise<boolean> => {
     try {
       console.log('🔍 Verificando backend en:', `${API_BASE_URL}/health`);
-      
       const response = await fetch(`${API_BASE_URL}/health`);
-      const isOk = response.ok;
-      
-      console.log('✅ Backend status:', isOk ? 'Disponible' : 'No disponible');
-      return isOk;
-      
+      return response.ok;
     } catch (error) {
       console.error('❌ No se pudo conectar al backend:', error);
       return false;
     }
   };
 
-  // Función mejorada para cargar los datos
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -247,7 +65,6 @@ const AdminDashboard: React.FC = () => {
       
       console.log('🔄 Cargando datos del dashboard...');
       
-      // Primero verificar si el backend está disponible
       const isBackendHealthy = await checkBackendHealth();
       setBackendAvailable(isBackendHealthy);
       
@@ -260,9 +77,7 @@ const AdminDashboard: React.FC = () => {
         throw new Error('No hay token de autenticación');
       }
 
-      // ⚠️⚠️⚠️ ¡ESTA ES LA LÍNEA ERRADA! ⚠️⚠️⚠️
-      // Estás consultando /health en lugar de /admin/dashboard/overview
-      const response = await fetch(`${API_BASE_URL}/admin/dashboard/overview`, {  // ← CORREGIDO
+      const response = await fetch(`${API_BASE_URL}/admin/dashboard/overview`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -272,10 +87,7 @@ const AdminDashboard: React.FC = () => {
       console.log('📊 Status:', response.status);
 
       if (response.status === 404) {
-        // Si el endpoint no existe, usar datos de prueba
         console.log('⚠️ Endpoint no encontrado, usando datos de prueba');
-        
-        // Datos de prueba para desarrollo
         const mockData: DashboardOverview = {
           active_advisors: 12,
           active_routes: 8,
@@ -284,7 +96,6 @@ const AdminDashboard: React.FC = () => {
           in_progress_stores: 25,
           avg_visit_duration: 42
         };
-        
         setDashboardData(mockData);
         setError('⚠️ Backend en desarrollo. Usando datos de prueba.');
         return;
@@ -300,7 +111,6 @@ const AdminDashboard: React.FC = () => {
       if (apiResponse.success && apiResponse.data) {
         setDashboardData(apiResponse.data);
       } else {
-        // Si el backend no tiene datos, usar datos de prueba
         console.log('⚠️ Backend sin datos, usando datos de prueba');
         const mockData: DashboardOverview = {
           active_advisors: 12,
@@ -315,8 +125,6 @@ const AdminDashboard: React.FC = () => {
       
     } catch (err: any) {
       console.error('❌ Error cargando dashboard:', err);
-      
-      // Si hay error, usar datos de prueba
       const mockData: DashboardOverview = {
         active_advisors: 12,
         active_routes: 8,
@@ -325,7 +133,6 @@ const AdminDashboard: React.FC = () => {
         in_progress_stores: 25,
         avg_visit_duration: 42
       };
-      
       setDashboardData(mockData);
       setError(err instanceof Error ? err.message : 'Error desconocido. Usando datos de prueba.');
     } finally {
@@ -337,203 +144,192 @@ const AdminDashboard: React.FC = () => {
     loadDashboardData();
   }, []);
 
-  const handleRetry = () => {
-    loadDashboardData();
+  const handleLogout = () => {
+    if (window.confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      logout();
+      navigate('/login');
+    }
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      backgroundColor: '#f8fafc'
-    }}>
-      {/* Header Superior */}
-      <DashboardHeader 
-        user={user}
-        onLogout={logout}
-        title="Panel de Administración"
-        subtitle="SmartPath - Sistema de Optimización de Rutas para Vitamarket"
-      />
+    <div className="admin-dashboard">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="header-container">
+          {/* Fila superior */}
+          <div className="header-top">
+            <div className="header-title">
+              <h1>Panel de Administración</h1>
+              <p>SmartPath - Sistema de Optimización de Rutas</p>
+            </div>
+
+            <button onClick={handleLogout} className="logout-btn">
+              <span>🚪</span>
+              <span className="btn-text">Cerrar Sesión</span>
+            </button>
+          </div>
+
+          {/* Info del usuario */}
+          <div className="user-info-row">
+            <div className="user-badges">
+              <span className="admin-badge">
+                <span>👑</span>
+                Administrador
+              </span>
+              
+              <span className="user-id">
+                <span>ID:</span> 
+                {user?.id || 'N/A'}
+              </span>
+            </div>
+
+            <div className="user-profile">
+              <div className="user-avatar">
+                {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+              </div>
+              <div className="user-details">
+                <div className="user-name">
+                  {user?.name || 'Administrador'}
+                </div>
+                <div className="user-email">
+                  {user?.email || 'admin@vitamarket.com'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Contenido Principal */}
-      <div style={{ 
-        padding: '0 30px 30px',
-        maxWidth: '1200px', 
-        margin: '0 auto'
-      }}>
-
+      <main className="dashboard-content">
         {/* Grid de Tarjetas */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-          gap: '25px',
-          marginBottom: '40px'
-        }}>
-          <DashboardCard 
-            icon="📍"
-            title="Seguimiento en Tiempo Real" 
-            description="Monitorear progreso y ubicación actual de asesores en tiempo real"
-            onClick={() => {
-              if (backendAvailable) {
-                navigate('/admin/tracking');
-              } else {
-                alert('Esta función requiere que el backend esté disponible');
-              }
-            }}
-          />
-          
-          <DashboardCard 
-            icon="🏪"
-            title="Gestión de Tiendas" 
-            description="Asignar tiendas a asesores comerciales y gestionar puntos de venta"
-            onClick={() => navigate('/admin/stores')}
-          />
-          
-          <DashboardCard 
-            icon="📊"
-            title="Métricas y Estadísticas" 
-            description="Ver datos de productos, ventas y métricas de desempeño"
-            onClick={() => {
-              if (backendAvailable) {
-                navigate('/admin/metrics');
-              } else {
-                alert('Esta función requiere que el backend esté disponible');
-              }
-            }}
-          />
-        </div>
+        <section className="cards-section">
+          <div className="cards-grid">
+            <DashboardCard 
+              icon="📍"
+              title="Seguimiento" 
+              description="Monitorear ubicación actual de asesores"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/tracking');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
+            />
+            
+            <DashboardCard 
+              icon="🏪"
+              title="Gestión de Tiendas" 
+              description="Asignar tiendas a asesores y gestionar puntos de venta"
+              onClick={() => navigate('/admin/stores')}
+            />
+            
+            <DashboardCard 
+              icon="📊"
+              title="Métricas" 
+              description="Ver datos de productos, ventas y métricas"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/metrics');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
+            />
+          </div>
+        </section>
 
         {/* Resumen Rápido */}
-        <div style={{
-          padding: '20px',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e1e5e9'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#1f2937' }}>
-              Resumen Rápido del Sistema
-            </h3>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              {!backendAvailable && (
-                <span style={{
-                  fontSize: '12px',
-                  color: '#92400e',
-                  backgroundColor: '#fef3c7',
-                  padding: '4px 8px',
-                  borderRadius: '4px'
-                }}>
-                  Modo Demo
-                </span>
-              )}
-              <button 
-                onClick={handleRetry}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                Actualizar
-              </button>
+        <section className="quick-overview">
+          <div className="overview-header">
+            <div className="overview-title-row">
+              <h3>Resumen Rápido</h3>
+              
+              <div className="overview-actions">
+                {!backendAvailable && (
+                  <span className="demo-badge">
+                    Modo Demo
+                  </span>
+                )}
+                <button 
+                  onClick={loadDashboardData}
+                  className="refresh-btn"
+                  disabled={loading}
+                >
+                  Actualizar
+                </button>
+              </div>
             </div>
           </div>
           
           {error && !backendAvailable && (
-            <div style={{
-              padding: '15px',
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fef3c7',
-              borderRadius: '8px',
-              marginBottom: '20px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong style={{ color: '#92400e' }}>⚠️ Modo Demo:</strong>
-                  <span style={{ marginLeft: '8px', color: '#92400e' }}>
-                    Backend no disponible. Mostrando datos de prueba.
-                  </span>
+            <div className="error-banner">
+              <div className="error-content">
+                <div className="error-text">
+                  <strong>⚠️ Modo Demo:</strong>
+                  <span> Backend no disponible.</span>
                 </div>
               </div>
-              <div style={{ marginTop: '10px', fontSize: '13px', color: '#9ca3af' }}>
-                <p>Para usar todas las funciones, asegúrate de:</p>
-                <ol style={{ margin: '5px 0', paddingLeft: '20px' }}>
-                  <li>Ejecutar el backend en <code>localhost:10000</code></li>
-                  <li>Agregar <code>app.use('/api/admin', adminRoutes)</code> en server.js</li>
-                  <li>Implementar <code>getDashboardOverview</code> en adminController.js</li>
+              <div className="debug-info">
+                <p>Para usar todas las funciones:</p>
+                <ol>
+                  <li>Ejecutar backend en localhost:10000</li>
+                  <li>Configurar rutas de admin</li>
                 </ol>
               </div>
             </div>
           )}
 
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '30px' }}>
-              <div style={{
-                display: 'inline-block',
-                width: '40px',
-                height: '40px',
-                border: '4px solid #f3f3f3',
-                borderTop: '4px solid #3b82f6',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }}></div>
-              <p style={{ marginTop: '10px', color: '#6b7280' }}>
-                {backendAvailable ? 'Cargando datos del servidor...' : 'Preparando modo demo...'}
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p className="loading-text">
+                {backendAvailable ? 'Cargando datos...' : 'Preparando demo...'}
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-              <div>
-                <strong style={{ color: '#3b82f6' }}>Asesores Activos:</strong>
-                <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <strong className="stat-label">Asesores Activos:</strong>
+                <span className="stat-value">
                   {dashboardData?.active_advisors ?? 'N/A'}
                 </span>
               </div>
-              <div>
-                <strong style={{ color: '#3b82f6' }}>Tiendas Hoy:</strong>
-                <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              <div className="stat-item">
+                <strong className="stat-label">Tiendas Hoy:</strong>
+                <span className="stat-value">
                   {dashboardData?.total_stores_today ?? 'N/A'}
                 </span>
               </div>
-              <div>
-                <strong style={{ color: '#3b82f6' }}>Rutas en Progreso:</strong>
-                <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              <div className="stat-item">
+                <strong className="stat-label">Rutas en Progreso:</strong>
+                <span className="stat-value">
                   {dashboardData?.active_routes ?? 'N/A'}
                 </span>
               </div>
-              <div>
-                <strong style={{ color: '#3b82f6' }}>Tiendas Completadas:</strong>
-                <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              <div className="stat-item">
+                <strong className="stat-label">Tiendas Completadas:</strong>
+                <span className="stat-value">
                   {dashboardData?.completed_stores ?? 'N/A'}
                 </span>
               </div>
-              <div>
-                <strong style={{ color: '#3b82f6' }}>Tiendas en Progreso:</strong>
-                <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              <div className="stat-item">
+                <strong className="stat-label">Tiendas en Progreso:</strong>
+                <span className="stat-value">
                   {dashboardData?.in_progress_stores ?? 'N/A'}
                 </span>
               </div>
-              <div>
-                <strong style={{ color: '#3b82f6' }}>Duración Promedio:</strong>
-                <span style={{ marginLeft: '8px', color: '#6b7280' }}>
+              <div className="stat-item">
+                <strong className="stat-label">Duración Promedio:</strong>
+                <span className="stat-value">
                   {dashboardData?.avg_visit_duration ? `${dashboardData.avg_visit_duration} min` : 'N/A'}
                 </span>
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Estilos para el spinner */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+        </section>
+      </main>
     </div>
   );
 };
