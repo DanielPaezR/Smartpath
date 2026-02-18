@@ -102,19 +102,6 @@ const Login: React.FC = () => {
             )}
           </button>
         </form>
-
-        {/* Footer con credenciales de demo (opcional) */}
-        <div className="login-footer">
-          <div className="demo-credentials">
-            <h4>🔐 Credenciales de prueba:</h4>
-            <p className="credential-item">
-              <strong>Admin:</strong> admin@vitamarket.com / admin123
-            </p>
-            <p className="credential-item">
-              <strong>Asesor:</strong> asesor@vitamarket.com / asesor123
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -13,11 +13,7 @@ lerna-debug.log*
 .env.development
 .env.production
 
-# API configuration - ¡NUEVO!
-frontend/src/services/api.ts
-src/services/api.ts
-api.ts
-**/api.ts
+
 
 node_modules
 dist
