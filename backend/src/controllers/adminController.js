@@ -227,6 +227,294 @@ class AdminController {
     }
   }
 
+  // 🆕 NUEVA FUNCIÓN: Obtener métricas de reposición
+  async getRestockMetrics(timeRange, connection) {
+    try {
+      // Determinar el rango de tiempo en SQL
+      let timeCondition = '';
+      switch(timeRange) {
+        case 'week':
+          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          break;
+        case 'month':
+          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          break;
+        case 'quarter':
+          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          break;
+        default:
+          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      }
+
+      // 1. Métricas generales de reposición
+      const [generalMetrics] = await connection.execute(`
+        SELECT 
+          COALESCE(SUM(ri.quantity), 0) as totalItems,
+          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
+          COUNT(DISTINCT ri.product_barcode) as uniqueProducts,
+          COUNT(DISTINCT ri.route_store_id) as visitsWithRestock,
+          COALESCE(SUM(ri.quantity) / NULLIF(COUNT(DISTINCT ri.route_store_id), 0), 0) as averageItemsPerVisit
+        FROM restock_items ri
+        WHERE 1=1 ${timeCondition}
+      `);
+
+      // 2. Top productos más repuestos
+      const [topProducts] = await connection.execute(`
+        SELECT 
+          ri.product_name as productName,
+          ri.product_barcode as productBarcode,
+          SUM(ri.quantity) as quantity,
+          SUM(ri.quantity * ri.unit_price) as totalValue
+        FROM restock_items ri
+        WHERE 1=1 ${timeCondition}
+        GROUP BY ri.product_barcode, ri.product_name
+        ORDER BY quantity DESC
+        LIMIT 10
+      `);
+
+      // 3. Reposiciones por categoría
+      const [topCategories] = await connection.execute(`
+        SELECT 
+          COALESCE(ri.product_category, 'Sin categoría') as category,
+          SUM(ri.quantity) as quantity,
+          (SUM(ri.quantity) * 100.0 / NULLIF((SELECT SUM(quantity) FROM restock_items ri2 WHERE 1=1 ${timeCondition.replace('ri.', 'ri2.')}), 0)) as percentage
+        FROM restock_items ri
+        WHERE 1=1 ${timeCondition}
+        GROUP BY category
+        ORDER BY quantity DESC
+      `);
+
+      // 4. Reposiciones por asesor
+      const [restockByAdvisor] = await connection.execute(`
+        SELECT 
+          u.id as advisorId,
+          u.name as advisorName,
+          COALESCE(SUM(ri.quantity), 0) as totalItems,
+          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
+          COUNT(DISTINCT ri.route_store_id) as visits,
+          COALESCE(SUM(ri.quantity) / NULLIF(COUNT(DISTINCT ri.route_store_id), 0), 0) as averagePerVisit
+        FROM users u
+        LEFT JOIN restock_items ri ON u.id = ri.reported_by ${timeCondition.replace('ri.', '')}
+        WHERE u.role = 'advisor'
+        GROUP BY u.id, u.name
+        HAVING totalItems > 0
+        ORDER BY totalItems DESC
+      `);
+
+      // 5. Reposiciones por tienda
+      const [restockByStore] = await connection.execute(`
+        SELECT 
+          s.id as storeId,
+          s.name as storeName,
+          COALESCE(SUM(ri.quantity), 0) as totalItems,
+          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
+          COUNT(DISTINCT ri.route_store_id) as visits
+        FROM stores s
+        LEFT JOIN restock_items ri ON s.id = ri.store_id ${timeCondition.replace('ri.', '')}
+        WHERE s.is_active = 1
+        GROUP BY s.id, s.name
+        HAVING totalItems > 0
+        ORDER BY totalItems DESC
+        LIMIT 10
+      `);
+
+      // 6. Tendencia diaria de reposiciones
+      const [dailyTrend] = await connection.execute(`
+        SELECT 
+          DATE(ri.reported_at) as date,
+          SUM(ri.quantity) as items,
+          SUM(ri.quantity * ri.unit_price) as value
+        FROM restock_items ri
+        WHERE 1=1 ${timeCondition}
+        GROUP BY DATE(ri.reported_at)
+        ORDER BY date DESC
+        LIMIT 30
+      `);
+
+      return {
+        totalItems: parseInt(generalMetrics[0]?.totalItems || 0),
+        totalValue: parseFloat(generalMetrics[0]?.totalValue || 0),
+        uniqueProducts: parseInt(generalMetrics[0]?.uniqueProducts || 0),
+        averageItemsPerVisit: parseFloat(generalMetrics[0]?.averageItemsPerVisit || 0),
+        topRestockedProducts: topProducts.map(p => ({
+          productName: p.productName,
+          productBarcode: p.productBarcode,
+          quantity: parseInt(p.quantity),
+          totalValue: parseFloat(p.totalValue || 0)
+        })),
+        topRestockedCategories: topCategories.map(c => ({
+          category: c.category,
+          quantity: parseInt(c.quantity),
+          percentage: parseFloat(c.percentage || 0)
+        })),
+        restockByAdvisor: restockByAdvisor.map(a => ({
+          advisorId: a.advisorId,
+          advisorName: a.advisorName,
+          totalItems: parseInt(a.totalItems),
+          totalValue: parseFloat(a.totalValue),
+          averagePerVisit: parseFloat(a.averagePerVisit || 0)
+        })),
+        restockByStore: restockByStore.map(s => ({
+          storeId: s.storeId,
+          storeName: s.storeName,
+          totalItems: parseInt(s.totalItems),
+          totalValue: parseFloat(s.totalValue || 0),
+          visits: parseInt(s.visits)
+        })),
+        dailyRestockTrend: dailyTrend.map(d => ({
+          date: d.date,
+          items: parseInt(d.items),
+          value: parseFloat(d.value || 0)
+        }))
+      };
+    } catch (error) {
+      console.error('Error getting restock metrics:', error);
+      // Devolver estructura vacía pero válida
+      return {
+        totalItems: 0,
+        totalValue: 0,
+        uniqueProducts: 0,
+        averageItemsPerVisit: 0,
+        topRestockedProducts: [],
+        topRestockedCategories: [],
+        restockByAdvisor: [],
+        restockByStore: [],
+        dailyRestockTrend: []
+      };
+    }
+  }
+
+  // 🆕 NUEVA FUNCIÓN: Obtener métricas avanzadas (con reposiciones)
+  async getAdvancedMetrics(req, res) {
+    const connection = await createConnection();
+    
+    try {
+      const { timeRange = 'month' } = req.query;
+      
+      console.log(`📡 Obteniendo métricas avanzadas para: ${timeRange}`);
+      
+      // Determinar el rango de tiempo
+      let timeCondition = '';
+      switch(timeRange) {
+        case 'week':
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          break;
+        case 'month':
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          break;
+        case 'quarter':
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          break;
+        default:
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      }
+
+      // Obtener métricas generales
+      const [overall] = await connection.execute(`
+        SELECT 
+          (SELECT COUNT(*) FROM stores WHERE is_active = 1) as totalStores,
+          COUNT(DISTINCT rs.id) as completedVisits,
+          COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avgVisitDuration,
+          COALESCE(SUM(CASE WHEN dr.id IS NOT NULL THEN 1 ELSE 0 END), 0) as totalDamages,
+          COALESCE(SUM(r.total_distance), 0) as totalDistance
+        FROM route_stores rs
+        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        LEFT JOIN daily_routes r ON rs.route_id = r.id
+        WHERE rs.status = 'completed' ${timeCondition}
+      `);
+
+      // Obtener daños por categoría
+      const [damageByCategory] = await connection.execute(`
+        SELECT 
+          COALESCE(p.category, 'Sin categoría') as category,
+          COUNT(*) as count
+        FROM damage_reports dr
+        LEFT JOIN products p ON dr.product_barcode = p.barcode
+        WHERE 1=1 ${timeCondition.replace('rs.', 'dr.')}
+        GROUP BY category
+        ORDER BY count DESC
+      `);
+
+      // Obtener tiendas con más daños
+      const [topStoresWithDamage] = await connection.execute(`
+        SELECT 
+          s.name as storeName,
+          COUNT(*) as damageCount
+        FROM damage_reports dr
+        JOIN stores s ON dr.store_id = s.id
+        WHERE 1=1 ${timeCondition.replace('rs.', 'dr.')}
+        GROUP BY s.id, s.name
+        ORDER BY damageCount DESC
+        LIMIT 5
+      `);
+
+      // Obtener performance de asesores
+      const [advisorPerformance] = await connection.execute(`
+        SELECT 
+          u.name as advisorName,
+          COUNT(DISTINCT rs.id) as completedVisits,
+          COALESCE(AVG(rs.actual_duration), 0) as averageTimePerStore,
+          COUNT(DISTINCT dr.id) as damageReports,
+          COALESCE(
+            (COUNT(DISTINCT CASE WHEN rs.actual_duration <= 40 THEN rs.id END) * 100.0) / 
+            NULLIF(COUNT(DISTINCT rs.id), 0), 0
+          ) as efficiencyScore
+        FROM users u
+        LEFT JOIN daily_routes r ON u.id = r.user_id
+        LEFT JOIN route_stores rs ON r.id = rs.route_id AND rs.status = 'completed' ${timeCondition}
+        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        WHERE u.role = 'advisor'
+        GROUP BY u.id, u.name
+        HAVING completedVisits > 0
+        ORDER BY efficiencyScore DESC
+      `);
+
+      // Obtener métricas de reposición (NUEVO)
+      const restockMetrics = await this.getRestockMetrics(timeRange, connection);
+
+      const metrics = {
+        overall: {
+          totalStores: parseInt(overall[0]?.totalStores || 0),
+          completedVisits: parseInt(overall[0]?.completedVisits || 0),
+          averageEfficiency: Math.round(overall[0]?.avgVisitDuration ? 
+            Math.max(0, Math.min(100, 100 - ((overall[0].avgVisitDuration - 30) * 2))) : 85),
+          totalDistance: parseFloat(overall[0]?.totalDistance || 0).toFixed(1)
+        },
+        damageAnalytics: {
+          totalDamagedProducts: parseInt(overall[0]?.totalDamages || 0),
+          damageByCategory: damageByCategory.map(d => ({
+            category: d.category,
+            count: parseInt(d.count)
+          })),
+          topStoresWithDamage: topStoresWithDamage.map(s => ({
+            storeName: s.storeName,
+            damageCount: parseInt(s.damageCount)
+          }))
+        },
+        advisorPerformance: advisorPerformance.map(a => ({
+          advisorName: a.advisorName,
+          completedVisits: parseInt(a.completedVisits),
+          averageTimePerStore: Math.round(a.averageTimePerStore),
+          efficiencyScore: Math.round(a.efficiencyScore),
+          damageReports: parseInt(a.damageReports || 0)
+        })),
+        restockMetrics: restockMetrics // 👈 NUEVO: métricas de reposición
+      };
+
+      console.log('✅ Métricas avanzadas obtenidas correctamente');
+      res.json(metrics);
+
+    } catch (error) {
+      console.error('❌ Error en getAdvancedMetrics:', error);
+      res.status(500).json({ 
+        message: 'Error obteniendo métricas avanzadas',
+        error: error.message 
+      });
+    } finally {
+      await connection.end();
+    }
+  }
+
   // Obtener notificaciones
   async getNotifications(req, res) {
     const connection = await createConnection();

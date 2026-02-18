@@ -19,6 +19,7 @@ router.get('/metrics/advanced', advancedAdminController.getAdvancedMetrics);
 router.post('/routes/optimize', advancedAdminController.generateOptimizedRoute);
 
 router.get('/reports/damage', advancedAdminController.getDamageReports);
+router.get('/metrics/advanced', authenticateToken, authorizeAdmin, adminController.getAdvancedMetrics);
 
 
 export default router;
