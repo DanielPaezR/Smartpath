@@ -7,6 +7,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Environment files - ¡NUEVO!
+.env
+.env.local
+.env.development
+.env.production
+
+# API configuration - ¡NUEVO!
+frontend/src/services/api.ts
+src/services/api.ts
+api.ts
+**/api.ts
+
 node_modules
 dist
 dist-ssr
