@@ -137,6 +137,145 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                             ))}
                         </div>
                     )}
+
+                    {/* Formulario para nuevo producto */}
+                    {!showProductForm ? (
+                        <div className="scan-section">
+                            <p className="scan-instruction">
+                                Escanea el código de barras del producto repuesto:
+                            </p>
+                            
+                            <BarcodeScannerButton 
+                                onScan={handleBarcodeScanned}
+                                disabled={loading}
+                            />
+
+                            <button 
+                                className="manual-entry-btn"
+                                onClick={() => {
+                                    setManualEntry(true);
+                                    setShowProductForm(true);
+                                }}
+                            >
+                                ⌨️ Registrar Producto
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="product-form">
+                            <h4>{manualEntry ? 'Ingreso manual' : 'Producto encontrado'}</h4>
+                            
+                            <div className="form-group">
+                                <label>Código de barras:</label>
+                                <input 
+                                    type="text"
+                                    value={currentBarcode}
+                                    onChange={(e) => setCurrentBarcode(e.target.value)}
+                                    className="form-input"
+                                    disabled={!manualEntry}
+                                />
+                            </div>
+
+                            {manualEntry && (
+                                <>
+                                    <div className="form-group">
+                                        <label>Nombre del producto:</label>
+                                        <input 
+                                            type="text"
+                                            value={currentProduct?.name || ''}
+                                            onChange={(e) => setCurrentProduct({ name: e.target.value })}
+                                            className="form-input"
+                                            placeholder="Ej: Leche Entera"
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>Marca:</label>
+                                        <input 
+                                            type="text"
+                                            value={currentProduct?.brand || ''}
+                                            onChange={(e) => setCurrentProduct((prev: any) => ({ ...prev, brand: e.target.value }))}
+                                            className="form-input"
+                                            placeholder="Ej: Alpina"
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>Categoría:</label>
+                                        <select 
+                                            value={currentProduct?.category || ''}
+                                            onChange={(e) => setCurrentProduct((prev: any) => ({ ...prev, category: e.target.value }))}
+                                            className="form-select"
+                                        >
+                                            <option value="">Seleccionar categoría</option>
+                                            <option value="lacteos">Lácteos</option>
+                                            <option value="carnicos">Cárnicos</option>
+                                            <option value="bebidas">Bebidas</option>
+                                            <option value="aseo">Aseo</option>
+                                            <option value="granos">Granos</option>
+                                            <option value="otros">Otros</option>
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="form-row">
+                                <div className="form-group half">
+                                    <label>Cantidad repuesta:</label>
+                                    <input 
+                                        type="number"
+                                        min="1"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                                        className="form-input"
+                                    />
+                                </div>
+
+                                <div className="form-group half">
+                                    <label>Precio unitario (opcional):</label>
+                                    <input 
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={unitPrice || ''}
+                                        onChange={(e) => setUnitPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                        className="form-input"
+                                        placeholder="$0.00"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Notas (opcional):</label>
+                                <textarea 
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    className="form-textarea"
+                                    rows={2}
+                                    placeholder="Ej: Se repusieron 3 unidades porque estaban agotadas"
+                                />
+                            </div>
+
+                            <div className="form-actions">
+                                <button 
+                                    className="btn-secondary"
+                                    onClick={() => {
+                                        setShowProductForm(false);
+                                        setManualEntry(false);
+                                        setCurrentProduct(null);
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    className="btn-primary"
+                                    onClick={handleAddItem}
+                                    disabled={loading || !currentBarcode}
+                                >
+                                    {loading ? '⏳ Agregando...' : '➕ Agregar producto'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="restock-modal-footer">

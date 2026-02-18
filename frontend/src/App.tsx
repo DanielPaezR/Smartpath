@@ -10,6 +10,7 @@ import RouteMap from './components/advisor/RouteMap';
 import RealTimeTracking from './components/admin/RealTimeTracking';
 import AdvancedMetrics from './components/admin/AdvancedMetrics';
 import './styles/global-fixes.css';
+import InstallPWA from './components/common/InstallPWA';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -121,6 +122,7 @@ function App() {
             {/* Ruta 404 */}
             <Route path="*" element={<div>Página no encontrada</div>} />
           </Routes>
+          <InstallPWA />
         </div>
       </Router>
     </AuthProvider>

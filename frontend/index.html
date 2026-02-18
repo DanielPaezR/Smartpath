@@ -1,13 +1,35 @@
-<!doctype html>
-<html lang="en">
+<!-- frontend/index.html -->
+<!DOCTYPE html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>frontend</title>
+    <link rel="icon" type="image/x-icon" href="/~daniel.paez/smartpath/favicon.ico" />
+    <link rel="icon" type="image/png" href="/~daniel.paez/smartpath/icon-72x72.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>SmartPath Vitamarket</title>
+    
+    <!-- Meta tags para PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SmartPath" />
+    <meta name="theme-color" content="#2E7D32" />
+    <meta name="description" content="Optimización de rutas para asesores comerciales Vitamarket" />
+    
+    <!-- Links para iOS -->
+    <link rel="apple-touch-icon" href="/~daniel.paez/smartpath/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/~daniel.paez/smartpath/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/~daniel.paez/smartpath/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/~daniel.paez/smartpath/icon-152x152.png" />
+    
+    <!-- Manifest - CORREGIDO para hash routing -->
+    <link rel="manifest" href="/~daniel.paez/smartpath/manifest.json" />
+    
+    <!-- Base tag opcional para asegurar rutas relativas -->
+    <base href="/~daniel.paez/smartpath/">
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- CORREGIDO: la ruta del script principal -->
+    <script type="module" src="/~daniel.paez/smartpath/assets/index.js"></script>
   </body>
 </html>

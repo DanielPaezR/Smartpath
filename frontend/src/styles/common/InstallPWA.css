@@ -1,0 +1,132 @@
+/* frontend/src/components/common/InstallPWA.css */
+.install-pwa-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.install-pwa-card {
+    background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    position: relative;
+    color: white;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.install-icon {
+    flex-shrink: 0;
+}
+
+.install-icon img {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.install-content {
+    flex: 1;
+}
+
+.install-content h3 {
+    margin: 0 0 4px 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.install-content p {
+    margin: 0 0 12px 0;
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.install-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.install-btn {
+    background: white;
+    color: #1B5E20;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    flex: 1;
+}
+
+.install-btn:hover {
+    background: #f5f5f5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.later-btn {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.later-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.close-install {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.close-install:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Para desktop */
+@media (min-width: 768px) {
+    .install-pwa-container {
+        left: auto;
+        right: 20px;
+        bottom: 20px;
+        width: 360px;
+    }
+}
