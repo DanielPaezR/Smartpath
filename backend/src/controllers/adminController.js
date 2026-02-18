@@ -393,7 +393,7 @@ class AdminController {
       
       console.log(`📡 Obteniendo métricas avanzadas para: ${timeRange}`);
       
-      // Determinar el rango de tiempo
+      // Determinar el rango de tiempo para route_stores
       let timeCondition = '';
       switch(timeRange) {
         case 'week':
@@ -409,16 +409,31 @@ class AdminController {
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
+      // Determinar el rango de tiempo para damage_reports (usa created_at)
+      let damageTimeCondition = '';
+      switch(timeRange) {
+        case 'week':
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          break;
+        case 'month':
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          break;
+        case 'quarter':
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          break;
+        default:
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      }
+
       // Obtener métricas generales
       const [overall] = await connection.execute(`
         SELECT 
           (SELECT COUNT(*) FROM stores) as totalStores,
           COUNT(DISTINCT rs.id) as completedVisits,
           COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avgVisitDuration,
-          COALESCE(SUM(CASE WHEN dr.id IS NOT NULL THEN 1 ELSE 0 END), 0) as totalDamages,
+          (SELECT COUNT(*) FROM damage_reports dr WHERE 1=1 ${damageTimeCondition}) as totalDamages,
           COALESCE(SUM(r.total_distance), 0) as totalDistance
         FROM route_stores rs
-        LEFT JOIN damage_reports dr ON rs.id = dr.store_id
         LEFT JOIN daily_routes r ON rs.route_id = r.id
         WHERE rs.status = 'completed' ${timeCondition}
       `);
@@ -429,7 +444,7 @@ class AdminController {
           COALESCE(dr.product_category, 'Sin categoría') as category,
           COUNT(*) as count
         FROM damage_reports dr
-        WHERE 1=1 ${timeCondition.replace('rs.', 'dr.')}
+        WHERE 1=1 ${damageTimeCondition}
         GROUP BY category
         ORDER BY count DESC
       `);
@@ -441,7 +456,7 @@ class AdminController {
           COUNT(*) as damageCount
         FROM damage_reports dr
         JOIN stores s ON dr.store_id = s.id
-        WHERE 1=1 ${timeCondition ? timeCondition.replace('rs.end_time', 'dr.created_at') : ''}
+        WHERE 1=1 ${damageTimeCondition}
         GROUP BY s.id, s.name
         ORDER BY damageCount DESC
         LIMIT 5
@@ -461,14 +476,14 @@ class AdminController {
         FROM users u
         LEFT JOIN daily_routes r ON u.id = r.user_id
         LEFT JOIN route_stores rs ON r.id = rs.route_id AND rs.status = 'completed' ${timeCondition}
-        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id AND 1=1 ${damageTimeCondition}
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
         ORDER BY efficiencyScore DESC
       `);
 
-      // Obtener métricas de reposición (NUEVO)
+      // Obtener métricas de reposición
       const restockMetrics = await this.getRestockMetrics(timeRange, connection);
 
       const metrics = {
@@ -497,7 +512,7 @@ class AdminController {
           efficiencyScore: Math.round(a.efficiencyScore),
           damageReports: parseInt(a.damageReports || 0)
         })),
-        restockMetrics: restockMetrics // 👈 NUEVO: métricas de reposición
+        restockMetrics: restockMetrics
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
