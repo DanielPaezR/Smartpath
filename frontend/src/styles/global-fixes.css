@@ -1,0 +1,85 @@
+/* frontend/src/styles/global-fixes.css - ¡NUEVO ARCHIVO! */
+
+/* Reset y fixes globales */
+* {
+  -webkit-tap-highlight-color: transparent; /* Elimina highlight en taps */
+  -webkit-touch-callout: none; /* Previene menú contextual en iOS */
+  -webkit-text-size-adjust: 100%; /* Previene ajuste de texto */
+}
+
+html {
+  height: -webkit-fill-available;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix para 100vh en móviles */
+.vh-fix {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
+}
+
+/* Fix para inputs en iOS */
+input, select, textarea {
+  font-size: 16px !important; /* ¡CRUCIAL! Evita zoom en iOS */
+  border-radius: 0; /* Remueve border-radius por defecto en iOS */
+  -webkit-appearance: none; /* Remueve estilos por defecto */
+  appearance: none;
+}
+
+/* Fix para botones en iOS */
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+/* Fix para scroll en iOS */
+.scrollable {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Contenedores flexibles */
+.flex-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fix para imágenes */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Fix para gradientes en todos los navegadores */
+.gradient-fix {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-attachment: fixed; /* Mejor comportamiento en móviles */
+}
+
+/* Media query para prevenir zoom en landscape */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  html {
+    -webkit-text-size-adjust: none;
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}

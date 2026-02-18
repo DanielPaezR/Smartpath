@@ -1,13 +1,31 @@
-/* frontend/src/styles/AdvisorDashboard.css */
+/* frontend/src/styles/AdvisorDashboard.css - VERSIÓN CORREGIDA Y OPTIMIZADA */
 
 .advisor-dashboard {
   padding: clamp(0.5rem, 2vw, 1rem);
   background-color: #f8f9fa;
-  min-height: calc(100vh - 120px);
+  min-height: 100vh; /* Fallback */
+  min-height: 100dvh; /* Unidad dinámica moderna */
+  min-height: -webkit-fill-available; /* Para Safari iOS */
   color: #333;
   width: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+}
+
+/* Fix específico para Safari iOS */
+@supports (-webkit-touch-callout: none) {
+  .advisor-dashboard {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Fix para Chrome en Android */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .advisor-dashboard {
+    min-height: 100vh;
+  }
 }
 
 /* ===== HEADER CUSTOMIZADO ===== */
@@ -17,6 +35,10 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   margin-bottom: clamp(1rem, 3vw, 1.5rem);
+  width: 100%;
+  box-sizing: border-box;
+  transform: translateZ(0); /* Aceleración hardware */
+  -webkit-transform: translateZ(0);
 }
 
 .dashboard-header-custom h1 {
@@ -25,6 +47,7 @@
   font-size: clamp(1.1rem, 4vw, 1.5rem);
   font-weight: 700;
   line-height: 1.2;
+  word-break: break-word;
 }
 
 /* ===== ESTADÍSTICAS MEJORADAS ===== */
@@ -32,6 +55,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: clamp(0.75rem, 2vw, 1rem);
+  width: 100%;
 }
 
 .advisor-dashboard .stat-item {
@@ -42,25 +66,38 @@
   gap: clamp(0.5rem, 2vw, 0.75rem);
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 80px; /* Altura mínima para consistencia */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 /* Solo hover en dispositivos que lo soporten */
 @media (hover: hover) {
   .advisor-dashboard .stat-item:hover {
     transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
   }
+}
+
+.advisor-dashboard .stat-item:active {
+  transform: scale(0.98);
 }
 
 .advisor-dashboard .stat-item:nth-child(1) {
   background: linear-gradient(135deg, #3498db, #2980b9) !important;
+  background-attachment: fixed; /* Mejor comportamiento en móviles */
 }
 
 .advisor-dashboard .stat-item:nth-child(2) {
   background: linear-gradient(135deg, #27ae60, #229954) !important;
+  background-attachment: fixed;
 }
 
 .advisor-dashboard .stat-item:nth-child(3) {
   background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+  background-attachment: fixed;
 }
 
 /* Forzar texto blanco en estadísticas */
@@ -80,7 +117,8 @@
 .advisor-dashboard .stat-info {
   display: flex;
   flex-direction: column;
-  min-width: 0; /* Para evitar overflow */
+  min-width: 0;
+  width: 100%;
 }
 
 .advisor-dashboard .stat-value {
@@ -99,9 +137,11 @@
   text-shadow: 0 1px 1px rgba(0,0,0,0.2);
   letter-spacing: 0.3px;
   color: white !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal; /* Cambiado de nowrap a normal */
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 /* ===== LAYOUT PRINCIPAL ===== */
@@ -109,6 +149,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: clamp(1rem, 3vw, 1.5rem);
+  width: 100%;
 }
 
 /* ===== SECCIÓN DE MAPA ===== */
@@ -119,6 +160,8 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   min-height: min(400px, 50vh);
   height: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ===== SECCIÓN DE TIENDAS ===== */
@@ -127,6 +170,8 @@
   padding: clamp(1rem, 3vw, 1.5rem);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title {
@@ -135,6 +180,7 @@
   font-size: clamp(1.1rem, 4vw, 1.3rem);
   font-weight: 600;
   line-height: 1.3;
+  word-break: break-word;
 }
 
 /* ===== GRID DE TIENDAS ===== */
@@ -142,6 +188,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: clamp(0.75rem, 2vw, 1rem);
+  width: 100%;
 }
 
 /* ===== TARJETAS DE TIENDA ===== */
@@ -157,6 +204,8 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .store-card::before {
@@ -280,6 +329,8 @@
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   min-height: 44px; /* Tamaño mínimo táctil */
   -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .start-visit-btn {
@@ -287,8 +338,38 @@
   color: white;
 }
 
-.start-visit-btn:hover {
-  background: #219a52;
+@media (hover: hover) {
+  .start-visit-btn:hover {
+    background: #219a52;
+  }
+  
+  .continue-visit-btn:hover {
+    background: #e0a800;
+  }
+  
+  .complete-visit-btn:hover {
+    background: #c0392b;
+  }
+  
+  .action-btn.secondary:hover {
+    background: #545b62;
+  }
+  
+  .restart-visit-btn:hover {
+    background: #2980b9;
+  }
+  
+  .retry-btn:hover {
+    background: #2980b9;
+  }
+}
+
+.start-visit-btn:active,
+.continue-visit-btn:active,
+.complete-visit-btn:active,
+.action-btn.secondary:active,
+.restart-visit-btn:active {
+  transform: scale(0.97);
 }
 
 .continue-visit-btn {
@@ -296,17 +377,9 @@
   color: #000;
 }
 
-.continue-visit-btn:hover {
-  background: #e0a800;
-}
-
 .complete-visit-btn {
   background: #e74c3c;
   color: white;
-}
-
-.complete-visit-btn:hover {
-  background: #c0392b;
 }
 
 .action-btn.secondary {
@@ -314,23 +387,16 @@
   color: white;
 }
 
-.action-btn.secondary:hover {
-  background: #545b62;
-}
-
 .restart-visit-btn {
   background: #3498db;
   color: white;
-}
-
-.restart-visit-btn:hover {
-  background: #2980b9;
 }
 
 /* Botones deshabilitados */
 .action-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none !important;
 }
 
 /* Grupos de acciones */
@@ -354,6 +420,7 @@
   width: 100%;
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   box-sizing: border-box;
+  line-height: 1.4;
 }
 
 .completed-badge {
@@ -378,6 +445,9 @@
   color: #666;
   text-align: center;
   min-height: 50vh;
+  min-height: 50dvh;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .spinner {
@@ -402,10 +472,10 @@
   border-radius: 12px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin: clamp(0.5rem, 2vw, 1rem);
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: clamp(0.5rem, 2vw, 1rem) auto;
+  max-width: min(600px, 90%);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-error {
@@ -425,14 +495,12 @@
   cursor: pointer;
   font-weight: 600;
   margin-top: 1rem;
-  transition: background 0.3s;
+  transition: all 0.3s ease;
   min-height: 44px;
   font-size: clamp(0.8rem, 3vw, 0.9rem);
   -webkit-tap-highlight-color: transparent;
-}
-
-.retry-btn:hover {
-  background: #2980b9;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* ===== RESPONSIVE AVANZADO ===== */
@@ -513,6 +581,13 @@
   .action-btn {
     margin-top: 0.5rem;
   }
+  
+  /* Fix para Chrome en móviles */
+  @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .advisor-dashboard .stat-label {
+      white-space: normal;
+    }
+  }
 }
 
 /* Móviles pequeños */
@@ -554,14 +629,20 @@
 
 /* Orientación horizontal en móviles */
 @media screen and (max-height: 600px) and (orientation: landscape) {
+  .advisor-dashboard {
+    min-height: auto;
+    padding-bottom: 1rem;
+  }
+  
   .map-section {
     min-height: 250px;
   }
   
   .stores-grid {
-    max-height: 400px;
+    max-height: 350px;
     overflow-y: auto;
     padding-right: 0.5rem;
+    -webkit-overflow-scrolling: touch;
   }
   
   .dashboard-loading {
@@ -577,13 +658,37 @@
   }
 }
 
+/* Fix específico para iOS */
+@supports (-webkit-touch-callout: none) {
+  .advisor-dashboard {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  
+  .map-section {
+    height: 45vh; /* Ajuste para Safari */
+  }
+  
+  .action-btn {
+    -webkit-transform: translateZ(0);
+  }
+}
+
+/* Fix para Firefox en Android */
+@-moz-document url-prefix() {
+  .advisor-dashboard .stat-item {
+    background-blend-mode: normal;
+  }
+}
+
 /* ===== MEJORAS DE ACCESIBILIDAD ===== */
 @media (prefers-reduced-motion: reduce) {
   .store-card,
   .action-btn,
   .advisor-dashboard .stat-item,
   .store-card::before,
-  .spinner {
+  .spinner,
+  .retry-btn {
     transition: none;
     animation: none;
   }
@@ -603,7 +708,9 @@
   .dashboard-header-custom,
   .map-section,
   .stores-section,
-  .store-card {
+  .store-card,
+  .dashboard-error,
+  .dashboard-empty {
     background: #2d2d2d;
     border-color: #404040;
   }
@@ -620,6 +727,11 @@
   
   .store-zone {
     color: #9ca3af !important;
+  }
+  
+  .dashboard-error p,
+  .dashboard-empty p {
+    color: #e0e0e0;
   }
   
   /* Ajustes para badges en modo oscuro */
@@ -663,11 +775,23 @@
     border-width: 2px;
   }
   
-  .action-btn {
+  .action-btn,
+  .retry-btn {
     border: 2px solid currentColor;
   }
   
   .status-badge {
     border: 1px solid currentColor;
+  }
+  
+  .advisor-dashboard .stat-item {
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+}
+
+/* Fix para evitar zoom en inputs - aunque no hay inputs aquí, por consistencia */
+@media screen and (max-width: 768px) {
+  input, select, textarea, button {
+    font-size: 16px !important;
   }
 }

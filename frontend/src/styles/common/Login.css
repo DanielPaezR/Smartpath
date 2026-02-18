@@ -1,14 +1,16 @@
 /* frontend/src/styles/Login.css */
 
 .login-container {
-  min-height: 100vh;
+  min-height: 100vh; /* Fallback */
+  min-height: 100dvh; /* Nueva unidad dinámica */
+  min-height: -webkit-fill-available; /* Para Safari */
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
   position: relative;
-  overflow-y: auto; /* Cambiado de 'hidden' a 'auto' para permitir scroll en móviles */
+  overflow-y: auto;
   overflow-x: hidden;
   width: 100%;
   box-sizing: border-box;
@@ -17,15 +19,23 @@
 /* Efecto de fondo animado - optimizado para móviles */
 .login-container::before {
   content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  position: fixed; /* Cambiado de absolute a fixed */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
   background-size: 20px 20px;
   animation: float 20s infinite linear;
-  pointer-events: none; /* Evita que interfiera con clicks */
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Fix para navegadores móviles */
+@supports (-webkit-touch-callout: none) {
+  .login-container {
+    min-height: -webkit-fill-available;
+  }
 }
 
 @keyframes float {
@@ -39,12 +49,22 @@
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   width: 100%;
-  max-width: 440px;
+  max-width: min(440px, 90%);
   position: relative;
   z-index: 1;
   backdrop-filter: blur(10px);
-  margin: auto; /* Centrado vertical automático */
+  margin: auto;
   box-sizing: border-box;
+  transform: translateZ(0); /* Aceleración por hardware */
+}
+
+/* Fix para evitar zoom en inputs en iOS */
+@media screen and (max-width: 768px) {
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 16px !important; /* ¡CRUCIAL! Evita zoom automático */
+  }
 }
 
 /* Header del Login */

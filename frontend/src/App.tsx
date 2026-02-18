@@ -9,6 +9,7 @@ import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
 import RealTimeTracking from './components/admin/RealTimeTracking';
 import AdvancedMetrics from './components/admin/AdvancedMetrics';
+import './styles/global-fixes.css';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
