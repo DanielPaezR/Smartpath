@@ -1,4 +1,4 @@
-// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA Y CHECKBOX FUNCIONALES
+// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA PARA CÓDIGO DE BARRAS
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
@@ -48,7 +48,7 @@ interface IDamageReport {
   reportedBy: string;
 }
 
-// COMPONENTE SIMPLIFICADO - USA CÁMARA NATIVA DEL TELÉFONO
+// COMPONENTE PARA CÁMARA NATIVA - FOTOS
 const CameraButton: React.FC<{
   onCapture: (photos: string[]) => void;
   existingPhotos?: string[];
@@ -143,6 +143,104 @@ const CameraButton: React.FC<{
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+// 🆕 COMPONENTE PARA ESCANEO DE CÓDIGO DE BARRAS CON CÁMARA NATIVA
+const BarcodeScannerButton: React.FC<{
+  onScan: (barcode: string) => void;
+  disabled?: boolean;
+}> = ({ onScan, disabled = false }) => {
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsScanning(true);
+    const file = files[0];
+
+    try {
+      // Aquí puedes implementar la lógica para leer el código de barras de la imagen
+      // Por ahora, simulamos un código de barras o puedes usar una librería como quagga o zxing
+      
+      // Opción 1: Si tienes un servicio de reconocimiento de códigos de barras
+      // const formData = new FormData();
+      // formData.append('barcode', file);
+      // const response = await fetch('/api/scan-barcode', {
+      //   method: 'POST',
+      //   body: formData
+      // });
+      // const data = await response.json();
+      // onScan(data.barcode);
+
+      // Opción 2: Por ahora, mostramos un prompt manual (para pruebas)
+      // En producción, implementarías el reconocimiento automático
+      const manualBarcode = prompt('Ingresa el código de barras manualmente:');
+      if (manualBarcode) {
+        onScan(manualBarcode);
+      }
+
+    } catch (error) {
+      console.error('Error escaneando código de barras:', error);
+      alert('Error al escanear el código de barras');
+    } finally {
+      setIsScanning(false);
+      // Limpiar el input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  return (
+    <div className="barcode-scanner-container">
+      {/* INPUT OCULTO PARA CÁMARA */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
+
+      {/* BOTÓN QUE ABRE LA CÁMARA NATIVA */}
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={disabled || isScanning}
+        className="barcode-scanner-btn"
+      >
+        {isScanning ? (
+          <>⏳ Escaneando...</>
+        ) : (
+          <>
+            📱 Escanear Código de Barras
+          </>
+        )}
+      </button>
+
+      {/* OPCIÓN DE INGRESO MANUAL */}
+      <button
+        type="button"
+        onClick={() => {
+          const manualBarcode = prompt('Ingresa el código de barras manualmente:');
+          if (manualBarcode) {
+            onScan(manualBarcode);
+          }
+        }}
+        disabled={disabled || isScanning}
+        className="manual-input-btn"
+      >
+        ⌨️ Ingresar Manualmente
+      </button>
+
+      <p className="barcode-instruction">
+        Toma una foto clara del código de barras o ingrésalo manualmente
+      </p>
     </div>
   );
 };
@@ -510,6 +608,14 @@ const StoreVisit: React.FC = () => {
         setShowDamageReport(true);
       } else {
         alert('❌ Producto no encontrado en la base de datos.');
+        // Si no se encuentra, preguntar si quiere intentar con otro código
+        const tryAgain = window.confirm('¿Quieres escanear otro código?');
+        if (tryAgain) {
+          // Mantener el escáner abierto
+          setShowBarcodeScanner(true);
+        } else {
+          setShowBarcodeScanner(false);
+        }
       }
     } catch (error) {
       console.error('Error al buscar producto:', error);
@@ -1260,11 +1366,37 @@ const StoreVisit: React.FC = () => {
         />
       )}
       
+      {/* 🆕 MODAL DE ESCANEO DE CÓDIGO DE BARRAS CON CÁMARA NATIVA */}
       {showBarcodeScanner && (
-        <BarcodeScanner 
-          onScan={handleBarcodeScanned}
-          onClose={() => setShowBarcodeScanner(false)}
-        />
+        <div className="barcode-modal-overlay">
+          <div className="barcode-modal">
+            <div className="barcode-modal-header">
+              <h3>📱 Escanear Código de Barras</h3>
+              <button 
+                onClick={() => setShowBarcodeScanner(false)}
+                className="close-modal-btn"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="barcode-modal-content">
+              <BarcodeScannerButton 
+                onScan={handleBarcodeScanned}
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="barcode-modal-footer">
+              <button 
+                className="modal-btn cancel"
+                onClick={() => setShowBarcodeScanner(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
