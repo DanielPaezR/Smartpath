@@ -1,5 +1,5 @@
-// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN FINAL SIMPLIFICADA CON CÁMARA MEJORADA
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,118 +48,41 @@ interface IDamageReport {
   reportedBy: string;
 }
 
-// 🆕 COMPONENTE DE CÁMARA MEJORADO - MÁS RÁPIDO Y CON MEJOR UI
+// 🆕 COMPONENTE SIMPLIFICADO - USA CÁMARA NATIVA DEL TELÉFONO
 const CameraButton: React.FC<{
   onCapture: (photos: string[]) => void;
   existingPhotos?: string[];
   maxPhotos?: number;
   disabled?: boolean;
 }> = ({ onCapture, existingPhotos = [], maxPhotos = 5, disabled = false }) => {
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>(existingPhotos);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Limpiar stream al desmontar
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-  const openCamera = async () => {
-    try {
-      setCameraError(null);
-      setIsCameraReady(false);
-      
-      if (capturedPhotos.length >= maxPhotos) {
-        alert(`Máximo ${maxPhotos} fotos permitidas`);
-        return;
-      }
-
-      // Solicitar permisos de cámara
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
-      
-      streamRef.current = stream;
-      
-      // Asignar stream al video cuando el componente esté listo
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Esperar a que el video esté listo
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-            .then(() => {
-              setIsCameraReady(true);
-            })
-            .catch(err => {
-              console.error('Error al reproducir video:', err);
-              setCameraError('No se pudo iniciar la cámara');
-            });
-        };
-      }
-      
-      setIsCameraOpen(true);
-    } catch (error) {
-      console.error('Error al abrir la cámara:', error);
-      setCameraError('No se pudo acceder a la cámara. Verifica los permisos.');
+    if (capturedPhotos.length + files.length > maxPhotos) {
+      alert(`Máximo ${maxPhotos} fotos permitidas`);
+      return;
     }
-  };
 
-  const capturePhoto = () => {
-    if (!videoRef.current || !isCameraReady) return;
+    // Procesar cada archivo
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const photoData = reader.result as string;
+        const newPhotos = [...capturedPhotos, photoData];
+        setCapturedPhotos(newPhotos);
+        onCapture(newPhotos);
+      };
+      reader.readAsDataURL(file);
+    });
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    // Configurar canvas con las dimensiones del video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      // Capturar frame actual del video
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Convertir a base64 con calidad reducida para mejor rendimiento
-      const photoData = canvas.toDataURL('image/jpeg', 0.7);
-      
-      const newPhotos = [...capturedPhotos, photoData];
-      setCapturedPhotos(newPhotos);
-      onCapture(newPhotos);
-      
-      // Cerrar cámara si alcanzamos el máximo
-      if (newPhotos.length >= maxPhotos) {
-        closeCamera();
-      }
+    // Limpiar el input para poder seleccionar el mismo archivo nuevamente
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-  };
-
-  const closeCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setIsCameraOpen(false);
-    setIsCameraReady(false);
-    setCameraError(null);
   };
 
   const removePhoto = (index: number) => {
@@ -170,10 +93,21 @@ const CameraButton: React.FC<{
 
   return (
     <div className="camera-upload-container">
-      {/* BOTÓN PARA ABRIR CÁMARA */}
+      {/* INPUT OCULTO PARA CÁMARA */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        capture="environment"
+        multiple
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
+
+      {/* BOTÓN QUE ABRE LA CÁMARA NATIVA */}
       <button
         type="button"
-        onClick={openCamera}
+        onClick={() => fileInputRef.current?.click()}
         disabled={disabled || capturedPhotos.length >= maxPhotos}
         className="camera-open-btn"
       >
@@ -198,69 +132,6 @@ const CameraButton: React.FC<{
                 </button>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE CÁMARA MEJORADO */}
-      {isCameraOpen && (
-        <div className="camera-modal-overlay" onClick={closeCamera}>
-          <div className="camera-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="camera-header">
-              <h3>📸 Tomar Foto</h3>
-              <button onClick={closeCamera} className="close-camera-btn">×</button>
-            </div>
-            
-            <div className="camera-view-container">
-              {cameraError ? (
-                <div className="camera-error">
-                  <p>❌ {cameraError}</p>
-                  <button onClick={openCamera} className="retry-camera-btn">
-                    Reintentar
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={`camera-video ${isCameraReady ? 'ready' : 'loading'}`}
-                  />
-                  {!isCameraReady && (
-                    <div className="camera-loading">
-                      <div className="spinner"></div>
-                      <p>Iniciando cámara...</p>
-                    </div>
-                  )}
-                  
-                  {/* Marco de guía para la foto */}
-                  {isCameraReady && (
-                    <div className="camera-guide">
-                      <div className="guide-corner top-left"></div>
-                      <div className="guide-corner top-right"></div>
-                      <div className="guide-corner bottom-left"></div>
-                      <div className="guide-corner bottom-right"></div>
-                      <div className="guide-text">Alinea el producto aquí</div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            
-            <div className="camera-controls">
-              <button 
-                onClick={capturePhoto} 
-                className={`capture-btn ${!isCameraReady ? 'disabled' : ''}`}
-                disabled={!isCameraReady || cameraError !== null}
-              >
-                <div className="capture-btn-inner"></div>
-              </button>
-              <p className="camera-instruction">
-                {capturedPhotos.length}/{maxPhotos} fotos tomadas
-              </p>
-            </div>
           </div>
         </div>
       )}
@@ -734,7 +605,6 @@ const StoreVisit: React.FC = () => {
     setDamageDescription('');
     setDamageType('');
     setDamageSeverity('low');
-    setDamagePhotos([]);
   };
 
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
@@ -962,7 +832,7 @@ const StoreVisit: React.FC = () => {
               </div>
             </div>
             
-            {/* SUBIDA DE FOTOS CON CÁMARA MEJORADA */}
+            {/* SUBIDA DE FOTOS CON CÁMARA NATIVA */}
             {task.requiresPhotos && (
               <div className="task-additional">
                 <CameraButton 
@@ -1285,7 +1155,7 @@ const StoreVisit: React.FC = () => {
               <p><strong>Marca:</strong> {currentProduct.brand}</p>
             </div>
 
-            {/* CÁMARA PARA TOMAR FOTOS - MEJORADA */}
+            {/* CÁMARA PARA TOMAR FOTOS - VERSIÓN NATIVA */}
             <div className="modal-form-group">
               <label className="modal-label">📸 Fotos del daño:</label>
               <CameraButton 
