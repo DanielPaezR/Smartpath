@@ -29,6 +29,45 @@ export interface DashboardOverview {
   efficiency_score?: number;
 }
 
+// 🆕 INTERFACES PARA REPOSICIONES
+export interface RestockMetrics {
+  totalItems: number;
+  totalValue: number;
+  uniqueProducts: number;
+  averageItemsPerVisit: number;
+  topRestockedProducts: {
+    productName: string;
+    productBarcode: string;
+    quantity: number;
+    totalValue: number;
+  }[];
+  topRestockedCategories: {
+    category: string;
+    quantity: number;
+    percentage: number;
+  }[];
+  restockByAdvisor: {
+    advisorId: number;
+    advisorName: string;
+    totalItems: number;
+    totalValue: number;
+    averagePerVisit: number;
+  }[];
+  restockByStore: {
+    storeId: number;
+    storeName: string;
+    totalItems: number;
+    totalValue: number;
+    visits: number;
+  }[];
+  dailyRestockTrend: {
+    date: string;
+    items: number;
+    value: number;
+  }[];
+}
+
+// 🆕 ADVANCED METRICS ACTUALIZADO
 export interface AdvancedMetrics {
   overall: {
     totalStores: number;
@@ -54,6 +93,7 @@ export interface AdvancedMetrics {
     efficiencyScore: number;
     damageReports: number;
   }[];
+  restockMetrics: RestockMetrics; // 👈 NUEVO
 }
 
 export const adminService = {
