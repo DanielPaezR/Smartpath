@@ -69,6 +69,7 @@ class AdminController {
     } finally {
       await connection.end();
     }
+    
   }
 
   // Obtener estado en tiempo real de todos los asesores
