@@ -1,4 +1,4 @@
-// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA
+// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA Y FOTOS OPTIMIZADAS
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
@@ -54,7 +54,8 @@ const CameraButton: React.FC<{
   existingPhotos?: string[];
   maxPhotos?: number;
   disabled?: boolean;
-}> = ({ onCapture, existingPhotos = [], maxPhotos = 5, disabled = false }) => {
+  required?: boolean;
+}> = ({ onCapture, existingPhotos = [], maxPhotos = 3, disabled = false, required = false }) => {
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>(existingPhotos);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -99,7 +100,6 @@ const CameraButton: React.FC<{
         ref={fileInputRef}
         accept="image/*"
         capture="environment"
-        multiple
         onChange={handleFileSelect}
         style={{ display: 'none' }}
       />
@@ -111,13 +111,15 @@ const CameraButton: React.FC<{
         disabled={disabled || capturedPhotos.length >= maxPhotos}
         className="camera-open-btn"
       >
-        📸 Tomar Foto {capturedPhotos.length > 0 && `(${capturedPhotos.length}/${maxPhotos})`}
+        📸 {capturedPhotos.length === 0 ? 'Tomar Foto' : 'Agregar Foto'} 
+        {capturedPhotos.length > 0 && ` (${capturedPhotos.length}/${maxPhotos})`}
+        {required && capturedPhotos.length === 0 && <span className="required-badge">*Obligatorio</span>}
       </button>
 
       {/* PREVIEW DE FOTOS TOMADAS */}
       {capturedPhotos.length > 0 && (
         <div className="photos-preview">
-          <p><strong>Fotos tomadas ({capturedPhotos.length}):</strong></p>
+          <p><strong>Fotos:</strong></p>
           <div className="photos-grid">
             {capturedPhotos.map((photo, index) => (
               <div key={index} className="photo-preview">
@@ -130,9 +132,15 @@ const CameraButton: React.FC<{
                 >
                   ✕
                 </button>
+                {index === 0 && <span className="photo-main-badge">Principal</span>}
               </div>
             ))}
           </div>
+          {capturedPhotos.length < maxPhotos && (
+            <p className="photo-hint">
+              Puedes agregar hasta {maxPhotos - capturedPhotos.length} foto(s) más (opcional)
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -246,7 +254,7 @@ const StoreVisit: React.FC = () => {
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
   const [hasInitializedTasks, setHasInitializedTasks] = useState(false);
 
-  // Tareas
+  // Tareas - CONFIGURACIÓN DE FOTOS OPTIMIZADA
   const taskDefinitions: ITask[] = [
     { 
       key: 'evidenceBefore', 
@@ -580,8 +588,7 @@ const StoreVisit: React.FC = () => {
         setDamageDescription('');
         setDamageType('');
         setDamageSeverity('low');
-        // Mantener las fotos existentes
-        // setDamagePhotos([]); // No limpiar fotos
+        setDamagePhotos([]);
         
         setShowDamageReport(false);
         setShowBarcodeScanner(true);
@@ -605,6 +612,7 @@ const StoreVisit: React.FC = () => {
     setDamageDescription('');
     setDamageType('');
     setDamageSeverity('low');
+    setDamagePhotos([]);
   };
 
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
@@ -622,16 +630,13 @@ const StoreVisit: React.FC = () => {
         missingTasks.push(task.label);
       }
       
+      // Validar que las tareas con fotos tengan al menos 1 foto
       if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-        if (!task.completed) {
-          missingTasks.push(`${task.label} (fotos requeridas)`);
-        }
+        missingTasks.push(`${task.label} (requiere al menos 1 foto)`);
       }
       
       if (task.requiresSignature && !task.signature) {
-        if (!task.completed) {
-          missingTasks.push(`${task.label} (firma requerida)`);
-        }
+        missingTasks.push(`${task.label} (firma requerida)`);
       }
     });
     
@@ -789,7 +794,7 @@ const StoreVisit: React.FC = () => {
       );
     }
     
-    // TAREAS NORMALES CON CÁMARA
+    // TAREAS NORMALES CON CÁMARA - CONFIGURACIÓN DE FOTOS OPTIMIZADA
     return (
       <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
         <div className="task-content">
@@ -798,7 +803,7 @@ const StoreVisit: React.FC = () => {
             checked={task.completed}
             onChange={() => {
               if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-                alert('⚠️ Esta tarea requiere fotos');
+                alert('⚠️ Esta tarea requiere al menos 1 foto');
                 return;
               }
               if (task.requiresSignature && !task.signature) {
@@ -832,14 +837,15 @@ const StoreVisit: React.FC = () => {
               </div>
             </div>
             
-            {/* SUBIDA DE FOTOS CON CÁMARA NATIVA */}
+            {/* SUBIDA DE FOTOS CON CÁMARA NATIVA - MÁXIMO 3 FOTOS */}
             {task.requiresPhotos && (
               <div className="task-additional">
                 <CameraButton 
                   onCapture={(photos) => handlePhotosChange(index, photos)}
                   existingPhotos={task.photos || []}
-                  maxPhotos={5}
+                  maxPhotos={3}
                   disabled={task.completed}
+                  required={true}
                 />
               </div>
             )}
@@ -1143,7 +1149,7 @@ const StoreVisit: React.FC = () => {
 
       {renderVisitContent()}
 
-      {/* Modal de Reporte de Daños con cámara */}
+      {/* Modal de Reporte de Daños con cámara - MÁXIMO 3 FOTOS */}
       {showDamageReport && currentProduct && (
         <div className="damage-modal-overlay">
           <div className="damage-modal">
@@ -1155,14 +1161,15 @@ const StoreVisit: React.FC = () => {
               <p><strong>Marca:</strong> {currentProduct.brand}</p>
             </div>
 
-            {/* CÁMARA PARA TOMAR FOTOS - VERSIÓN NATIVA */}
+            {/* CÁMARA PARA TOMAR FOTOS - MÁXIMO 3 FOTOS */}
             <div className="modal-form-group">
-              <label className="modal-label">📸 Fotos del daño:</label>
+              <label className="modal-label">📸 Fotos del daño (máx 3):</label>
               <CameraButton 
                 onCapture={handleDamagePhotosChange}
                 existingPhotos={damagePhotos}
-                maxPhotos={5}
+                maxPhotos={3}
                 disabled={loading}
+                required={true}
               />
             </div>
 
