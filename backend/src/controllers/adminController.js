@@ -454,7 +454,18 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      const restockMetrics = await this.getRestockMetrics(timeRange, connection);
+      //const restockMetrics = await this.getRestockMetrics(timeRange, connection);
+      const restockMetrics = {
+        totalItems: 0,
+        totalValue: 0,
+        uniqueProducts: 0,
+        averageItemsPerVisit: 0,
+        topRestockedProducts: [],
+        topRestockedCategories: [],
+        restockByAdvisor: [],
+        restockByStore: [],
+        dailyRestockTrend: []
+      };
 
       const metrics = {
         overall: {
