@@ -32,7 +32,7 @@ class AdminController {
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedStores,
           SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as inProgressStores
          FROM route_stores 
-         WHERE DATE(start_date) = ?`,
+         WHERE DATE(start_time) = ?`,
         [today]
       );
 
@@ -412,7 +412,7 @@ class AdminController {
       // Obtener métricas generales
       const [overall] = await connection.execute(`
         SELECT 
-          (SELECT COUNT(*) FROM stores WHERE is_active = 1) as totalStores,
+          (SELECT COUNT(*) FROM stores) as totalStores,
           COUNT(DISTINCT rs.id) as completedVisits,
           COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avgVisitDuration,
           COALESCE(SUM(CASE WHEN dr.id IS NOT NULL THEN 1 ELSE 0 END), 0) as totalDamages,
