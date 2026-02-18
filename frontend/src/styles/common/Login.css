@@ -1,23 +1,26 @@
-/* frontend/src/styles/Login.css - VERSIÓN FINAL CORREGIDA */
+/* frontend/src/styles/Login.css - VERSIÓN CORREGIDA - SIEMPRE CENTRADO */
 
 .login-container {
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  position: fixed; /* Cambiado de min-height a fixed para ocupar toda la pantalla */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
-  align-items: center; /* SIEMPRE CENTRADO */
+  align-items: center;
   justify-content: center;
   padding: 1rem;
-  position: relative;
-  width: 100%;
   box-sizing: border-box;
+  overflow-y: auto; /* Permite scroll si el contenido es más alto */
 }
 
 /* Efecto de fondo animado */
 .login-container::before {
   content: '';
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -27,13 +30,6 @@
   animation: float 20s infinite linear;
   pointer-events: none;
   z-index: 0;
-}
-
-/* Fix para iOS */
-@supports (-webkit-touch-callout: none) {
-  .login-container {
-    min-height: -webkit-fill-available;
-  }
 }
 
 @keyframes float {
@@ -54,6 +50,8 @@
   margin: auto;
   box-sizing: border-box;
   transform: translateZ(0);
+  max-height: calc(100vh - 2rem); /* Evita que se salga de la pantalla */
+  overflow-y: auto; /* Scroll interno si es necesario */
 }
 
 /* Header del Login */
@@ -130,19 +128,12 @@
   padding: clamp(0.65rem, 2vw, 0.75rem) clamp(0.8rem, 3vw, 1rem);
   border: 2px solid #e9ecef;
   border-radius: 10px;
-  font-size: clamp(0.9rem, 3vw, 1rem);
+  font-size: 16px; /* Fijo para evitar zoom en iOS */
   transition: all 0.3s ease;
   background: white;
   box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;
-}
-
-/* Previene zoom en iOS */
-@media screen and (max-width: 768px) {
-  .form-input {
-    font-size: 16px !important;
-  }
 }
 
 .form-input:focus {
@@ -165,7 +156,7 @@
   border: none;
   padding: clamp(0.85rem, 3vw, 1rem) clamp(1rem, 4vw, 1.5rem);
   border-radius: 10px;
-  font-size: clamp(0.9rem, 3vw, 1rem);
+  font-size: 16px; /* Fijo para consistencia */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -224,8 +215,8 @@
 }
 
 .btn-spinner {
-  width: clamp(14px, 4vw, 16px);
-  height: clamp(14px, 4vw, 16px);
+  width: 16px;
+  height: 16px;
   border: 2px solid transparent;
   border-top: 2px solid white;
   border-radius: 50%;
@@ -274,31 +265,18 @@
   color: #2c3e50;
 }
 
-/* ===== RESPONSIVE SIMPLE Y EFECTIVO ===== */
-
-/* Tablets */
-@media screen and (max-width: 768px) {
-  .login-container {
-    padding: 1rem;
-    align-items: center; /* SIEMPRE CENTRADO */
-  }
-  
-  .login-card {
-    max-width: 400px;
-    padding: 2rem;
-  }
-}
+/* ===== RESPONSIVE ===== */
 
 /* Móviles */
 @media screen and (max-width: 480px) {
   .login-container {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
   
   .login-card {
-    max-width: 100%;
     padding: 1.5rem;
     border-radius: 16px;
+    max-height: calc(100vh - 1rem);
   }
   
   .login-logo {
@@ -326,11 +304,11 @@
 /* Móviles pequeños */
 @media screen and (max-width: 360px) {
   .login-container {
-    padding: 0.5rem;
+    padding: 0.25rem;
   }
   
   .login-card {
-    padding: 1.25rem;
+    padding: 1rem;
   }
   
   .login-logo {
@@ -345,38 +323,19 @@
   .login-brand p {
     font-size: 0.8rem;
   }
-  
-  .error-message {
-    font-size: 0.8rem;
-    padding: 0.5rem 0.75rem;
-  }
-  
-  .form-label {
-    font-size: 0.8rem;
-  }
-  
-  .form-input {
-    padding: 0.65rem 0.75rem;
-    font-size: 0.9rem;
-  }
-  
-  .login-btn {
-    min-height: 48px;
-    font-size: 0.9rem;
-  }
 }
 
 /* Orientación horizontal */
 @media screen and (max-height: 600px) and (orientation: landscape) {
   .login-container {
     padding: 0.5rem;
-    align-items: center; /* SIEMPRE CENTRADO */
+    align-items: center;
   }
   
   .login-card {
-    margin: 0.5rem auto;
     padding: 1rem;
     max-width: 400px;
+    max-height: calc(100vh - 1rem);
   }
   
   .login-header {
@@ -450,18 +409,22 @@
     font-size: 1.1rem;
   }
   
-  .form-label {
-    font-size: 1rem;
-  }
-  
   .form-input {
     padding: 1rem 1.2rem;
-    font-size: 1.1rem;
   }
   
   .login-btn {
     padding: 1.2rem;
-    font-size: 1.1rem;
+  }
+}
+
+/* Soporte para notch */
+@supports (padding: max(0px)) {
+  .login-container {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 
@@ -487,10 +450,6 @@
     background: #3d3d3d;
     border-color: #4d4d4d;
     color: #e0e0e0;
-  }
-  
-  .form-input:focus {
-    border-color: #3498db;
   }
   
   .demo-credentials {
@@ -522,34 +481,5 @@
   
   .btn-spinner {
     animation-duration: 2s;
-  }
-  
-  .login-card {
-    transition: none;
-  }
-}
-
-/* Alto contraste */
-@media (prefers-contrast: high) {
-  .login-card {
-    border: 2px solid #000;
-  }
-  
-  .form-input {
-    border-width: 2px;
-  }
-  
-  .login-btn {
-    border: 2px solid #000;
-  }
-}
-
-/* Soporte para notch */
-@supports (padding: max(0px)) {
-  .login-container {
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
-    padding-top: max(1rem, env(safe-area-inset-top));
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
