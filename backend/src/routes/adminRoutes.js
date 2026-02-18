@@ -1,3 +1,4 @@
+// backend/src/routes/adminRoutes.js
 import express from 'express';
 import adminController from '../controllers/adminController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
@@ -15,11 +16,12 @@ router.get('/tracking/live-status', adminController.getLiveAdvisorsStatus);
 router.get('/tracking/advisor/:advisorId', adminController.getAdvisorDetail);
 router.get('/notifications', adminController.getNotifications);
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
-router.get('/metrics/advanced', advancedAdminController.getAdvancedMetrics);
-router.post('/routes/optimize', advancedAdminController.generateOptimizedRoute);
 
+// Métricas avanzadas - Usando adminController que ya tiene getAdvancedMetrics
+router.get('/metrics/advanced', adminController.getAdvancedMetrics);
+
+// Rutas avanzadas
 router.get('/reports/damage', advancedAdminController.getDamageReports);
-router.get('/metrics/advanced', authenticateToken, authorizeAdmin, adminController.getAdvancedMetrics);
-
+router.post('/routes/optimize', advancedAdminController.generateOptimizedRoute);
 
 export default router;
