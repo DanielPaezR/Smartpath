@@ -1,0 +1,253 @@
+/* frontend/src/components/advisor/BarcodeScannerButton.css */
+.barcode-scanner-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.barcode-scanner-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.barcode-scanner-btn:hover:not(:disabled) {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.barcode-scanner-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.manual-input-btn {
+    background: none;
+    border: 1px solid #7f8c8d;
+    color: #7f8c8d;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.manual-input-btn:hover:not(:disabled) {
+    background: #7f8c8d;
+    color: white;
+}
+
+/* Modal del escáner */
+.scanner-modal-overlay,
+.manual-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.scanner-modal,
+.manual-modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.scanner-header,
+.manual-header {
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.scanner-header h3,
+.manual-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.2rem;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #7f8c8d;
+    padding: 0 8px;
+}
+
+.close-btn:hover {
+    color: #e74c3c;
+}
+
+.scanner-content {
+    position: relative;
+    background: black;
+    min-height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.scanner-video {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.scan-region {
+    width: 80%;
+    height: 150px;
+    border: 2px solid #27ae60;
+    border-radius: 16px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.scanning-indicator {
+    position: absolute;
+    width: 80%;
+    height: 150px;
+    overflow: hidden;
+}
+
+.scan-line {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: #27ae60;
+    animation: scan 2s linear infinite;
+    box-shadow: 0 0 10px #27ae60;
+}
+
+@keyframes scan {
+    0% {
+        top: 0;
+    }
+    50% {
+        top: 100%;
+    }
+    100% {
+        top: 0;
+    }
+}
+
+.scanner-instruction {
+    position: absolute;
+    bottom: -30px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: white;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px;
+    margin: 0;
+}
+
+.scanner-footer,
+.manual-content {
+    padding: 16px 20px;
+    background: white;
+    display: flex;
+    gap: 12px;
+}
+
+.cancel-btn,
+.manual-btn,
+.submit-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.cancel-btn {
+    background: #e74c3c;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background: #c0392b;
+}
+
+.manual-btn {
+    background: #3498db;
+    color: white;
+}
+
+.manual-btn:hover {
+    background: #2980b9;
+}
+
+.submit-btn {
+    background: #27ae60;
+    color: white;
+}
+
+.submit-btn:hover {
+    background: #219a52;
+}
+
+/* Modal manual */
+.manual-content {
+    flex-direction: column;
+}
+
+.manual-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.manual-input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.manual-actions {
+    display: flex;
+    gap: 12px;
+}

@@ -1,12 +1,14 @@
-// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA PARA CÓDIGO DE BARRAS
+// frontend/src/components/advisor/StoreVisit.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
 import PhotoUpload from '../common/PhotoUpload';
 import SignaturePad from '../common/SignaturePad';
-import BarcodeScanner from '../common/BarcodeScanner';
+import BarcodeScannerButton from './BarcodeScannerButton';
+import RestockModal from './RestockModal';
 import TaskProgress from '../common/TaskProgress';
+import { restockService, IRestockItem } from '../../services/restockService';
 import '../../styles/StoreVisit.css';
 
 // Interfaces mejoradas
@@ -68,7 +70,6 @@ const CameraButton: React.FC<{
       return;
     }
 
-    // Procesar cada archivo
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -80,7 +81,6 @@ const CameraButton: React.FC<{
       reader.readAsDataURL(file);
     });
 
-    // Limpiar el input para poder seleccionar el mismo archivo nuevamente
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -94,7 +94,6 @@ const CameraButton: React.FC<{
 
   return (
     <div className="camera-upload-container">
-      {/* INPUT OCULTO PARA CÁMARA */}
       <input
         type="file"
         ref={fileInputRef}
@@ -104,7 +103,6 @@ const CameraButton: React.FC<{
         style={{ display: 'none' }}
       />
 
-      {/* BOTÓN QUE ABRE LA CÁMARA NATIVA */}
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
@@ -116,7 +114,6 @@ const CameraButton: React.FC<{
         {required && capturedPhotos.length === 0 && <span className="required-badge">*Obligatorio</span>}
       </button>
 
-      {/* PREVIEW DE FOTOS TOMADAS */}
       {capturedPhotos.length > 0 && (
         <div className="photos-preview">
           <p><strong>Fotos:</strong></p>
@@ -147,104 +144,6 @@ const CameraButton: React.FC<{
   );
 };
 
-// 🆕 COMPONENTE PARA ESCANEO DE CÓDIGO DE BARRAS CON CÁMARA NATIVA
-const BarcodeScannerButton: React.FC<{
-  onScan: (barcode: string) => void;
-  disabled?: boolean;
-}> = ({ onScan, disabled = false }) => {
-  const [isScanning, setIsScanning] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsScanning(true);
-    const file = files[0];
-
-    try {
-      // Aquí puedes implementar la lógica para leer el código de barras de la imagen
-      // Por ahora, simulamos un código de barras o puedes usar una librería como quagga o zxing
-      
-      // Opción 1: Si tienes un servicio de reconocimiento de códigos de barras
-      // const formData = new FormData();
-      // formData.append('barcode', file);
-      // const response = await fetch('/api/scan-barcode', {
-      //   method: 'POST',
-      //   body: formData
-      // });
-      // const data = await response.json();
-      // onScan(data.barcode);
-
-      // Opción 2: Por ahora, mostramos un prompt manual (para pruebas)
-      // En producción, implementarías el reconocimiento automático
-      const manualBarcode = prompt('Ingresa el código de barras manualmente:');
-      if (manualBarcode) {
-        onScan(manualBarcode);
-      }
-
-    } catch (error) {
-      console.error('Error escaneando código de barras:', error);
-      alert('Error al escanear el código de barras');
-    } finally {
-      setIsScanning(false);
-      // Limpiar el input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  return (
-    <div className="barcode-scanner-container">
-      {/* INPUT OCULTO PARA CÁMARA */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileSelect}
-        style={{ display: 'none' }}
-      />
-
-      {/* BOTÓN QUE ABRE LA CÁMARA NATIVA */}
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || isScanning}
-        className="barcode-scanner-btn"
-      >
-        {isScanning ? (
-          <>⏳ Escaneando...</>
-        ) : (
-          <>
-            📱 Escanear Código de Barras
-          </>
-        )}
-      </button>
-
-      {/* OPCIÓN DE INGRESO MANUAL */}
-      <button
-        type="button"
-        onClick={() => {
-          const manualBarcode = prompt('Ingresa el código de barras manualmente:');
-          if (manualBarcode) {
-            onScan(manualBarcode);
-          }
-        }}
-        disabled={disabled || isScanning}
-        className="manual-input-btn"
-      >
-        ⌨️ Ingresar Manualmente
-      </button>
-
-      <p className="barcode-instruction">
-        Toma una foto clara del código de barras o ingrésalo manualmente
-      </p>
-    </div>
-  );
-};
-
 // Servicio para productos
 const productService = {
   getProductByBarcode: async (barcode: string): Promise<IProduct | null> => {
@@ -257,7 +156,7 @@ const productService = {
       
       if (!response.ok) {
         if (response.status === 404) {
-          throw new Error('Producto no encontrado');
+          return null;
         }
         throw new Error(`Error del servidor: ${response.status}`);
       }
@@ -332,9 +231,11 @@ const StoreVisit: React.FC = () => {
   const [tasks, setTasks] = useState<ITask[]>([]);
   const [currentTaskIndex, setCurrentTaskIndex] = useState<number | null>(null);
   const [damageReports, setDamageReports] = useState<IDamageReport[]>([]);
+  const [restockItems, setRestockItems] = useState<IRestockItem[]>([]);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showDamageReport, setShowDamageReport] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
   
   // Estados para formulario de daños
   const [currentBarcode, setCurrentBarcode] = useState<string>('');
@@ -482,14 +383,12 @@ const StoreVisit: React.FC = () => {
     const task = tasks[taskIndex];
     
     if (task.completed) {
-      // Desmarcar si ya está completada
       const updatedTasks = [...tasks];
       updatedTasks[taskIndex].completed = false;
       updatedTasks[taskIndex].timestamp = undefined;
       updatedTasks[taskIndex].additionalData = undefined;
       setTasks(updatedTasks);
     } else {
-      // MOSTRAR OPCIÓN: REPORTAR DAÑOS O SIN DAÑOS
       const option = window.confirm(
         '¿Cómo quieres completar la revisión de bodega?\n\n' +
         '✅ Aceptar = Reportar productos dañados\n' +
@@ -497,11 +396,9 @@ const StoreVisit: React.FC = () => {
       );
       
       if (option) {
-        // OPCIÓN 1: REPORTAR DAÑOS
         setCurrentTaskIndex(taskIndex);
         setShowBarcodeScanner(true);
       } else {
-        // OPCIÓN 2: SIN DAÑOS
         const confirmNoDamages = window.confirm(
           '¿Confirmas que NO encontraste productos dañados en la bodega?\n\n' +
           'Esta acción marcará la tarea como completada sin reportes de daño.'
@@ -595,7 +492,7 @@ const StoreVisit: React.FC = () => {
     setTasks(updatedTasks);
   };
 
-  // Manejo de códigos de barras
+  // Manejo de códigos de barras para daños
   const handleBarcodeScanned = async (barcode: string) => {
     setLoading(true);
     try {
@@ -608,10 +505,8 @@ const StoreVisit: React.FC = () => {
         setShowDamageReport(true);
       } else {
         alert('❌ Producto no encontrado en la base de datos.');
-        // Si no se encuentra, preguntar si quiere intentar con otro código
         const tryAgain = window.confirm('¿Quieres escanear otro código?');
         if (tryAgain) {
-          // Mantener el escáner abierto
           setShowBarcodeScanner(true);
         } else {
           setShowBarcodeScanner(false);
@@ -630,7 +525,7 @@ const StoreVisit: React.FC = () => {
     setDamagePhotos(photos);
   };
 
-  // FUNCIÓN PARA GUARDAR REPORTE
+  // FUNCIÓN PARA GUARDAR REPORTE DE DAÑO
   const handleAddDamageReport = async () => {
     if (!currentProduct || !route) return;
     
@@ -656,7 +551,6 @@ const StoreVisit: React.FC = () => {
       
       setDamageReports(prev => [...prev, reportWithId]);
       
-      // ACTUALIZAR LA TAREA
       const damageTaskIndex = tasks.findIndex(t => t.key === 'damageCheck');
       if (damageTaskIndex !== -1) {
         const updatedTasks = [...tasks];
@@ -665,13 +559,10 @@ const StoreVisit: React.FC = () => {
         }
         updatedTasks[damageTaskIndex].barcodes!.push(currentBarcode);
         
-        // Marcar como completada si tiene fotos y código
         if (damagePhotos.length > 0 && currentBarcode) {
           updatedTasks[damageTaskIndex].completed = true;
           updatedTasks[damageTaskIndex].timestamp = new Date();
           updatedTasks[damageTaskIndex].additionalData = { hasDamages: true };
-          
-          // Guardar fotos en la tarea también
           updatedTasks[damageTaskIndex].photos = damagePhotos;
         }
         
@@ -680,7 +571,6 @@ const StoreVisit: React.FC = () => {
       
       alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
       
-      // Preguntar si quiere agregar otro
       const continueAdding = window.confirm(
         `¿Quieres agregar otro producto dañado?\n\n` +
         `✅ Aceptar = Escanear otro producto\n` +
@@ -688,18 +578,15 @@ const StoreVisit: React.FC = () => {
       );
       
       if (continueAdding) {
-        // Resetear para nuevo reporte
         setCurrentBarcode('');
         setCurrentProduct(null);
         setDamageDescription('');
         setDamageType('');
         setDamageSeverity('low');
         setDamagePhotos([]);
-        
         setShowDamageReport(false);
         setShowBarcodeScanner(true);
       } else {
-        // Cerrar todo
         handleCloseDamageReport();
       }
       
@@ -721,17 +608,47 @@ const StoreVisit: React.FC = () => {
     setDamagePhotos([]);
   };
 
+  // 🆕 MANEJAR GUARDADO DE REPOSICIONES
+  const handleRestockSave = async (items: IRestockItem[]) => {
+    setRestockItems(prev => [...prev, ...items]);
+    
+    if (currentTaskIndex !== null) {
+      const updatedTasks = [...tasks];
+      updatedTasks[currentTaskIndex].completed = true;
+      updatedTasks[currentTaskIndex].timestamp = new Date();
+      updatedTasks[currentTaskIndex].additionalData = {
+        totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
+        uniqueProducts: items.length
+      };
+      setTasks(updatedTasks);
+    }
+    
+    setShowRestockModal(false);
+    setCurrentTaskIndex(null);
+    
+    // Mostrar resumen
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+  };
+
+  // 🆕 FUNCIÓN PARA MANEJAR CHECKBOX DE TAREAS (ACTUALIZADA)
   const handleTaskCheckbox = (task: ITask, index: number) => {
-    // Si la tarea ya está completada, simplemente la desmarcamos
     if (task.completed) {
       const updatedTasks = [...tasks];
       updatedTasks[index].completed = false;
       updatedTasks[index].timestamp = undefined;
+      updatedTasks[index].additionalData = undefined;
       setTasks(updatedTasks);
       return;
     }
 
-    // Validaciones según el tipo de tarea
+    // Para la tarea de picking, abrir modal de reposición
+    if (task.key === 'picking') {
+      setCurrentTaskIndex(index);
+      setShowRestockModal(true);
+      return;
+    }
+
     if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
       alert('⚠️ Esta tarea requiere al menos 1 foto');
       return;
@@ -749,13 +666,13 @@ const StoreVisit: React.FC = () => {
       return;
     }
     
-    // Si pasa todas las validaciones, marcamos como completada
     const updatedTasks = [...tasks];
     updatedTasks[index].completed = true;
     updatedTasks[index].timestamp = new Date();
     setTasks(updatedTasks);
   };
 
+  // 🆕 VALIDACIÓN DE VISITA COMPLETA (ACTUALIZADA)
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
     const missingTasks: string[] = [];
     
@@ -767,11 +684,17 @@ const StoreVisit: React.FC = () => {
         return;
       }
       
+      if (task.key === 'picking') {
+        if (!task.completed) {
+          missingTasks.push('Debes registrar los productos repuestos');
+        }
+        return;
+      }
+      
       if (!task.completed) {
         missingTasks.push(task.label);
       }
       
-      // Validar que las tareas con fotos tengan al menos 1 foto
       if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
         missingTasks.push(`${task.label} (requiere al menos 1 foto)`);
       }
@@ -802,7 +725,7 @@ const StoreVisit: React.FC = () => {
         route.stores[currentStoreIndex].id,
         {
           duration: timeInStore,
-          notes: visitNotes || `Tareas completadas: ${completedTasks}/${totalTasks}. Reportes de daño: ${damageReports.length}`,
+          notes: visitNotes || `Tareas completadas: ${completedTasks}/${totalTasks}. Reportes de daño: ${damageReports.length}. Productos repuestos: ${restockItems.reduce((sum, item) => sum + item.quantity, 0)}`,
           damageReports: damageReports,
           signature: tasks.find(t => t.key === 'signature')?.signature
         }
@@ -832,7 +755,9 @@ const StoreVisit: React.FC = () => {
             tasksCompleted: completedTasks,
             totalTasks,
             timeSpent: timeInStore,
-            damageReports: damageReports.length
+            damageReports: damageReports.length,
+            restockedItems: restockItems.length,
+            restockedQuantity: restockItems.reduce((sum, item) => sum + item.quantity, 0)
           }
         } 
       });
@@ -900,7 +825,6 @@ const StoreVisit: React.FC = () => {
               </div>
             </div>
             
-            {/* Estado de la tarea */}
             {task.completed ? (
               <div className="task-status">
                 <p className="status-success">
@@ -924,10 +848,67 @@ const StoreVisit: React.FC = () => {
               </div>
             )}
             
-            {/* Timestamp */}
             {task.timestamp && (
               <div className="task-timestamp">
                 Actualizado: {task.timestamp.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // TAREA DE PICKING ESPECIAL (ACTUALIZADA)
+    if (task.key === 'picking') {
+      return (
+        <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
+          <div className="task-content">
+            <div className="task-header">
+              <input 
+                type="checkbox" 
+                checked={task.completed}
+                onChange={() => handleTaskCheckbox(task, index)}
+                className="task-checkbox"
+              />
+              
+              <span className="task-label">
+                {task.label}
+              </span>
+              
+              <div className="task-requirements">
+                <span className="requirement-badge">📦</span>
+              </div>
+            </div>
+            
+            {task.completed ? (
+              <div className="task-status">
+                <p className="status-success">
+                  ✅ Productos repuestos: {task.additionalData?.totalItems || 0} unidades
+                </p>
+                <p className="status-success">
+                  📦 Tipos diferentes: {task.additionalData?.uniqueProducts || 0}
+                </p>
+                <button 
+                  className="secondary-btn outline"
+                  onClick={() => {
+                    setCurrentTaskIndex(index);
+                    setShowRestockModal(true);
+                  }}
+                >
+                  ✏️ Editar
+                </button>
+              </div>
+            ) : (
+              <div className="task-actions">
+                <p className="task-instruction">
+                  Haz clic en el checkbox para registrar productos repuestos
+                </p>
+              </div>
+            )}
+            
+            {task.timestamp && (
+              <div className="task-timestamp">
+                Completado: {task.timestamp.toLocaleTimeString()}
               </div>
             )}
           </div>
@@ -959,7 +940,6 @@ const StoreVisit: React.FC = () => {
                 </div>
               </div>
               
-              {/* Timestamp si está completada */}
               {task.timestamp && (
                 <div className="task-timestamp">
                   Completado: {task.timestamp.toLocaleTimeString()}
@@ -968,7 +948,6 @@ const StoreVisit: React.FC = () => {
             </div>
           </div>
           
-          {/* SUBIDA DE FOTOS CON CÁMARA NATIVA - SOLO SI REQUIERE FOTOS */}
           {task.requiresPhotos && (
             <div className="task-photos-section">
               <CameraButton 
@@ -995,6 +974,7 @@ const StoreVisit: React.FC = () => {
           tasks,
           timeInStore,
           damageReports,
+          restockItems,
           visitNotes,
           storeVisitId,
           routeId: route?.id,
@@ -1011,7 +991,7 @@ const StoreVisit: React.FC = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [tasks, timeInStore, damageReports, visitNotes, visitStatus, route?.id, currentStoreIndex, storeVisitId]);
+  }, [tasks, timeInStore, damageReports, restockItems, visitNotes, visitStatus, route?.id, currentStoreIndex, storeVisitId]);
 
   useEffect(() => {
     if (hasCheckedStatus && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && tasks.length === 0) {
@@ -1033,6 +1013,10 @@ const StoreVisit: React.FC = () => {
             
             if (parsedState.damageReports) {
               setDamageReports(parsedState.damageReports);
+            }
+            
+            if (parsedState.restockItems) {
+              setRestockItems(parsedState.restockItems);
             }
             
             if (parsedState.visitNotes) {
@@ -1161,9 +1145,43 @@ const StoreVisit: React.FC = () => {
                 {tasks.map((task, index) => renderTask(task, index))}
               </div>
 
+              {/* Resumen de daños */}
               {damageReports.length > 0 && (
                 <div className="damage-reports">
                   <h4>⚠️ Reportes de Daños ({damageReports.length})</h4>
+                  {damageReports.slice(0, 3).map((report, index) => (
+                    <div key={index} className="damage-item">
+                      <span>{report.product.name}</span>
+                      <span className="damage-severity">{report.severity}</span>
+                    </div>
+                  ))}
+                  {damageReports.length > 3 && (
+                    <p>... y {damageReports.length - 3} más</p>
+                  )}
+                </div>
+              )}
+
+              {/* 🆕 Resumen de productos repuestos */}
+              {restockItems.length > 0 && (
+                <div className="restock-summary">
+                  <h4>📦 Productos Repuestos ({restockItems.length})</h4>
+                  <div className="restock-items-list">
+                    {restockItems.slice(0, 3).map((item, index) => (
+                      <div key={index} className="restock-item">
+                        <span>{item.product_name}</span>
+                        <span className="restock-quantity">x{item.quantity}</span>
+                      </div>
+                    ))}
+                    {restockItems.length > 3 && (
+                      <p className="more-items">... y {restockItems.length - 3} más</p>
+                    )}
+                  </div>
+                  <div className="restock-total">
+                    Total: {restockItems.reduce((sum, item) => sum + item.quantity, 0)} unidades
+                    {restockItems.some(i => i.unit_price) && (
+                      <> | Valor: ${restockItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0).toFixed(2)}</>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1212,6 +1230,9 @@ const StoreVisit: React.FC = () => {
           <div className="visit-completed">
             <div className="visit-status completed">
               <h3>✅ Visita Completada</h3>
+              {restockItems.length > 0 && (
+                <p>📦 {restockItems.reduce((sum, item) => sum + item.quantity, 0)} productos repuestos</p>
+              )}
             </div>
             <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
               ➡️ Volver al Dashboard
@@ -1272,7 +1293,7 @@ const StoreVisit: React.FC = () => {
 
       {renderVisitContent()}
 
-      {/* Modal de Reporte de Daños con cámara - MÁXIMO 3 FOTOS */}
+      {/* Modal de Reporte de Daños con cámara */}
       {showDamageReport && currentProduct && (
         <div className="damage-modal-overlay">
           <div className="damage-modal">
@@ -1284,7 +1305,6 @@ const StoreVisit: React.FC = () => {
               <p><strong>Marca:</strong> {currentProduct.brand}</p>
             </div>
 
-            {/* CÁMARA PARA TOMAR FOTOS - MÁXIMO 3 FOTOS */}
             <div className="modal-form-group">
               <label className="modal-label">📸 Fotos del daño (máx 3):</label>
               <CameraButton 
@@ -1366,7 +1386,7 @@ const StoreVisit: React.FC = () => {
         />
       )}
       
-      {/* 🆕 MODAL DE ESCANEO DE CÓDIGO DE BARRAS CON CÁMARA NATIVA */}
+      {/* Modal de Escaneo de Código de Barras */}
       {showBarcodeScanner && (
         <div className="barcode-modal-overlay">
           <div className="barcode-modal">
@@ -1397,6 +1417,20 @@ const StoreVisit: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🆕 Modal de Registro de Reposiciones */}
+      {showRestockModal && route && (
+        <RestockModal
+          routeStoreId={Number(route.stores[currentStoreIndex].id)}
+          storeId={Number(route.stores[currentStoreIndex].storeId.id)}
+          reportedBy={Number(user!.id)}
+          onClose={() => {
+            setShowRestockModal(false);
+            setCurrentTaskIndex(null);
+          }}
+          onSave={handleRestockSave}
+        />
       )}
     </div>
   );
