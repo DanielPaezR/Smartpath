@@ -1,6 +1,6 @@
 // frontend/src/components/common/InstallPWA.tsx
 import React, { useEffect, useState } from 'react';
-import '../../styles/InstallPWA.css';
+import '../../styles/common/InstallPWA.css';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
