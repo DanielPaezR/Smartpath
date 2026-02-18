@@ -11,7 +11,6 @@ class AdminController {
       console.log('📊 getDashboardOverview llamado - MySQL');
       const today = new Date().toISOString().split('T')[0];
 
-      // Consultas REALES a MySQL - CORREGIDAS
       const [activeAdvisorsRows] = await connection.execute(
         'SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = TRUE',
         ['advisor']
@@ -25,7 +24,6 @@ class AdminController {
       );
       const activeRoutes = activeRoutesRows[0].count;
 
-      // ✅ CORREGIDO: Usar 'status' en lugar de 'visit_status'
       const [storesStatsRows] = await connection.execute(
         `SELECT 
           COUNT(*) as totalStores,
@@ -57,7 +55,6 @@ class AdminController {
     } catch (error) {
       console.error('❌ Error en getDashboardOverview:', error);
       
-      // ✅ Datos de respaldo si hay error en la base de datos
       const fallbackOverview = {
         active_advisors: 6,
         active_routes: 3,
@@ -78,12 +75,10 @@ class AdminController {
   async getLiveAdvisorsStatus(req, res) {
     const connection = await createConnection();
     try {
-      // Consulta REAL a la base de datos MySQL
       const advisors = await User.findAllAdvisors();
 
       const advisorsWithStatus = await Promise.all(
         advisors.map(async (advisor) => {
-          // Obtener tracking más reciente
           const [trackingRows] = await connection.execute(
             `SELECT * FROM real_time_tracking 
             WHERE user_id = ? 
@@ -94,7 +89,6 @@ class AdminController {
 
           const today = new Date().toISOString().split('T')[0];
 
-          // Obtener ruta de hoy
           const [routeRows] = await connection.execute(
             `SELECT * FROM daily_routes 
              WHERE user_id = ? AND DATE(route_date) = ?`,
@@ -102,7 +96,6 @@ class AdminController {
           );
           const todayRoute = routeRows[0];
 
-          // Obtener estadísticas de tiendas para esta ruta
           let totalStores = 0;
           let completedStores = 0;
 
@@ -158,7 +151,6 @@ class AdminController {
         return res.status(404).json({ error: 'Asesor no encontrado' });
       }
 
-      // Obtener tracking más reciente
       const [trackingRows] = await connection.execute(
         `SELECT * FROM real_time_tracking 
          WHERE user_id = ? 
@@ -169,7 +161,6 @@ class AdminController {
 
       const today = new Date().toISOString().split('T')[0];
 
-      // Obtener ruta de hoy con tiendas
       const [routeRows] = await connection.execute(
         `SELECT dr.*, rs.* 
          FROM daily_routes dr
@@ -179,7 +170,6 @@ class AdminController {
         [advisorId, today]
       );
 
-      // Procesar resultados para agrupar por ruta
       const stores = [];
       let todayRoute = null;
 
@@ -227,10 +217,9 @@ class AdminController {
     }
   }
 
-  // 🆕 NUEVA FUNCIÓN: Obtener métricas de reposición
+  // 🆕 FUNCIÓN: Obtener métricas de reposición
   async getRestockMetrics(timeRange, connection) {
     try {
-      // Determinar el rango de tiempo en SQL
       let timeCondition = '';
       switch(timeRange) {
         case 'week':
@@ -246,7 +235,6 @@ class AdminController {
           timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
-      // 1. Métricas generales de reposición
       const [generalMetrics] = await connection.execute(`
         SELECT 
           COALESCE(SUM(ri.quantity), 0) as totalItems,
@@ -258,7 +246,6 @@ class AdminController {
         WHERE 1=1 ${timeCondition}
       `);
 
-      // 2. Top productos más repuestos
       const [topProducts] = await connection.execute(`
         SELECT 
           ri.product_name as productName,
@@ -272,7 +259,6 @@ class AdminController {
         LIMIT 10
       `);
 
-      // 3. Reposiciones por categoría
       const [topCategories] = await connection.execute(`
         SELECT 
           COALESCE(ri.product_category, 'Sin categoría') as category,
@@ -284,7 +270,6 @@ class AdminController {
         ORDER BY quantity DESC
       `);
 
-      // 4. Reposiciones por asesor
       const [restockByAdvisor] = await connection.execute(`
         SELECT 
           u.id as advisorId,
@@ -301,7 +286,6 @@ class AdminController {
         ORDER BY totalItems DESC
       `);
 
-      // 5. Reposiciones por tienda
       const [restockByStore] = await connection.execute(`
         SELECT 
           s.id as storeId,
@@ -318,7 +302,6 @@ class AdminController {
         LIMIT 10
       `);
 
-      // 6. Tendencia diaria de reposiciones
       const [dailyTrend] = await connection.execute(`
         SELECT 
           DATE(ri.reported_at) as date,
@@ -369,7 +352,6 @@ class AdminController {
       };
     } catch (error) {
       console.error('Error getting restock metrics:', error);
-      // Devolver estructura vacía pero válida
       return {
         totalItems: 0,
         totalValue: 0,
@@ -384,7 +366,7 @@ class AdminController {
     }
   }
 
-  // 🆕 NUEVA FUNCIÓN: Obtener métricas avanzadas (con reposiciones)
+  // 🆕 FUNCIÓN: Obtener métricas avanzadas (con reposiciones)
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     
@@ -393,7 +375,6 @@ class AdminController {
       
       console.log(`📡 Obteniendo métricas avanzadas para: ${timeRange}`);
       
-      // Determinar el rango de tiempo para route_stores
       let timeCondition = '';
       switch(timeRange) {
         case 'week':
@@ -409,7 +390,6 @@ class AdminController {
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
-      // Determinar el rango de tiempo para damage_reports (usa created_at)
       let damageTimeCondition = '';
       switch(timeRange) {
         case 'week':
@@ -425,7 +405,6 @@ class AdminController {
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
-      // Obtener métricas generales
       const [overall] = await connection.execute(`
         SELECT 
           (SELECT COUNT(*) FROM stores) as totalStores,
@@ -438,7 +417,6 @@ class AdminController {
         WHERE rs.status = 'completed' ${timeCondition}
       `);
 
-      // Obtener daños por categoría
       const [damageByCategory] = await connection.execute(`
         SELECT 
           COALESCE(dr.product_category, 'Sin categoría') as category,
@@ -449,7 +427,6 @@ class AdminController {
         ORDER BY count DESC
       `);
 
-      // Obtener tiendas con más daños
       const [topStoresWithDamage] = await connection.execute(`
         SELECT 
           s.name as storeName,
@@ -462,7 +439,6 @@ class AdminController {
         LIMIT 5
       `);
 
-      // Obtener performance de asesores
       const [advisorPerformance] = await connection.execute(`
         SELECT 
           u.name as advisorName,
@@ -483,7 +459,6 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      // Obtener métricas de reposición
       const restockMetrics = await this.getRestockMetrics(timeRange, connection);
 
       const metrics = {
