@@ -418,7 +418,7 @@ class AdminController {
           COALESCE(SUM(CASE WHEN dr.id IS NOT NULL THEN 1 ELSE 0 END), 0) as totalDamages,
           COALESCE(SUM(r.total_distance), 0) as totalDistance
         FROM route_stores rs
-        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        LEFT JOIN damage_reports dr ON rs.id = dr.store_id
         LEFT JOIN daily_routes r ON rs.route_id = r.id
         WHERE rs.status = 'completed' ${timeCondition}
       `);
@@ -426,10 +426,9 @@ class AdminController {
       // Obtener daños por categoría
       const [damageByCategory] = await connection.execute(`
         SELECT 
-          COALESCE(p.category, 'Sin categoría') as category,
+          COALESCE(dr.product_category, 'Sin categoría') as category,
           COUNT(*) as count
         FROM damage_reports dr
-        LEFT JOIN products p ON dr.product_barcode = p.barcode
         WHERE 1=1 ${timeCondition.replace('rs.', 'dr.')}
         GROUP BY category
         ORDER BY count DESC
@@ -442,7 +441,7 @@ class AdminController {
           COUNT(*) as damageCount
         FROM damage_reports dr
         JOIN stores s ON dr.store_id = s.id
-        WHERE 1=1 ${timeCondition.replace('rs.', 'dr.')}
+        WHERE 1=1 ${timeCondition ? timeCondition.replace('rs.end_time', 'dr.created_at') : ''}
         GROUP BY s.id, s.name
         ORDER BY damageCount DESC
         LIMIT 5
