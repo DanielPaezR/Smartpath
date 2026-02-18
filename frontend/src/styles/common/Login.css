@@ -1,25 +1,23 @@
-/* frontend/src/styles/Login.css */
+/* frontend/src/styles/Login.css - VERSIÓN FINAL CORREGIDA */
 
 .login-container {
-  min-height: 100vh; /* Fallback */
-  min-height: 100dvh; /* Nueva unidad dinámica */
-  min-height: -webkit-fill-available; /* Para Safari */
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
-  align-items: center;
+  align-items: center; /* SIEMPRE CENTRADO */
   justify-content: center;
   padding: 1rem;
   position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Efecto de fondo animado - optimizado para móviles */
+/* Efecto de fondo animado */
 .login-container::before {
   content: '';
-  position: fixed; /* Cambiado de absolute a fixed */
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -31,7 +29,7 @@
   z-index: 0;
 }
 
-/* Fix para navegadores móviles */
+/* Fix para iOS */
 @supports (-webkit-touch-callout: none) {
   .login-container {
     min-height: -webkit-fill-available;
@@ -49,22 +47,13 @@
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   width: 100%;
-  max-width: min(440px, 90%);
+  max-width: 440px;
   position: relative;
   z-index: 1;
   backdrop-filter: blur(10px);
   margin: auto;
   box-sizing: border-box;
-  transform: translateZ(0); /* Aceleración por hardware */
-}
-
-/* Fix para evitar zoom en inputs en iOS */
-@media screen and (max-width: 768px) {
-  .form-input,
-  .form-select,
-  .form-textarea {
-    font-size: 16px !important; /* ¡CRUCIAL! Evita zoom automático */
-  }
+  transform: translateZ(0);
 }
 
 /* Header del Login */
@@ -95,7 +84,7 @@
   margin: 0;
   font-size: clamp(0.85rem, 3vw, 0.95rem);
   line-height: 1.4;
-  padding: 0 10px; /* Espacio en los bordes para móviles */
+  padding: 0 10px;
 }
 
 /* Formulario */
@@ -115,7 +104,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: clamp(0.85rem, 2.5vw, 0.9rem);
-  word-break: break-word; /* Evita desbordamiento de texto */
+  word-break: break-word;
 }
 
 .error-icon {
@@ -145,14 +134,14 @@
   transition: all 0.3s ease;
   background: white;
   box-sizing: border-box;
-  -webkit-appearance: none; /* Elimina estilos por defecto en iOS */
+  -webkit-appearance: none;
   appearance: none;
 }
 
-/* Ajuste para evitar zoom automático en iOS */
+/* Previene zoom en iOS */
 @media screen and (max-width: 768px) {
   .form-input {
-    font-size: 16px; /* Previene zoom automático en iOS */
+    font-size: 16px !important;
   }
 }
 
@@ -186,10 +175,9 @@
   gap: 0.5rem;
   position: relative;
   overflow: hidden;
-  min-height: 48px; /* Tamaño mínimo para touch en móviles */
+  min-height: 48px;
 }
 
-/* Eliminar efecto hover en dispositivos táctiles */
 @media (hover: hover) {
   .login-btn:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -215,7 +203,6 @@
   transition: left 0.5s;
 }
 
-/* Solo mostrar efecto hover en dispositivos que soporten hover */
 @media (hover: hover) {
   .login-btn:hover::before {
     left: 100%;
@@ -276,7 +263,7 @@
   color: #555;
   margin-bottom: 0.4rem;
   line-height: 1.4;
-  word-break: break-word; /* Evita desbordamiento */
+  word-break: break-word;
 }
 
 .credential-item:last-child {
@@ -287,76 +274,63 @@
   color: #2c3e50;
 }
 
-/* ========== RESPONSIVE DESIGN MEJORADO ========== */
+/* ===== RESPONSIVE SIMPLE Y EFECTIVO ===== */
 
 /* Tablets */
 @media screen and (max-width: 768px) {
   .login-container {
     padding: 1rem;
-    align-items: flex-start; /* Mejor scroll en tablets */
-    padding-top: 5vh; /* Espacio superior en tablets */
+    align-items: center; /* SIEMPRE CENTRADO */
   }
   
   .login-card {
-    max-width: 90%;
-    margin: 2vh auto;
+    max-width: 400px;
+    padding: 2rem;
   }
 }
 
-/* Móviles medianos */
+/* Móviles */
 @media screen and (max-width: 480px) {
   .login-container {
     padding: 0.75rem;
-    align-items: center; /* Volver a centrar */
   }
   
   .login-card {
-    padding: 1.25rem;
-    border-radius: 16px;
     max-width: 100%;
-    margin: 1rem;
+    padding: 1.5rem;
+    border-radius: 16px;
   }
   
-  .login-header {
-    margin-bottom: 1.25rem;
+  .login-logo {
+    width: 60px;
+    height: 60px;
   }
   
-  .form-group {
-    margin-bottom: 1rem;
+  .login-brand h1 {
+    font-size: 1.5rem;
   }
   
-  /* Mejorar touch targets */
+  .login-brand p {
+    font-size: 0.85rem;
+  }
+  
   .form-input {
-    padding: 0.75rem 0.9rem; /* Más grande para touch */
+    padding: 0.75rem 0.9rem;
   }
   
   .login-btn {
-    min-height: 52px; /* Más grande para touch */
-  }
-  
-  /* Ajustes para el demo credentials */
-  .demo-credentials {
-    padding: 0.75rem;
-  }
-  
-  .credential-item {
-    font-size: 0.8rem;
+    min-height: 52px;
   }
 }
 
-/* Móviles muy pequeños */
+/* Móviles pequeños */
 @media screen and (max-width: 360px) {
   .login-container {
     padding: 0.5rem;
   }
   
   .login-card {
-    padding: 1rem;
-    margin: 0.5rem;
-  }
-  
-  .login-header {
-    margin-bottom: 1rem;
+    padding: 1.25rem;
   }
   
   .login-logo {
@@ -392,17 +366,17 @@
   }
 }
 
-/* Orientación horizontal en móviles */
+/* Orientación horizontal */
 @media screen and (max-height: 600px) and (orientation: landscape) {
   .login-container {
-    align-items: flex-start;
     padding: 0.5rem;
-    overflow-y: auto;
+    align-items: center; /* SIEMPRE CENTRADO */
   }
   
   .login-card {
     margin: 0.5rem auto;
     padding: 1rem;
+    max-width: 400px;
   }
   
   .login-header {
@@ -456,7 +430,7 @@
   }
 }
 
-/* Pantallas grandes (4K, etc) */
+/* Pantallas grandes */
 @media screen and (min-width: 1400px) {
   .login-card {
     max-width: 500px;
@@ -491,7 +465,7 @@
   }
 }
 
-/* Modo oscuro (opcional) */
+/* Modo oscuro */
 @media (prefers-color-scheme: dark) {
   .login-card {
     background: #2d2d2d;
@@ -536,7 +510,7 @@
   }
 }
 
-/* Mejoras de accesibilidad - reducir movimiento */
+/* Reducir movimiento */
 @media (prefers-reduced-motion: reduce) {
   .login-container::before {
     animation: none;
@@ -570,7 +544,7 @@
   }
 }
 
-/* Soporte para notch en dispositivos modernos */
+/* Soporte para notch */
 @supports (padding: max(0px)) {
   .login-container {
     padding-left: max(1rem, env(safe-area-inset-left));

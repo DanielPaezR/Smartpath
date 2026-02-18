@@ -2,13 +2,16 @@
 
 .store-management {
   padding: clamp(15px, 3vw, 20px);
-  max-width: 1200px;
+  max-width: 440px;
   margin: 0 auto;
   background: #f8f9fa;
   min-height: 100vh;
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ===== HEADER ===== */
@@ -23,6 +26,9 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   flex-wrap: wrap;
   gap: 15px;
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
 }
 
 .store-header h1 {
@@ -32,12 +38,15 @@
   font-weight: 700;
   line-height: 1.2;
   word-break: break-word;
+  text-align: center;
 }
 
 .header-actions {
   display: flex;
   gap: clamp(10px, 2vw, 15px);
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
 
 /* ===== BOTONES ===== */
@@ -179,6 +188,8 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: clamp(10px, 3vw, 20px);
   margin-bottom: clamp(20px, 4vw, 30px);
+  width: 100%;
+  max-width: 440px;
 }
 
 .stat-card {
@@ -189,6 +200,9 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   border-left: 4px solid #007bff;
   transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .stat-card:active {
@@ -201,12 +215,14 @@
   color: #2c3e50;
   margin-bottom: 5px;
   line-height: 1.2;
+  text-align: center;
 }
 
 .stat-label {
   color: #6c757d;
   font-weight: 500;
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  text-align: center;
 }
 
 /* ===== BÚSQUEDA ===== */
@@ -216,6 +232,12 @@
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   margin-bottom: clamp(20px, 4vw, 30px);
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .search-section h3 {
@@ -224,7 +246,9 @@
   font-size: clamp(1.1rem, 4vw, 1.3rem);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  text-align: center;
 }
 
 .search-filters {
@@ -232,6 +256,8 @@
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
 
 .search-filters select {
@@ -258,6 +284,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  width: 100%;
 }
 
 .results-count {
@@ -271,18 +298,26 @@
   padding: clamp(15px, 3vw, 25px);
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .store-list h3 {
   color: #2c3e50;
   margin: 0 0 20px 0;
   font-size: clamp(1.1rem, 4vw, 1.3rem);
+  text-align: center;
 }
 
 .store-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr));
   gap: clamp(15px, 3vw, 20px);
+  width: 100%;
 }
 
 .store-card {
@@ -294,6 +329,9 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .store-card:active {
@@ -303,10 +341,11 @@
 .store-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 12px;
   gap: 10px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .store-card-header h4 {
@@ -316,6 +355,7 @@
   font-weight: 600;
   flex: 1;
   word-break: break-word;
+  text-align: center;
 }
 
 .priority-badge {
@@ -331,6 +371,7 @@
 .store-card-details {
   flex: 1;
   margin-bottom: 15px;
+  width: 100%;
 }
 
 .store-card-details p {
@@ -339,6 +380,7 @@
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   line-height: 1.4;
   word-break: break-word;
+  text-align: center;
 }
 
 .store-card-details p:last-child {
@@ -364,6 +406,8 @@
   padding-top: 15px;
   border-top: 1px solid #e9ecef;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
 
 .store-card-actions button {
@@ -392,12 +436,15 @@
   padding: clamp(20px, 5vw, 30px);
   border-radius: 10px;
   width: 100%;
-  max-width: 800px;
+  max-width: 440px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
   margin: auto;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .form-container h2 {
@@ -405,6 +452,7 @@
   margin: 0 0 25px 0;
   font-size: clamp(1.2rem, 5vw, 1.5rem);
   padding-right: 30px; /* Espacio para posible botón de cerrar */
+  text-align: center;
 }
 
 .form-grid {
@@ -412,11 +460,14 @@
   grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   gap: clamp(15px, 3vw, 20px);
   margin-bottom: 25px;
+  width: 100%;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .form-group label {
@@ -424,6 +475,8 @@
   font-weight: 600;
   margin-bottom: 6px;
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  text-align: center;
+  width: 100%;
 }
 
 .form-group input,
@@ -458,10 +511,11 @@
 .form-actions {
   display: flex;
   gap: clamp(10px, 2vw, 15px);
-  justify-content: flex-end;
+  justify-content: center;
   padding-top: 20px;
   border-top: 1px solid #e9ecef;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .form-actions button {
@@ -474,17 +528,24 @@
   text-align: center;
   padding: clamp(40px, 10vw, 60px) 20px;
   color: #6c757d;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .empty-state h4 {
   color: #495057;
   margin: 0 0 10px 0;
   font-size: clamp(1.1rem, 4vw, 1.2rem);
+  text-align: center;
 }
 
 .empty-state p {
   margin: 0 0 20px 0;
   font-size: clamp(0.9rem, 3vw, 1rem);
+  text-align: center;
 }
 
 .empty-state button {
@@ -495,6 +556,11 @@
 .loading-container {
   text-align: center;
   padding: clamp(40px, 10vw, 60px) 20px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .spinner {
@@ -516,9 +582,16 @@
 
 /* Tablets */
 @media screen and (max-width: 768px) {
+  .store-management {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .store-header {
     flex-direction: column;
     text-align: center;
+    align-items: center;
+    max-width: 440px;
   }
   
   .header-actions {
@@ -532,7 +605,7 @@
   
   .search-filters {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
   }
   
   .search-filters select {
@@ -554,6 +627,7 @@
   
   .form-actions {
     flex-direction: column;
+    align-items: center;
   }
   
   .form-actions button {
@@ -562,6 +636,7 @@
   
   .store-card-actions {
     flex-direction: column;
+    align-items: center;
   }
   
   .store-card-actions button {
@@ -571,20 +646,28 @@
   .stat-card {
     padding: 15px;
   }
+  
+  .store-stats {
+    max-width: 440px;
+  }
 }
 
 /* Móviles */
 @media screen and (max-width: 480px) {
   .store-management {
     padding: 10px;
+    max-width: 440px;
+    align-items: center;
   }
   
   .store-header {
     padding: 15px;
+    max-width: 440px;
   }
   
   .store-header h1 {
     font-size: 1.3rem;
+    text-align: center;
   }
   
   .stat-value {
@@ -597,6 +680,7 @@
   
   .search-section {
     padding: 12px;
+    max-width: 440px;
   }
   
   .search-section h3 {
@@ -610,20 +694,22 @@
   
   .search-active {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
   }
   
   .results-count {
-    align-self: flex-end;
+    align-self: center;
   }
   
   .store-list {
     padding: 12px;
+    max-width: 440px;
   }
   
   .store-list h3 {
     font-size: 1rem;
     margin-bottom: 15px;
+    text-align: center;
   }
   
   .store-card {
@@ -632,6 +718,7 @@
   
   .store-card-header h4 {
     font-size: 0.95rem;
+    text-align: center;
   }
   
   .priority-badge {
@@ -642,19 +729,23 @@
   .store-card-details p {
     font-size: 0.8rem;
     margin: 4px 0;
+    text-align: center;
   }
   
   .form-container {
     padding: 15px;
+    max-width: 440px;
   }
   
   .form-container h2 {
     font-size: 1.2rem;
     margin-bottom: 15px;
+    text-align: center;
   }
   
   .form-group label {
     font-size: 0.8rem;
+    text-align: center;
   }
   
   .form-group input,
@@ -680,8 +771,14 @@
 
 /* Móviles pequeños */
 @media screen and (max-width: 360px) {
+  .store-management {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .store-header h1 {
     font-size: 1.1rem;
+    text-align: center;
   }
   
   .stat-card {
@@ -698,15 +795,16 @@
   
   .store-card-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
   }
   
   .priority-badge {
-    align-self: flex-start;
+    align-self: center;
   }
   
   .form-container {
     padding: 12px;
+    max-width: 440px;
   }
   
   .form-grid {
@@ -716,6 +814,11 @@
 
 /* Orientación horizontal en móviles */
 @media screen and (max-height: 600px) and (orientation: landscape) {
+  .store-management {
+    align-items: center;
+    max-width: 440px;
+  }
+  
   .form-modal {
     align-items: flex-start;
     padding: 10px;
@@ -724,6 +827,7 @@
   .form-container {
     max-height: 95vh;
     margin: 10px auto;
+    max-width: 440px;
   }
   
   .form-grid {

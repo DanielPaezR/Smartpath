@@ -5,11 +5,14 @@
   background-color: #f8f9fa;
   min-height: 100vh;
   color: #333;
-  max-width: 100%;
+  max-width: 440px;
   margin: 0 auto;
   width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ========== HEADER ========== */
@@ -21,7 +24,11 @@
   margin-bottom: clamp(1rem, 3vw, 1.5rem);
   text-align: center;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .store-visit-header h2 {
@@ -31,6 +38,7 @@
   font-weight: 700;
   line-height: 1.3;
   word-break: break-word;
+  text-align: center;
 }
 
 .store-address {
@@ -39,6 +47,7 @@
   font-size: clamp(0.85rem, 3vw, 0.95rem);
   line-height: 1.4;
   word-break: break-word;
+  text-align: center;
 }
 
 .time-warning {
@@ -52,6 +61,7 @@
   margin-top: 1rem;
   font-size: clamp(0.8rem, 3vw, 0.9rem);
   word-break: break-word;
+  width: 100%;
 }
 
 /* ========== ESTADOS DE VISITA ========== */
@@ -63,7 +73,11 @@
   border: 2px solid transparent;
   font-weight: 600;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .visit-status.in-progress {
@@ -94,6 +108,7 @@
   margin: 0 0 0.5rem 0;
   font-size: clamp(1rem, 4vw, 1.2rem);
   line-height: 1.3;
+  text-align: center;
 }
 
 .visit-status p {
@@ -101,16 +116,19 @@
   font-size: clamp(0.8rem, 3vw, 0.9rem);
   opacity: 0.9;
   line-height: 1.4;
+  text-align: center;
 }
 
 .time-elapsed {
   margin-top: 0.5rem;
   font-weight: normal;
+  text-align: center;
 }
 
 /* ========== BOTONES ========== */
 .primary-action-btn {
   width: 100%;
+  max-width: 440px;
   padding: clamp(1rem, 3vw, 1.25rem);
   font-size: clamp(0.95rem, 3.5vw, 1.1rem);
   background: linear-gradient(135deg, #27ae60, #229954);
@@ -124,6 +142,9 @@
   box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
   min-height: 52px; /* Tamaño mínimo táctil */
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (hover: hover) {
@@ -154,6 +175,9 @@
   transition: all 0.3s ease;
   min-height: 40px;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .secondary-btn.primary {
@@ -199,7 +223,11 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 1.5rem;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .tasks-section h3 {
@@ -228,7 +256,11 @@
   position: relative;
   overflow: hidden;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .task-card::before {
@@ -280,9 +312,11 @@
 /* ========== CONTENIDO DE TAREA ========== */
 .task-content {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: clamp(0.75rem, 2vw, 1rem);
   flex-wrap: wrap;
+  width: 100%;
+  justify-content: center;
 }
 
 .task-checkbox {
@@ -297,6 +331,9 @@
 .task-info {
   flex: 1;
   min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .task-header {
@@ -305,6 +342,8 @@
   gap: clamp(0.5rem, 2vw, 0.75rem);
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
 
 .task-label {
@@ -315,6 +354,7 @@
   min-width: 200px;
   font-size: clamp(0.85rem, 3vw, 0.95rem);
   word-break: break-word;
+  text-align: center;
 }
 
 .task-card.completed .task-label {
@@ -327,6 +367,7 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .requirement-badge {
@@ -371,7 +412,9 @@
   background: #f8f9fa;
   border-radius: 6px;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  text-align: center;
 }
 
 .status-success {
@@ -380,11 +423,14 @@
   margin-bottom: 10px;
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   word-break: break-word;
+  text-align: center;
 }
 
 .task-actions {
   margin-top: 10px;
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .task-instruction {
@@ -397,6 +443,7 @@
   border-left: 4px solid #007bff;
   line-height: 1.4;
   word-break: break-word;
+  text-align: center;
 }
 
 .task-timestamp {
@@ -404,6 +451,7 @@
   font-size: clamp(0.7rem, 2.5vw, 0.8rem);
   color: #6c757d;
   font-style: italic;
+  text-align: center;
 }
 
 /* ========== OPCIONES DE DAÑOS ========== */
@@ -412,6 +460,8 @@
   gap: clamp(1rem, 3vw, 1.5rem);
   margin-top: 1rem;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
 
 .option-card {
@@ -420,6 +470,10 @@
   border-radius: 8px;
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .option-card h4 {
@@ -427,6 +481,7 @@
   color: #1e293b;
   font-size: clamp(0.9rem, 3vw, 1rem);
   word-break: break-word;
+  text-align: center;
 }
 
 .option-description {
@@ -435,6 +490,7 @@
   margin-bottom: 10px;
   line-height: 1.4;
   word-break: break-word;
+  text-align: center;
 }
 
 .option-divider {
@@ -459,6 +515,10 @@
 .camera-upload-container {
   margin: 15px 0;
   width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .camera-open-btn {
@@ -476,6 +536,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
+  max-width: 440px;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
   min-height: 48px;
   -webkit-tap-highlight-color: transparent;
@@ -505,13 +566,18 @@
   border-radius: 8px;
   border: 1px solid #dee2e6;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .photos-preview p {
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   margin-bottom: 10px;
   word-break: break-word;
+  text-align: center;
 }
 
 .photos-grid {
@@ -519,6 +585,7 @@
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 10px;
   margin-top: 10px;
+  width: 100%;
 }
 
 .photo-preview {
@@ -577,6 +644,9 @@
   max-height: 90vh;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .camera-header {
@@ -586,12 +656,15 @@
   padding: clamp(1rem, 3vw, 1.25rem);
   background: #2c3e50;
   color: white;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .camera-header h3 {
   font-size: clamp(1rem, 4vw, 1.2rem);
   margin: 0;
   word-break: break-word;
+  text-align: center;
 }
 
 .close-camera-btn {
@@ -626,6 +699,11 @@
   padding: clamp(1rem, 3vw, 1.25rem);
   text-align: center;
   background: #f8f9fa;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .capture-btn {
@@ -643,6 +721,9 @@
   width: 100%;
   max-width: 300px;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (hover: hover) {
@@ -661,6 +742,7 @@
   font-size: clamp(0.75rem, 2.5vw, 0.85rem);
   margin-top: 10px;
   line-height: 1.4;
+  text-align: center;
 }
 
 /* ========== REPORTES DE DAÑOS ========== */
@@ -670,13 +752,18 @@
   border-radius: 12px;
   margin-top: 1.5rem;
   width: 100%;
+  max-width: 440px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .damage-reports h4 {
   margin: 0 0 1rem 0;
   color: #856404;
   font-size: clamp(1rem, 3.5vw, 1.1rem);
+  text-align: center;
 }
 
 .damage-report-card {
@@ -687,22 +774,30 @@
   border: 1px solid #dee2e6;
   font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   word-break: break-word;
+  text-align: center;
+  width: 100%;
 }
 
 /* ========== NOTAS DE VISITA ========== */
 .visit-notes {
   margin-top: 1.5rem;
   width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .visit-notes h4 {
   margin: 0 0 0.75rem 0;
   color: #2c3e50;
   font-size: clamp(1rem, 3.5vw, 1.1rem);
+  text-align: center;
 }
 
 .notes-textarea {
   width: 100%;
+  max-width: 440px;
   padding: clamp(0.75rem, 2vw, 1rem);
   border: 2px solid #e9ecef;
   border-radius: 8px;
@@ -726,6 +821,9 @@
   gap: clamp(0.75rem, 2vw, 1rem);
   margin-top: 2rem;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 440px;
 }
 
 .action-btn {
@@ -741,6 +839,9 @@
   text-align: center;
   min-height: 48px;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .complete-btn {
@@ -787,6 +888,8 @@
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
   font-size: clamp(0.85rem, 3vw, 0.95rem);
   word-break: break-word;
+  width: 100%;
+  max-width: 440px;
 }
 
 /* ========== MODAL DE REPORTE DE DAÑOS ========== */
@@ -814,6 +917,9 @@
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .damage-modal h3 {
@@ -830,6 +936,8 @@
   border-radius: 8px;
   margin-bottom: 1.5rem;
   border-left: 4px solid #3498db;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .product-info h4 {
@@ -837,6 +945,7 @@
   color: #2c3e50;
   font-size: clamp(0.95rem, 3.5vw, 1.1rem);
   word-break: break-word;
+  text-align: center;
 }
 
 .product-info p {
@@ -844,6 +953,7 @@
   color: #555;
   font-size: clamp(0.8rem, 3vw, 0.9rem);
   word-break: break-word;
+  text-align: center;
 }
 
 .modal-form-group {
@@ -857,6 +967,7 @@
   font-weight: 600;
   color: #2c3e50;
   font-size: clamp(0.8rem, 3vw, 0.9rem);
+  text-align: center;
 }
 
 .modal-select,
@@ -886,9 +997,10 @@
 .modal-actions {
   display: flex;
   gap: 0.75rem;
-  justify-content: flex-end;
+  justify-content: center;
   margin-top: 1.5rem;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .modal-btn {
@@ -902,6 +1014,9 @@
   min-height: 44px;
   font-size: clamp(0.8rem, 3vw, 0.9rem);
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-btn.cancel {
@@ -935,6 +1050,11 @@
 
 /* Tablets */
 @media screen and (max-width: 1024px) {
+  .store-visit-container {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .visit-actions {
     flex-direction: column;
   }
@@ -947,9 +1067,14 @@
 
 /* Tablets pequeñas */
 @media screen and (max-width: 768px) {
+  .store-visit-container {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .task-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.5rem;
   }
 
@@ -977,14 +1102,20 @@
 
 /* Móviles */
 @media screen and (max-width: 480px) {
+  .store-visit-container {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .store-visit-header,
   .tasks-section {
     border-radius: 8px;
+    max-width: 440px;
   }
 
   .task-content {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .task-checkbox {
@@ -1018,6 +1149,11 @@
 
 /* Móviles muy pequeños */
 @media screen and (max-width: 360px) {
+  .store-visit-container {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .task-label {
     font-size: 0.8rem;
   }
@@ -1040,6 +1176,11 @@
 
 /* Orientación horizontal en móviles */
 @media screen and (max-height: 600px) and (orientation: landscape) {
+  .store-visit-container {
+    align-items: center;
+    max-width: 440px;
+  }
+  
   .camera-modal {
     max-height: 98vh;
   }

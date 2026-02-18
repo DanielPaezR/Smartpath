@@ -5,11 +5,13 @@
   -webkit-tap-highlight-color: transparent; /* Elimina highlight en taps */
   -webkit-touch-callout: none; /* Previene menú contextual en iOS */
   -webkit-text-size-adjust: 100%; /* Previene ajuste de texto */
+  box-sizing: border-box;
 }
 
 html {
   height: -webkit-fill-available;
   overflow-x: hidden;
+  width: 100%;
 }
 
 body {
@@ -22,6 +24,22 @@ body {
   position: relative;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Contenedor principal para apps */
+#root {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
 }
 
 /* Fix para 100vh en móviles */
@@ -29,27 +47,61 @@ body {
   min-height: 100vh;
   min-height: -webkit-fill-available;
   min-height: 100dvh;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Fix para inputs en iOS */
 input, select, textarea {
   font-size: 16px !important; /* ¡CRUCIAL! Evita zoom en iOS */
-  border-radius: 0; /* Remueve border-radius por defecto en iOS */
+  border-radius: 8px; /* Border-radius consistente */
   -webkit-appearance: none; /* Remueve estilos por defecto */
   appearance: none;
+  padding: 12px;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: block;
+  box-sizing: border-box;
 }
 
 /* Fix para botones en iOS */
 button {
   -webkit-appearance: none;
   appearance: none;
-  border-radius: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px; /* Tamaño mínimo táctil */
+  padding: 12px 16px;
+  width: auto;
+  max-width: 440px;
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1.4;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.98);
 }
 
 /* Fix para scroll en iOS */
 .scrollable {
   -webkit-overflow-scrolling: touch;
   overflow-y: auto;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 0 12px;
+  box-sizing: border-box;
 }
 
 /* Contenedores flexibles */
@@ -57,6 +109,21 @@ button {
   display: flex;
   flex-wrap: wrap;
   width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Contenedores de grid */
+.grid-container {
+  display: grid;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  gap: 12px;
   box-sizing: border-box;
 }
 
@@ -65,12 +132,100 @@ img {
   max-width: 100%;
   height: auto;
   display: block;
+  margin: 0 auto;
 }
 
 /* Fix para gradientes en todos los navegadores */
 .gradient-fix {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   background-attachment: fixed; /* Mejor comportamiento en móviles */
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Clases de utilidad para centrado */
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.center-text {
+  text-align: center;
+  width: 100%;
+}
+
+.full-width {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Fix para tarjetas */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto 12px auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Fix para headers */
+.header {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto 16px auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Fix para estadísticas */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto 16px auto;
+}
+
+.stat-item {
+  padding: 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 80px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 /* Media query para prevenir zoom en landscape */
@@ -81,5 +236,151 @@ img {
   
   input, select, textarea {
     font-size: 16px !important;
+  }
+  
+  body, #root, .vh-fix {
+    min-height: auto;
+  }
+  
+  button {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+}
+
+/* Media queries para diferentes tamaños */
+@media screen and (max-width: 480px) {
+  #root, .vh-fix, .full-width {
+    max-width: 440px;
+    padding: 0 8px;
+  }
+  
+  .card, .header {
+    padding: 12px;
+  }
+  
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-item {
+    padding: 12px;
+    min-height: 70px;
+  }
+  
+  button {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+}
+
+@media screen and (max-width: 360px) {
+  #root, .vh-fix, .full-width {
+    padding: 0 4px;
+  }
+  
+  .card, .header {
+    padding: 10px;
+  }
+  
+  .stat-item {
+    padding: 10px;
+    min-height: 60px;
+  }
+  
+  .stat-item h3 {
+    font-size: 0.9rem;
+  }
+  
+  .stat-item .value {
+    font-size: 1.2rem;
+  }
+  
+  button {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 38px;
+  }
+}
+
+/* Soporte para notch */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+  
+  #root {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* Fix específico para iOS */
+@supports (-webkit-touch-callout: none) {
+  body {
+    padding-top: max(0px, env(safe-area-inset-top));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  button:active {
+    transform: none;
+  }
+}
+
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .card, .header {
+    background: #2d2d2d;
+    color: #e0e0e0;
+    border-color: #404040;
+  }
+  
+  input, select, textarea {
+    background: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #404040;
+  }
+  
+  button {
+    background: #3b82f6;
+    color: white;
+  }
+  
+  button.secondary {
+    background: #4b5563;
+    color: white;
+  }
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  .card, .header {
+    border: 2px solid currentColor;
+  }
+  
+  button {
+    border: 2px solid currentColor;
+  }
+  
+  input, select, textarea {
+    border: 2px solid currentColor;
   }
 }

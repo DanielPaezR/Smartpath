@@ -53,13 +53,16 @@
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-xl);
   width: 100%;
-  max-width: min(64rem, 95vw);
+  max-width: min(440px, 95vw);
   max-height: 95vh;
   overflow: hidden;
   transform: scale(1);
   transition: var(--transition);
   margin: auto;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Header del modal */
@@ -68,13 +71,18 @@
   padding: clamp(1rem, 4vw, 2rem);
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .store-form-header-content {
   flex: 1;
   min-width: 0; /* Para evitar overflow en móviles */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .store-form-title {
@@ -84,6 +92,7 @@
   margin: 0;
   line-height: 1.3;
   word-break: break-word;
+  text-align: center;
 }
 
 .store-form-subtitle {
@@ -91,6 +100,7 @@
   margin-top: 0.25rem;
   font-size: clamp(0.75rem, 3vw, 0.875rem);
   line-height: 1.4;
+  text-align: center;
 }
 
 .store-form-close-btn {
@@ -129,8 +139,11 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: clamp(1rem, 3vw, 2rem);
   -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Secciones del formulario */
@@ -139,12 +152,19 @@
   border-radius: var(--border-radius);
   padding: clamp(1rem, 3vw, 1.5rem);
   border: 1px solid var(--gray-200);
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .section-header {
   display: flex;
   align-items: center;
+  justify-content: center;
   margin-bottom: clamp(0.75rem, 2vw, 1rem);
+  width: 100%;
 }
 
 .section-number {
@@ -183,6 +203,7 @@
   color: var(--gray-800);
   margin: 0;
   line-height: 1.3;
+  text-align: center;
 }
 
 /* Layouts de grid - Mobile First */
@@ -192,19 +213,24 @@
   display: grid;
   gap: clamp(1rem, 3vw, 1.5rem);
   grid-template-columns: 1fr;
+  width: 100%;
 }
 
 .form-space-y {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: clamp(1rem, 3vw, 1.5rem);
+  width: 100%;
 }
 
 /* Grupos de formulario */
 .form-group {
   display: flex;
   flex-direction: column;
+  align-items: center;
   min-width: 0; /* Para evitar overflow */
+  width: 100%;
 }
 
 .form-label {
@@ -213,6 +239,8 @@
   font-weight: 500;
   color: var(--gray-700);
   margin-bottom: 0.5rem;
+  text-align: center;
+  width: 100%;
 }
 
 /* Inputs y controles */
@@ -220,6 +248,7 @@
 .form-textarea,
 .form-select {
   width: 100%;
+  max-width: 440px;
   padding: clamp(0.6rem, 2.5vw, 0.75rem) clamp(0.8rem, 3vw, 1rem);
   border: 2px solid var(--gray-300);
   border-radius: var(--border-radius);
@@ -271,11 +300,14 @@
 /* Botón de ubicación */
 .location-btn-container {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .location-btn {
   width: 100%;
+  max-width: 440px;
   background: linear-gradient(135deg, var(--success-color), #229954);
   color: white;
   padding: clamp(0.6rem, 2.5vw, 0.75rem) clamp(0.8rem, 3vw, 1rem);
@@ -319,8 +351,11 @@
   font-size: clamp(0.7rem, 2.5vw, 0.75rem);
   margin-top: 0.5rem;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   word-break: break-word;
+  text-align: center;
+  width: 100%;
 }
 
 .error-icon {
@@ -328,7 +363,6 @@
   height: clamp(0.9rem, 3vw, 1rem);
   margin-right: 0.25rem;
   flex-shrink: 0;
-  margin-top: 0.1rem;
 }
 
 /* Texto de ayuda */
@@ -337,16 +371,19 @@
   font-size: clamp(0.7rem, 2.5vw, 0.75rem);
   margin-top: 0.5rem;
   line-height: 1.4;
+  text-align: center;
+  width: 100%;
 }
 
 /* Botones de acción */
 .form-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: clamp(0.75rem, 2vw, 1rem);
   padding-top: clamp(1rem, 3vw, 1.5rem);
   border-top: 1px solid var(--gray-200);
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .btn-primary,
@@ -449,6 +486,11 @@
 
 /* Tablets y pantallas medianas */
 @media screen and (min-width: 768px) {
+  .store-form-modal {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .form-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -481,8 +523,14 @@
 
 /* Móviles */
 @media screen and (max-width: 767px) {
+  .store-form-modal {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .form-actions {
     flex-direction: column;
+    align-items: center;
   }
   
   .btn-primary,
@@ -497,13 +545,24 @@
   .full-width {
     margin-top: 0.5rem;
   }
+  
+  .store-form-header {
+    align-items: center;
+  }
 }
 
 /* Móviles pequeños */
 @media screen and (max-width: 480px) {
+  .store-form-modal {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .store-form-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    padding: 1.5rem 1rem 1rem;
+    position: relative;
   }
   
   .store-form-close-btn {
@@ -512,12 +571,9 @@
     right: 1rem;
   }
   
-  .store-form-header {
-    padding: 1.5rem 1rem 1rem;
-  }
-  
   .store-form-title {
     padding-right: 2.5rem; /* Espacio para el botón de cerrar */
+    text-align: center;
   }
   
   .form-section {
@@ -526,6 +582,7 @@
   
   .section-header {
     margin-bottom: 0.75rem;
+    justify-content: center;
   }
   
   .form-grid,
@@ -541,6 +598,11 @@
 
 /* Móviles muy pequeños */
 @media screen and (max-width: 360px) {
+  .store-form-modal {
+    max-width: 440px;
+    align-items: center;
+  }
+  
   .store-form-content {
     padding: 0.75rem;
   }
@@ -553,20 +615,27 @@
   
   .section-title {
     font-size: 0.95rem;
+    text-align: center;
   }
   
   .form-label {
     font-size: 0.8rem;
+    text-align: center;
   }
   
   .form-input,
   .form-textarea,
   .form-select {
     padding: 0.5rem 0.75rem;
+    max-width: 440px;
   }
   
   .location-btn {
     padding: 0.5rem;
+  }
+  
+  .error-message {
+    text-align: center;
   }
 }
 
@@ -574,6 +643,8 @@
 @media screen and (max-height: 600px) and (orientation: landscape) {
   .store-form-modal {
     max-height: 98vh;
+    max-width: 440px;
+    align-items: center;
   }
   
   .store-form-content {

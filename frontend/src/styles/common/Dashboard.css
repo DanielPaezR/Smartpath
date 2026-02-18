@@ -2,6 +2,9 @@
 .dashboard-container {
   min-height: 100vh;
   background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .dashboard-header {
@@ -13,6 +16,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
 }
 
 .header-brand {
@@ -59,20 +65,32 @@
 
 .dashboard-main {
   padding: 1.5rem;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .dashboard-container {
+    align-items: center;
+  }
+
   .dashboard-header {
     padding: 1rem;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     text-align: center;
+    max-width: 440px;
   }
 
   .header-brand {
     justify-content: center;
     text-align: center;
+    align-items: center;
   }
 
   .brand-text h1 {
@@ -86,12 +104,20 @@
 
   .dashboard-main {
     padding: 1rem;
+    align-items: center;
+    max-width: 440px;
   }
 }
 
 @media (max-width: 480px) {
+  .dashboard-container {
+    align-items: center;
+  }
+
   .dashboard-header {
     padding: 0.75rem;
+    align-items: center;
+    max-width: 440px;
   }
 
   .brand-text h1 {
@@ -105,5 +131,11 @@
   .logout-btn {
     padding: 0.4rem 0.8rem;
     font-size: 0.9rem;
+  }
+
+  .dashboard-main {
+    align-items: center;
+    max-width: 440px;
+    padding: 0.75rem;
   }
 }
