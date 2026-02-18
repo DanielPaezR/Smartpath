@@ -310,7 +310,7 @@ const AdvisorDashboard = () => {
           <div className="stat-item">
             <span className="stat-icon">⏱️</span>
             <div className="stat-info">
-              <span className="stat-value">{currentRoute.estimated_duration} min</span>
+              <span className="stat-value">{currentRoute.estimated_duration}</span>
               <span className="stat-label">Duración</span>
             </div>
           </div>

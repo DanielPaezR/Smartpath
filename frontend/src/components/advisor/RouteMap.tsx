@@ -197,13 +197,6 @@ const RouteMap: React.FC = () => {
         </div>
 
         <div className="route-stats-grid">
-          <div className="stat-card total">
-            <span className="stat-icon">🏪</span>
-            <div className="stat-info">
-              <span className="stat-value">{route.stores?.length || 0}</span>
-              <span className="stat-label">Total Tiendas</span>
-            </div>
-          </div>
           <div className="stat-card completed">
             <span className="stat-icon">✅</span>
             <div className="stat-info">
