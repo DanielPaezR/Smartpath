@@ -4,7 +4,6 @@ import { User } from '../models/User.js';
 
 class AdminController {
   
-  // Obtener resumen general del dashboard
   async getDashboardOverview(req, res) {
     const connection = await createConnection();
     try {
@@ -71,7 +70,6 @@ class AdminController {
     }
   }
 
-  // Obtener estado en tiempo real de todos los asesores
   async getLiveAdvisorsStatus(req, res) {
     const connection = await createConnection();
     try {
@@ -140,7 +138,6 @@ class AdminController {
     }
   }
 
-  // Obtener detalle de un asesor específico
   async getAdvisorDetail(req, res) {
     const connection = await createConnection();
     try {
@@ -217,7 +214,6 @@ class AdminController {
     }
   }
 
-  // 🆕 FUNCIÓN: Obtener métricas de reposición
   async getRestockMetrics(timeRange, connection) {
     try {
       let timeCondition = '';
@@ -235,7 +231,6 @@ class AdminController {
           timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
-      // 1. Métricas generales
       const [generalMetrics] = await connection.execute(`
         SELECT 
           COALESCE(SUM(ri.quantity), 0) as totalItems,
@@ -247,7 +242,6 @@ class AdminController {
         WHERE 1=1 ${timeCondition}
       `);
 
-      // 2. Top productos
       const [topProducts] = await connection.execute(`
         SELECT 
           ri.product_name as productName,
@@ -261,7 +255,6 @@ class AdminController {
         LIMIT 10
       `);
 
-      // 3. Por categoría
       const [topCategories] = await connection.execute(`
         SELECT 
           COALESCE(ri.product_category, 'Sin categoría') as category,
@@ -273,7 +266,6 @@ class AdminController {
         ORDER BY quantity DESC
       `);
 
-      // 4. Por asesor
       const [restockByAdvisor] = await connection.execute(`
         SELECT 
           u.id as advisorId,
@@ -290,7 +282,6 @@ class AdminController {
         ORDER BY totalItems DESC
       `);
 
-      // 5. Por tienda
       const [restockByStore] = await connection.execute(`
         SELECT 
           s.id as storeId,
@@ -307,7 +298,6 @@ class AdminController {
         LIMIT 10
       `);
 
-      // 6. Tendencia diaria
       const [dailyTrend] = await connection.execute(`
         SELECT 
           DATE(ri.reported_at) as date,
@@ -372,7 +362,6 @@ class AdminController {
     }
   }
 
-  // Obtener métricas avanzadas (ACTUALIZADO CON REPOSICIONES)
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     
@@ -465,7 +454,6 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      // 🆕 Obtener métricas de reposición
       const restockMetrics = await this.getRestockMetrics(timeRange, connection);
 
       const metrics = {
@@ -494,11 +482,11 @@ class AdminController {
           efficiencyScore: Math.round(a.efficiencyScore),
           damageReports: parseInt(a.damageReports || 0)
         })),
-        restockMetrics: restockMetrics // 👈 NUEVO
+        restockMetrics: restockMetrics
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
-      console.log('📦 Reposiciones:', restockMetrics.totalItems, 'productos, valor:', restockMetrics.totalValue);
+      console.log('📦 Reposiciones:', restockMetrics.totalItems, 'productos');
       res.json(metrics);
 
     } catch (error) {
@@ -512,7 +500,6 @@ class AdminController {
     }
   }
 
-  // Obtener notificaciones
   async getNotifications(req, res) {
     const connection = await createConnection();
     try {
@@ -530,7 +517,6 @@ class AdminController {
     }
   }
 
-  // Marcar notificación como leída
   async markNotificationAsRead(req, res) {
     const connection = await createConnection();
     try {
