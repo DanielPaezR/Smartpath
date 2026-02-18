@@ -29,33 +29,69 @@ export interface DashboardOverview {
   efficiency_score?: number;
 }
 
+export interface RestockMetrics {
+  totalItems: number;
+  totalValue: number;
+  uniqueProducts: number;
+  averageItemsPerVisit: number;
+  topRestockedProducts: {
+    productName: string;
+    productBarcode: string;
+    quantity: number;
+    totalValue: number;
+  }[];
+  topRestockedCategories: {
+    category: string;
+    quantity: number;
+    percentage: number;
+  }[];
+  restockByAdvisor: {
+    advisorId: number;
+    advisorName: string;
+    totalItems: number;
+    totalValue: number;
+    averagePerVisit: number;
+  }[];
+  restockByStore: {
+    storeId: number;
+    storeName: string;
+    totalItems: number;
+    totalValue: number;
+    visits: number;
+  }[];
+  dailyRestockTrend: {
+    date: string;
+    items: number;
+    value: number;
+  }[];
+}
+
 export interface AdvancedMetrics {
   overall: {
     totalStores: number;
     completedVisits: number;
-    totalDistance: number;
     averageEfficiency: number;
-    timeSaved: number;
+    totalDistance: number;
   };
   damageAnalytics: {
     totalDamagedProducts: number;
-    damageByCategory: Array<{ category: string; count: number; value: number }>;
-    topStoresWithDamage: Array<{ storeName: string; damageCount: number }>;
-    monthlyTrend: Array<{ month: string; damageCount: number }>;
+    damageByCategory: {
+      category: string;
+      count: number;
+    }[];
+    topStoresWithDamage: {
+      storeName: string;
+      damageCount: number;
+    }[];
   };
-  salesAnalytics: {
-    totalProductsSold: number;
-    salesByCategory: Array<{ category: string; count: number; revenue: number }>;
-    bestPerformingStores: Array<{ storeName: string; salesCount: number }>;
-    restockingEfficiency: number;
-  };
-  advisorPerformance: Array<{
+  advisorPerformance: {
     advisorName: string;
     completedVisits: number;
     averageTimePerStore: number;
     efficiencyScore: number;
     damageReports: number;
-  }>;
+  }[];
+  restockMetrics: RestockMetrics;
 }
 
 export const adminService = {
