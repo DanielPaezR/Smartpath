@@ -1,4 +1,4 @@
-// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA Y FOTOS OPTIMIZADAS
+// frontend/src/components/advisor/StoreVisit.tsx - VERSIÓN CON CÁMARA NATIVA Y CHECKBOX FUNCIONALES
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
@@ -48,7 +48,7 @@ interface IDamageReport {
   reportedBy: string;
 }
 
-// 🆕 COMPONENTE SIMPLIFICADO - USA CÁMARA NATIVA DEL TELÉFONO
+// COMPONENTE SIMPLIFICADO - USA CÁMARA NATIVA DEL TELÉFONO
 const CameraButton: React.FC<{
   onCapture: (photos: string[]) => void;
   existingPhotos?: string[];
@@ -379,7 +379,7 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // FUNCIÓN SIMPLIFICADA PARA TAREA DE DAÑOS - DOS OPCIONES
+  // FUNCIÓN PARA TAREA DE DAÑOS
   const handleDamageCheckTask = (taskIndex: number) => {
     const task = tasks[taskIndex];
     
@@ -524,7 +524,7 @@ const StoreVisit: React.FC = () => {
     setDamagePhotos(photos);
   };
 
-  // FUNCIÓN MEJORADA PARA GUARDAR REPORTE
+  // FUNCIÓN PARA GUARDAR REPORTE
   const handleAddDamageReport = async () => {
     if (!currentProduct || !route) return;
     
@@ -613,6 +613,41 @@ const StoreVisit: React.FC = () => {
     setDamageType('');
     setDamageSeverity('low');
     setDamagePhotos([]);
+  };
+
+  const handleTaskCheckbox = (task: ITask, index: number) => {
+    // Si la tarea ya está completada, simplemente la desmarcamos
+    if (task.completed) {
+      const updatedTasks = [...tasks];
+      updatedTasks[index].completed = false;
+      updatedTasks[index].timestamp = undefined;
+      setTasks(updatedTasks);
+      return;
+    }
+
+    // Validaciones según el tipo de tarea
+    if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
+      alert('⚠️ Esta tarea requiere al menos 1 foto');
+      return;
+    }
+    
+    if (task.requiresSignature && !task.signature) {
+      setCurrentTaskIndex(index);
+      setShowSignaturePad(true);
+      return;
+    }
+    
+    if (task.requiresBarcode && (!task.barcodes || task.barcodes.length === 0)) {
+      setCurrentTaskIndex(index);
+      setShowBarcodeScanner(true);
+      return;
+    }
+    
+    // Si pasa todas las validaciones, marcamos como completada
+    const updatedTasks = [...tasks];
+    updatedTasks[index].completed = true;
+    updatedTasks[index].timestamp = new Date();
+    setTasks(updatedTasks);
   };
 
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
@@ -736,7 +771,7 @@ const StoreVisit: React.FC = () => {
 
   // Componente de tarea con cámara
   const renderTask = (task: ITask, index: number) => {
-    // TAREA DE DAMAGE CHECK SIMPLIFICADA
+    // TAREA DE DAMAGE CHECK ESPECIAL
     if (task.key === 'damageCheck') {
       return (
         <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
@@ -794,69 +829,51 @@ const StoreVisit: React.FC = () => {
       );
     }
     
-    // TAREAS NORMALES CON CÁMARA - CONFIGURACIÓN DE FOTOS OPTIMIZADA
+    // TAREAS NORMALES CON CHECKBOX FUNCIONAL
     return (
       <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
         <div className="task-content">
-          <input 
-            type="checkbox" 
-            checked={task.completed}
-            onChange={() => {
-              if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-                alert('⚠️ Esta tarea requiere al menos 1 foto');
-                return;
-              }
-              if (task.requiresSignature && !task.signature) {
-                setCurrentTaskIndex(index);
-                setShowSignaturePad(true);
-                return;
-              }
-              if (task.requiresBarcode && (!task.barcodes || task.barcodes.length === 0)) {
-                setCurrentTaskIndex(index);
-                setShowBarcodeScanner(true);
-                return;
-              }
+          <div className="task-main-row">
+            <input 
+              type="checkbox" 
+              checked={task.completed}
+              onChange={() => handleTaskCheckbox(task, index)}
+              className="task-checkbox"
+            />
+            
+            <div className="task-info">
+              <div className="task-header">
+                <span className="task-label">
+                  {task.label}
+                </span>
+                <div className="task-requirements">
+                  {task.requiresPhotos && <span className="requirement-badge">📸</span>}
+                  {task.requiresBarcode && <span className="requirement-badge">📱</span>}
+                  {task.requiresSignature && <span className="requirement-badge">✍️</span>}
+                </div>
+              </div>
               
-              const updatedTasks = [...tasks];
-              updatedTasks[index].completed = !updatedTasks[index].completed;
-              updatedTasks[index].timestamp = new Date();
-              setTasks(updatedTasks);
-            }}
-            className="task-checkbox"
-          />
-          
-          <div className="task-info">
-            <div className="task-header">
-              <span className="task-label">
-                {task.label}
-              </span>
-              <div className="task-requirements">
-                {task.requiresPhotos && <span className="requirement-badge">📸</span>}
-                {task.requiresBarcode && <span className="requirement-badge">📱</span>}
-                {task.requiresSignature && <span className="requirement-badge">✍️</span>}
-              </div>
+              {/* Timestamp si está completada */}
+              {task.timestamp && (
+                <div className="task-timestamp">
+                  Completado: {task.timestamp.toLocaleTimeString()}
+                </div>
+              )}
             </div>
-            
-            {/* SUBIDA DE FOTOS CON CÁMARA NATIVA - MÁXIMO 3 FOTOS */}
-            {task.requiresPhotos && (
-              <div className="task-additional">
-                <CameraButton 
-                  onCapture={(photos) => handlePhotosChange(index, photos)}
-                  existingPhotos={task.photos || []}
-                  maxPhotos={3}
-                  disabled={task.completed}
-                  required={true}
-                />
-              </div>
-            )}
-            
-            {/* Estado */}
-            {task.timestamp && (
-              <div className="task-timestamp">
-                Completado: {task.timestamp.toLocaleTimeString()}
-              </div>
-            )}
           </div>
+          
+          {/* SUBIDA DE FOTOS CON CÁMARA NATIVA - SOLO SI REQUIERE FOTOS */}
+          {task.requiresPhotos && (
+            <div className="task-photos-section">
+              <CameraButton 
+                onCapture={(photos) => handlePhotosChange(index, photos)}
+                existingPhotos={task.photos || []}
+                maxPhotos={3}
+                disabled={task.completed}
+                required={true}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
