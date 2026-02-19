@@ -2,6 +2,19 @@
 import { createConnection } from '../config/database.js';
 import { User } from '../models/User.js';
 
+// Función auxiliar para métricas vacías de reposición
+const emptyRestockMetrics = () => ({
+  totalItems: 0,
+  totalValue: 0,
+  uniqueProducts: 0,
+  averageItemsPerVisit: 0,
+  topRestockedProducts: [],
+  topRestockedCategories: [],
+  restockByAdvisor: [],
+  restockByStore: [],
+  dailyRestockTrend: []
+});
+
 // Funciones auxiliares
 const calculateDateRange = (timeRange) => {
   const now = new Date();
@@ -306,6 +319,8 @@ class AdminController {
   // FUNCIÓN: Obtener métricas de reposición
   async getRestockMetrics(timeRange, connection) {
     try {
+      console.log(`📦 [getRestockMetrics] Obteniendo datos para: ${timeRange}`);
+      
       let timeCondition = '';
       switch(timeRange) {
         case 'week':
@@ -321,6 +336,18 @@ class AdminController {
           timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
+      // Verificar si la tabla existe
+      const [tableCheck] = await connection.execute(`
+        SELECT COUNT(*) as count FROM information_schema.tables 
+        WHERE table_schema = DATABASE() AND table_name = 'restock_items'
+      `);
+      
+      if (tableCheck[0].count === 0) {
+        console.log('⚠️ Tabla restock_items no existe');
+        return emptyRestockMetrics();
+      }
+
+      // 1. Métricas generales
       const [generalMetrics] = await connection.execute(`
         SELECT 
           COALESCE(SUM(ri.quantity), 0) as totalItems,
@@ -332,6 +359,9 @@ class AdminController {
         WHERE 1=1 ${timeCondition}
       `);
 
+      console.log(`📦 Datos generales:`, generalMetrics[0]);
+
+      // 2. Top productos
       const [topProducts] = await connection.execute(`
         SELECT 
           ri.product_name as productName,
@@ -345,6 +375,7 @@ class AdminController {
         LIMIT 10
       `);
 
+      // 3. Por categoría
       const [topCategories] = await connection.execute(`
         SELECT 
           COALESCE(ri.product_category, 'Sin categoría') as category,
@@ -356,6 +387,7 @@ class AdminController {
         ORDER BY quantity DESC
       `);
 
+      // 4. Por asesor
       const [restockByAdvisor] = await connection.execute(`
         SELECT 
           u.id as advisorId,
@@ -372,6 +404,7 @@ class AdminController {
         ORDER BY totalItems DESC
       `);
 
+      // 5. Por tienda
       const [restockByStore] = await connection.execute(`
         SELECT 
           s.id as storeId,
@@ -388,6 +421,7 @@ class AdminController {
         LIMIT 10
       `);
 
+      // 6. Tendencia diaria
       const [dailyTrend] = await connection.execute(`
         SELECT 
           DATE(ri.reported_at) as date,
@@ -437,18 +471,8 @@ class AdminController {
         }))
       };
     } catch (error) {
-      console.error('Error getting restock metrics:', error);
-      return {
-        totalItems: 0,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
+      console.error('❌ Error en getRestockMetrics:', error);
+      return emptyRestockMetrics();
     }
   }
 
@@ -546,24 +570,22 @@ class AdminController {
       `);
 
       // Obtener métricas de reposición
-      const restockMetrics = {
-        totalItems: 0,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
+      const restockMetrics = await this.getRestockMetrics(timeRange, connection);
+
+      // Calcular eficiencia promedio
+      let averageEfficiency = 85;
+      if (advisorPerformance.length > 0) {
+        const totalEfficiency = advisorPerformance.reduce((sum, a) => sum + a.efficiencyScore, 0);
+        averageEfficiency = Math.round(totalEfficiency / advisorPerformance.length);
+      } else if (overall[0]?.avgVisitDuration) {
+        averageEfficiency = Math.max(0, Math.min(100, 100 - ((overall[0].avgVisitDuration - 30) * 2)));
+      }
 
       const metrics = {
         overall: {
           totalStores: parseInt(overall[0]?.totalStores || 0),
           completedVisits: parseInt(overall[0]?.completedVisits || 0),
-          averageEfficiency: Math.round(overall[0]?.avgVisitDuration ? 
-            Math.max(0, Math.min(100, 100 - ((overall[0].avgVisitDuration - 30) * 2))) : 85),
+          averageEfficiency: Math.round(averageEfficiency),
           totalDistance: parseFloat(overall[0]?.totalDistance || 0).toFixed(1)
         },
         damageAnalytics: {
@@ -602,7 +624,7 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Obtener reportes de daño (desde advancedAdminController)
+  // FUNCIÓN: Obtener reportes de daño
   async getDamageReports(req, res) {
     const connection = await createConnection();
     try {
@@ -660,7 +682,7 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Generar ruta optimizada (desde advancedAdminController)
+  // FUNCIÓN: Generar ruta optimizada
   async generateOptimizedRoute(req, res) {
     const connection = await createConnection();
     try {
