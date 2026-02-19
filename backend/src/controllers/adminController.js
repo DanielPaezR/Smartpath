@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 
 class AdminController {
   
+  // Obtener resumen general del dashboard
   async getDashboardOverview(req, res) {
     const connection = await createConnection();
     try {
@@ -70,6 +71,7 @@ class AdminController {
     }
   }
 
+  // Obtener estado en tiempo real de todos los asesores
   async getLiveAdvisorsStatus(req, res) {
     const connection = await createConnection();
     try {
@@ -138,6 +140,7 @@ class AdminController {
     }
   }
 
+  // Obtener detalle de un asesor específico
   async getAdvisorDetail(req, res) {
     const connection = await createConnection();
     try {
@@ -214,154 +217,7 @@ class AdminController {
     }
   }
 
-  async getRestockMetrics(timeRange, connection) {
-    try {
-      let timeCondition = '';
-      switch(timeRange) {
-        case 'week':
-          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-          break;
-        case 'month':
-          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-          break;
-        case 'quarter':
-          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
-          break;
-        default:
-          timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-      }
-
-      const [generalMetrics] = await connection.execute(`
-        SELECT 
-          COALESCE(SUM(ri.quantity), 0) as totalItems,
-          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
-          COUNT(DISTINCT ri.product_barcode) as uniqueProducts,
-          COUNT(DISTINCT ri.route_store_id) as visitsWithRestock,
-          COALESCE(SUM(ri.quantity) / NULLIF(COUNT(DISTINCT ri.route_store_id), 0), 0) as averageItemsPerVisit
-        FROM restock_items ri
-        WHERE 1=1 ${timeCondition}
-      `);
-
-      const [topProducts] = await connection.execute(`
-        SELECT 
-          ri.product_name as productName,
-          ri.product_barcode as productBarcode,
-          SUM(ri.quantity) as quantity,
-          SUM(ri.quantity * ri.unit_price) as totalValue
-        FROM restock_items ri
-        WHERE 1=1 ${timeCondition}
-        GROUP BY ri.product_barcode, ri.product_name
-        ORDER BY quantity DESC
-        LIMIT 10
-      `);
-
-      const [topCategories] = await connection.execute(`
-        SELECT 
-          COALESCE(ri.product_category, 'Sin categoría') as category,
-          SUM(ri.quantity) as quantity,
-          (SUM(ri.quantity) * 100.0 / NULLIF((SELECT SUM(quantity) FROM restock_items WHERE 1=1 ${timeCondition}), 0)) as percentage
-        FROM restock_items ri
-        WHERE 1=1 ${timeCondition}
-        GROUP BY category
-        ORDER BY quantity DESC
-      `);
-
-      const [restockByAdvisor] = await connection.execute(`
-        SELECT 
-          u.id as advisorId,
-          u.name as advisorName,
-          COALESCE(SUM(ri.quantity), 0) as totalItems,
-          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
-          COUNT(DISTINCT ri.route_store_id) as visits,
-          COALESCE(SUM(ri.quantity) / NULLIF(COUNT(DISTINCT ri.route_store_id), 0), 0) as averagePerVisit
-        FROM users u
-        LEFT JOIN restock_items ri ON u.id = ri.reported_by ${timeCondition.replace('ri.', '')}
-        WHERE u.role = 'advisor'
-        GROUP BY u.id, u.name
-        HAVING totalItems > 0
-        ORDER BY totalItems DESC
-      `);
-
-      const [restockByStore] = await connection.execute(`
-        SELECT 
-          s.id as storeId,
-          s.name as storeName,
-          COALESCE(SUM(ri.quantity), 0) as totalItems,
-          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
-          COUNT(DISTINCT ri.route_store_id) as visits
-        FROM stores s
-        LEFT JOIN restock_items ri ON s.id = ri.store_id ${timeCondition.replace('ri.', '')}
-        WHERE s.is_active = 1
-        GROUP BY s.id, s.name
-        HAVING totalItems > 0
-        ORDER BY totalItems DESC
-        LIMIT 10
-      `);
-
-      const [dailyTrend] = await connection.execute(`
-        SELECT 
-          DATE(ri.reported_at) as date,
-          SUM(ri.quantity) as items,
-          SUM(ri.quantity * ri.unit_price) as value
-        FROM restock_items ri
-        WHERE 1=1 ${timeCondition}
-        GROUP BY DATE(ri.reported_at)
-        ORDER BY date DESC
-        LIMIT 30
-      `);
-
-      return {
-        totalItems: parseInt(generalMetrics[0]?.totalItems || 0),
-        totalValue: parseFloat(generalMetrics[0]?.totalValue || 0),
-        uniqueProducts: parseInt(generalMetrics[0]?.uniqueProducts || 0),
-        averageItemsPerVisit: parseFloat(generalMetrics[0]?.averageItemsPerVisit || 0),
-        topRestockedProducts: topProducts.map(p => ({
-          productName: p.productName,
-          productBarcode: p.productBarcode,
-          quantity: parseInt(p.quantity),
-          totalValue: parseFloat(p.totalValue || 0)
-        })),
-        topRestockedCategories: topCategories.map(c => ({
-          category: c.category,
-          quantity: parseInt(c.quantity),
-          percentage: parseFloat(c.percentage || 0)
-        })),
-        restockByAdvisor: restockByAdvisor.map(a => ({
-          advisorId: a.advisorId,
-          advisorName: a.advisorName,
-          totalItems: parseInt(a.totalItems),
-          totalValue: parseFloat(a.totalValue),
-          averagePerVisit: parseFloat(a.averagePerVisit || 0)
-        })),
-        restockByStore: restockByStore.map(s => ({
-          storeId: s.storeId,
-          storeName: s.storeName,
-          totalItems: parseInt(s.totalItems),
-          totalValue: parseFloat(s.totalValue || 0),
-          visits: parseInt(s.visits)
-        })),
-        dailyRestockTrend: dailyTrend.map(d => ({
-          date: d.date,
-          items: parseInt(d.items),
-          value: parseFloat(d.value || 0)
-        }))
-      };
-    } catch (error) {
-      console.error('Error getting restock metrics:', error);
-      return {
-        totalItems: 0,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
-    }
-  }
-
+  // Obtener métricas avanzadas (SIN REPOSICIONES - VERSIÓN ESTABLE)
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     
@@ -454,19 +310,6 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      //const restockMetrics = await this.getRestockMetrics(timeRange, connection);
-      const restockMetrics = {
-        totalItems: 0,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
-
       const metrics = {
         overall: {
           totalStores: parseInt(overall[0]?.totalStores || 0),
@@ -492,12 +335,10 @@ class AdminController {
           averageTimePerStore: Math.round(a.averageTimePerStore),
           efficiencyScore: Math.round(a.efficiencyScore),
           damageReports: parseInt(a.damageReports || 0)
-        })),
-        restockMetrics: restockMetrics
+        }))
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
-      console.log('📦 Reposiciones:', restockMetrics.totalItems, 'productos');
       res.json(metrics);
 
     } catch (error) {
@@ -511,6 +352,7 @@ class AdminController {
     }
   }
 
+  // Obtener notificaciones
   async getNotifications(req, res) {
     const connection = await createConnection();
     try {
@@ -528,6 +370,7 @@ class AdminController {
     }
   }
 
+  // Marcar notificación como leída
   async markNotificationAsRead(req, res) {
     const connection = await createConnection();
     try {
