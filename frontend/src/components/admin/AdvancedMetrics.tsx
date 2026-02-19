@@ -65,7 +65,17 @@ const AdvancedMetrics: React.FC = () => {
     );
   }
 
-  const { restockMetrics } = metrics;
+  const restockMetrics = metrics.restockMetrics || {
+    totalItems: 0,
+    totalValue: 0,
+    uniqueProducts: 0,
+    averageItemsPerVisit: 0,
+    topRestockedProducts: [],
+    topRestockedCategories: [],
+    restockByAdvisor: [],
+    restockByStore: [],
+    dailyRestockTrend: []
+  };
 
   return (
     <div className="advanced-metrics">

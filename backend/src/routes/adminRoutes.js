@@ -15,11 +15,7 @@ router.get('/tracking/live-status', adminController.getLiveAdvisorsStatus);
 router.get('/tracking/advisor/:advisorId', adminController.getAdvisorDetail);
 router.get('/notifications', adminController.getNotifications);
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
-
-// ✅ MÉTRICAS AVANZADAS - UNA SOLA VEZ, usando adminController
 router.get('/metrics/advanced', adminController.getAdvancedMetrics);
-
-// Rutas de advancedAdminController
 router.post('/routes/optimize', advancedAdminController.generateOptimizedRoute);
 router.get('/reports/damage', advancedAdminController.getDamageReports);
 
