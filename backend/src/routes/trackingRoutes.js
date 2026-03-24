@@ -1,12 +1,14 @@
 // backend/src/routes/trackingRoutes.js
 import express from 'express';
-import { trackingController } from '../controllers/trackingController.js';
+import trackingController from '../controllers/trackingController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Rutas protegidas - requieren autenticación
-router.post('/update-location', authenticateToken, trackingController.updateLocation);
-router.get('/history/:advisorId', authenticateToken, trackingController.getLocationHistory);
+// Todas las rutas requieren autenticación
+router.use(authenticateToken);
+
+// Actualizar ubicación del asesor
+router.post('/update-location', trackingController.updateLocation);
 
 export default router;

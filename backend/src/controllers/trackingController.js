@@ -1,77 +1,53 @@
 // backend/src/controllers/trackingController.js
 import { createConnection } from '../config/database.js';
 
-export const trackingController = {
-  // Actualizar ubicación del asesor
+class TrackingController {
+  
+  // Actualizar ubicación de un asesor
   async updateLocation(req, res) {
     const connection = await createConnection();
     try {
-      const userId = req.user?.id; // Del middleware de autenticación
-      const { latitude, longitude, currentStoreId, activityStatus, batteryLevel } = req.body;
-
-      if (!userId) {
-        return res.status(401).json({ message: 'Usuario no autenticado' });
-      }
-
-      console.log('📍 Actualizando ubicación para usuario:', userId, {
-        latitude, longitude, currentStoreId, activityStatus, batteryLevel
-      });
-
-      // Insertar o actualizar tracking
+      const userId = req.user.id; // Del token JWT
+      const { latitude, longitude, activity_status, current_store_id, battery_level } = req.body;
+      
+      console.log(`📍 Actualizando ubicación para asesor ID: ${userId}`);
+      console.log(`   Lat: ${latitude}, Lng: ${longitude}`);
+      console.log(`   Estado: ${activity_status || 'traveling'}`);
+      
+      // Insertar o actualizar ubicación en tiempo real
       await connection.execute(
         `INSERT INTO real_time_tracking 
-         (user_id, latitude, longitude, current_store_id, activity_status, battery_level, last_update)
+         (user_id, latitude, longitude, activity_status, current_store_id, battery_level, last_update)
          VALUES (?, ?, ?, ?, ?, ?, NOW())
          ON DUPLICATE KEY UPDATE
          latitude = VALUES(latitude),
          longitude = VALUES(longitude),
-         current_store_id = VALUES(current_store_id),
          activity_status = VALUES(activity_status),
+         current_store_id = VALUES(current_store_id),
          battery_level = VALUES(battery_level),
-         last_update = NOW()`,
-        [userId, latitude, longitude, currentStoreId || null, activityStatus, batteryLevel]
+         last_update = VALUES(last_update)`,
+        [userId, latitude, longitude, activity_status || 'traveling', current_store_id || null, battery_level || null]
       );
-
+      
+      console.log(`✅ Ubicación guardada para asesor ${userId}`);
+      
       res.json({ 
-        message: 'Ubicación actualizada exitosamente',
+        success: true, 
+        message: 'Ubicación actualizada',
         timestamp: new Date().toISOString()
       });
-    } catch (error) {
-      console.error('Error actualizando ubicación:', error);
-      res.status(500).json({ message: 'Error actualizando ubicación' });
-    } finally {
-      await connection.end();
-    }
-  },
-
-  // Obtener historial de ubicaciones de un asesor
-  async getLocationHistory(req, res) {
-    const connection = await createConnection();
-    try {
-      const { advisorId } = req.params;
-      const { startDate, endDate } = req.query;
-
-      let query = `
-        SELECT * FROM real_time_tracking 
-        WHERE user_id = ? 
-      `;
-      const params = [advisorId];
-
-      if (startDate && endDate) {
-        query += ` AND DATE(last_update) BETWEEN ? AND ?`;
-        params.push(startDate, endDate);
-      }
-
-      query += ` ORDER BY last_update DESC LIMIT 100`;
-
-      const [rows] = await connection.execute(query, params);
       
-      res.json(rows);
     } catch (error) {
-      console.error('Error obteniendo historial:', error);
-      res.status(500).json({ message: 'Error obteniendo historial de ubicaciones' });
+      console.error('❌ Error actualizando ubicación:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error al actualizar ubicación',
+        error: error.message 
+      });
     } finally {
       await connection.end();
     }
   }
-};
+}
+
+export default new TrackingController();
