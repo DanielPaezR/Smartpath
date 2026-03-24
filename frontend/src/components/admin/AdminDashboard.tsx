@@ -225,40 +225,6 @@ const AdminDashboard: React.FC = () => {
               onClick={() => navigate('/admin/stores')}
             />
             
-            <DashboardCard 
-              icon="📊"
-              title="Métricas" 
-              description="Ver datos de productos, ventas y métricas"
-              onClick={() => {
-                if (backendAvailable) {
-                  navigate('/admin/metrics');
-                } else {
-                  alert('Esta función requiere que el backend esté disponible');
-                }
-              }}
-            />
-          </div>
-          <div className="cards-grid">
-            <DashboardCard 
-              icon="📍"
-              title="Seguimiento" 
-              description="Monitorear ubicación actual de asesores"
-              onClick={() => {
-                if (backendAvailable) {
-                  navigate('/admin/tracking');
-                } else {
-                  alert('Esta función requiere que el backend esté disponible');
-                }
-              }}
-            />
-            
-            <DashboardCard 
-              icon="🏪"
-              title="Gestión de Tiendas" 
-              description="Asignar tiendas a asesores y gestionar puntos de venta"
-              onClick={() => navigate('/admin/stores')}
-            />
-            
             {/* 🆕 NUEVA TARJETA: Productos */}
             <DashboardCard 
               icon="📦"
