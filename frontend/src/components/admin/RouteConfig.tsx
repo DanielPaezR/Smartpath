@@ -15,6 +15,12 @@ const daysOfWeek = [
   { number: 7, name: 'Domingo' }
 ];
 
+interface DaySchedule {
+  dayName: string;
+  dayNumber: number;
+  stores: any[]; // o el tipo específico de store
+}
+
 interface StoreSimple {
   id: number;
   name: string;
@@ -80,25 +86,79 @@ const RouteConfig: React.FC = () => {
 
   const loadSchedule = async (advisorId: number) => {
     try {
-      // 1. Cargar configuración semanal existente
-      let data = await routeConfigService.getAdvisorSchedule(advisorId);
+      console.log('📋 Cargando configuración para asesor:', advisorId);
       
-      // 2. Si no hay datos semanales, cargar desde daily_routes
-      const hasData = Object.keys(data.schedule).some(key => 
-        data.schedule[parseInt(key)]?.stores?.length > 0
+      // 1. Cargar configuración semanal existente
+      const data = await routeConfigService.getAdvisorSchedule(advisorId);
+      
+      // Verificar si la respuesta tiene la estructura esperada
+      if (!data || !data.schedule) {
+        console.log('⚠️ No hay configuración semanal, creando estructura vacía');
+        
+        // Crear estructura vacía para los 7 días
+        const emptySchedule: AdvisorSchedule = {
+          advisor: { id: advisorId, name: '' },
+          schedule: {} as Record<number, DaySchedule>
+        };
+        
+        for (let i = 1; i <= 7; i++) {
+          emptySchedule.schedule[i] = {
+            dayName: daysOfWeek[i-1].name,
+            dayNumber: i,
+            stores: []
+          };
+        }
+        
+        setSchedule(emptySchedule);
+        return;
+      }
+      
+      // Verificar si hay datos en la configuración semanal
+      const hasData = daysOfWeek.some(day => 
+        data.schedule[day.number]?.stores?.length > 0
       );
       
       if (!hasData) {
-        console.log('📋 No hay configuración semanal, cargando desde daily_routes...');
-        const weeklyData = await loadFromDailyRoutes(advisorId);
-        if (weeklyData) {
-          data = weeklyData;
+        console.log('📋 No hay configuración semanal, mostrando vacío');
+        // Mostrar estructura vacía
+        const emptySchedule: AdvisorSchedule = {
+          advisor: data.advisor,
+          schedule: {} as Record<number, DaySchedule>
+        };
+        
+        for (let i = 1; i <= 7; i++) {
+          emptySchedule.schedule[i] = {
+            dayName: daysOfWeek[i-1].name,
+            dayNumber: i,
+            stores: []
+          };
         }
+        
+        setSchedule(emptySchedule);
+        return;
       }
       
+      console.log('✅ Configuración semanal cargada:', data);
       setSchedule(data);
+      
     } catch (error) {
       console.error('Error cargando configuración:', error);
+      
+      // En caso de error, crear estructura vacía
+      const emptySchedule: AdvisorSchedule = {
+        advisor: { id: advisorId, name: '' },
+        schedule: {} as Record<number, DaySchedule>
+      };
+      
+      for (let i = 1; i <= 7; i++) {
+        emptySchedule.schedule[i] = {
+          dayName: daysOfWeek[i-1].name,
+          dayNumber: i,
+          stores: []
+        };
+      }
+      
+      setSchedule(emptySchedule);
     }
   };
 
