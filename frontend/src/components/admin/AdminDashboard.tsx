@@ -189,19 +189,6 @@ const AdminDashboard: React.FC = () => {
               description="Crear, editar y gestionar productos del catálogo"
               onClick={() => navigate('/admin/products')}
             />
-            
-            <DashboardCard 
-              icon="📊"
-              title="Métricas" 
-              description="Ver datos de productos, ventas y métricas"
-              onClick={() => {
-                if (backendAvailable) {
-                  navigate('/admin/metrics');
-                } else {
-                  alert('Esta función requiere que el backend esté disponible');
-                }
-              }}
-            />
 
             <DashboardCard 
               icon="👥"
@@ -215,6 +202,19 @@ const AdminDashboard: React.FC = () => {
               title="Configuración de Rutas" 
               description="Asignar tiendas a asesores por día de la semana"
               onClick={() => navigate('/admin/route-config')}
+            />
+
+            <DashboardCard 
+              icon="📊"
+              title="Métricas" 
+              description="Ver datos de productos, ventas y métricas"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/metrics');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
             />
           </div>
         </section>
