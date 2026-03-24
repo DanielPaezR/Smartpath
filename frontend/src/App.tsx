@@ -109,12 +109,6 @@ function App() {
               </AdminRoute>
             } />
             
-            <Route path="/admin/advisors" element={
-              <AdminRoute>
-                <PlaceholderPage title="Gestión de Asesores" />
-              </AdminRoute>
-            } />
-            
             <Route path="/admin/notifications" element={
               <AdminRoute>
                 <PlaceholderPage title="Notificaciones y Alertas" />
