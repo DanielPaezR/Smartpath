@@ -1,5 +1,6 @@
 // backend/src/controllers/storeController.js
 import { Store } from '../models/Store.js';
+import { createConnection } from '../config/database.js'; 
 
 export const storeController = {
   // Listar todas las tiendas
@@ -136,22 +137,14 @@ export const storeController = {
     try {
       const { id } = req.params;
       
+      // Usar el modelo Store si tiene método delete
+      const success = await Store.delete(parseInt(id));
       
-      const connection = await createConnection();
-      try {
-        const [result] = await connection.execute(
-          'DELETE FROM stores WHERE id = ?',
-          [id]
-        );
-        
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ message: 'Tienda no encontrada' });
-        }
-        
-        res.json({ message: 'Tienda eliminada exitosamente' });
-      } finally {
-        await connection.end();
+      if (!success) {
+        return res.status(404).json({ message: 'Tienda no encontrada' });
       }
+      
+      res.json({ message: 'Tienda eliminada exitosamente' });
     } catch (error) {
       console.error('Error eliminando tienda:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
