@@ -1079,103 +1079,45 @@ class AdminController {
     }
   }
 
-  async getWeeklyPattern(req, res) {
+    async getWeeklyPattern(req, res) {
     const connection = await createConnection();
     try {
       const { advisorId } = req.params;
       
-      // Obtener las rutas de los últimos 7 días para inferir el patrón
-      const [routes] = await connection.execute(`
+      console.log(`📋 Obteniendo patrón semanal para asesor ${advisorId} desde tabla routes`);
+      
+      // Obtener la ruta MÁS RECIENTE para cada día de la semana
+      // Primero, obtener todas las rutas del asesor
+      const [allRoutes] = await connection.execute(`
         SELECT 
-          DAYOFWEEK(dr.route_date) as day_of_week,
-          rs.store_id,
-          rs.visit_order
-        FROM daily_routes dr
-        JOIN route_stores rs ON dr.id = rs.route_id
-        WHERE dr.user_id = ? 
-          AND dr.route_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        ORDER BY dr.route_date, rs.visit_order
+          r.id as route_id,
+          r.date,
+          DAYOFWEEK(r.date) as day_of_week,
+          r.total_stores
+        FROM routes r
+        WHERE r.advisor_id = ? 
+          AND r.date >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+        ORDER BY r.date DESC
       `, [advisorId]);
       
-      // Agrupar por día
-      const schedule = {};
-      for (let i = 1; i <= 7; i++) {
-        schedule[i] = {
-          dayName: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][i-1],
-          dayNumber: i,
-          stores: []
-        };
-      }
+      console.log(`📊 Encontradas ${allRoutes.length} rutas`);
       
-      routes.forEach(route => {
+      // Para cada día de la semana (1=Lunes, 7=Domingo), encontrar la ruta más reciente
+      const latestRoutesByDay = {};
+      
+      allRoutes.forEach(route => {
         const day = route.day_of_week;
-        if (!schedule[day].stores.some(s => s.store_id === route.store_id)) {
-          schedule[day].stores.push({
-            id: route.store_id,
-            store_id: route.store_id,
-            store_name: 'Cargando...',
-            visit_order: route.visit_order
-          });
+        // Si no tenemos una ruta para este día, o esta es más reciente
+        if (!latestRoutesByDay[day] || new Date(route.date) > new Date(latestRoutesByDay[day].date)) {
+          latestRoutesByDay[day] = route;
         }
       });
       
-      // Cargar nombres de tiendas
-      for (let day of Object.values(schedule)) {
-        for (let store of day.stores) {
-          const [storeInfo] = await connection.execute(
-            'SELECT name, address, priority FROM stores WHERE id = ?',
-            [store.store_id]
-          );
-          if (storeInfo[0]) {
-            store.store_name = storeInfo[0].name;
-            store.address = storeInfo[0].address;
-            store.priority = storeInfo[0].priority;
-          }
-        }
-      }
-      
-      res.json({ success: true, schedule, advisor: { id: advisorId } });
-      
-    } catch (error) {
-      console.error('Error obteniendo patrón semanal:', error);
-      res.status(500).json({ success: false, error: error.message });
-    } finally {
-      await connection.end();
-    }
-  }
-
-  async getWeeklyPattern(req, res) {
-    const connection = await createConnection();
-    try {
-      const { advisorId } = req.params;
-      
-      console.log(`📋 Obteniendo patrón semanal para asesor ${advisorId} desde routes`);
-      
-      // Obtener rutas de los últimos días desde la tabla routes
-      const [routes] = await connection.execute(`
-        SELECT 
-          r.date,
-          DAYOFWEEK(r.date) as day_of_week,
-          rs.store_id,
-          rs.visit_order,
-          s.name as store_name,
-          s.address,
-          s.priority,
-          s.latitude,
-          s.longitude
-        FROM routes r
-        JOIN route_stores rs ON r.id = rs.route_id
-        JOIN stores s ON rs.store_id = s.id
-        WHERE r.advisor_id = ? 
-          AND r.date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        ORDER BY r.date DESC, rs.visit_order ASC
-      `, [advisorId]);
-      
-      console.log(`📊 Encontrados ${routes.length} registros de rutas`);
+      console.log(`📅 Días con rutas:`, Object.keys(latestRoutesByDay));
       
       // Estructura para los 7 días
-      const schedule = {};
       const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const schedule = {};
       
       // Inicializar todos los días
       for (let i = 1; i <= 7; i++) {
@@ -1186,54 +1128,51 @@ class AdminController {
         };
       }
       
-      // Agrupar por día, tomando la última configuración para cada día
-      const storesByDay = {};
-      
-      routes.forEach(route => {
-        const day = route.day_of_week;
-        const key = `${day}_${route.store_id}`;
+      // Para cada día que tenga una ruta, obtener sus tiendas
+      for (const [day, route] of Object.entries(latestRoutesByDay)) {
+        const [stores] = await connection.execute(`
+          SELECT 
+            rs.store_id,
+            rs.visit_order,
+            s.name as store_name,
+            s.address,
+            s.priority,
+            s.latitude,
+            s.longitude
+          FROM route_stores rs
+          JOIN stores s ON rs.store_id = s.id
+          WHERE rs.route_id = ?
+          ORDER BY rs.visit_order ASC
+        `, [route.route_id]);
         
-        if (!storesByDay[key]) {
-          storesByDay[key] = {
-            store_id: route.store_id,
-            store_name: route.store_name,
-            address: route.address,
-            priority: route.priority,
-            visit_order: route.visit_order,
-            coordinates: {
-              lat: parseFloat(route.latitude) || null,
-              lng: parseFloat(route.longitude) || null
-            }
-          };
-        }
-      });
-      
-      // Convertir a array por día
-      for (let day = 1; day <= 7; day++) {
-        const dayStores = Object.values(storesByDay)
-          .filter(store => {
-            // Determinar a qué día pertenece según el visit_order o algún criterio
-            // Por ahora, asignamos todas las tiendas a todos los días
-            return true;
-          })
-          .map((store, index) => ({
-            ...store,
-            id: store.store_id,
-            visit_order: index + 1
-          }));
+        console.log(`📅 Día ${day} (${daysOfWeek[day-1]}): ${stores.length} tiendas`);
         
-        schedule[day].stores = dayStores;
+        schedule[day].stores = stores.map(store => ({
+          id: store.store_id,
+          store_id: store.store_id,
+          store_name: store.store_name,
+          address: store.address,
+          priority: store.priority,
+          visit_order: store.visit_order,
+          coordinates: {
+            lat: parseFloat(store.latitude) || null,
+            lng: parseFloat(store.longitude) || null
+          }
+        }));
       }
       
-      const advisorInfo = await connection.execute(
+      // Obtener información del asesor
+      const [advisorInfo] = await connection.execute(
         'SELECT id, name FROM users WHERE id = ?',
         [advisorId]
       );
       
+      console.log(`✅ Patrón semanal generado exitosamente`);
+      
       res.json({ 
         success: true, 
         schedule, 
-        advisor: advisorInfo[0][0] || { id: advisorId, name: 'Asesor' }
+        advisor: advisorInfo[0] || { id: advisorId, name: 'Asesor' }
       });
       
     } catch (error) {
