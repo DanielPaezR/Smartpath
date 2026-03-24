@@ -1,77 +1,182 @@
 /* frontend/src/styles/AdvisorManagement.css */
 .advisor-management {
-  padding: 24px;
+  padding: 16px;
   max-width: 1400px;
   margin: 0 auto;
+  min-height: 100vh;
+  background: #f8f9fa;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .header h1 {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   color: #2c3e50;
+  margin: 0;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
-  color: white;
-  border: none;
-  padding: 10px 20px;
+/* Botones táctiles */
+.btn-primary, .btn-secondary, .btn-edit, .btn-delete {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 16px;
   border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  border: none;
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+.btn-primary {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  color: white;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
 }
 
 .btn-secondary {
   background: #95a5a6;
   color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.btn-edit, .btn-delete {
-  padding: 6px 10px;
-  margin: 0 4px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
 }
 
 .btn-edit {
   background: #3498db;
   color: white;
+  padding: 8px 12px;
 }
 
 .btn-delete {
   background: #e74c3c;
   color: white;
+  padding: 8px 12px;
 }
 
+/* Vista de tarjetas para móvil */
+.advisors-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.advisor-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e9ecef;
+}
+
+.advisor-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.advisor-avatar {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  color: white;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.advisor-card-name {
+  flex: 1;
+}
+
+.advisor-card-name h3 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  color: #2c3e50;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.inactive {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.advisor-card-info {
+  margin-bottom: 12px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #2c3e50;
+}
+
+.advisor-card-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #e9ecef;
+}
+
+.advisor-card-actions button {
+  flex: 1;
+  min-height: 44px;
+  font-size: 0.85rem;
+}
+
+/* Tabla para desktop */
 .advisors-table-container {
   overflow-x: auto;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .advisors-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px;
 }
 
 .advisors-table th,
@@ -101,38 +206,17 @@
   font-size: 0.85rem;
 }
 
-.vehicle {
-  font-size: 0.9rem;
-}
-
 .schedule {
   font-family: monospace;
   font-size: 0.85rem;
   color: #27ae60;
 }
 
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-badge.active {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.status-badge.inactive {
-  background: #ffebee;
-  color: #c62828;
-}
-
 .actions {
   white-space: nowrap;
 }
 
-/* Modal */
+/* Modal responsivo */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -144,21 +228,36 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 16px;
 }
 
 .modal-content {
   background: white;
   border-radius: 16px;
-  padding: 24px;
-  width: 90%;
+  padding: 20px;
+  width: 100%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
 }
 
+.modal-content.mobile-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: none;
+  border-radius: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
 .modal-content h2 {
   margin: 0 0 20px 0;
   color: #2c3e50;
+  font-size: 1.3rem;
 }
 
 .form-group {
@@ -167,19 +266,22 @@
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-weight: 500;
   color: #2c3e50;
+  font-size: 0.9rem;
 }
 
 .form-group input,
 .form-group select {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   transition: border-color 0.3s;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .form-group input:focus,
@@ -191,7 +293,7 @@
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 
 .checkbox-label {
@@ -199,47 +301,72 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  margin-top: 32px;
 }
 
 .checkbox-label input {
-  width: auto;
+  width: 20px;
+  height: 20px;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  flex: 1;
+  min-height: 48px;
 }
 
 .loading, .error {
   text-align: center;
   padding: 40px;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .error {
   color: #e74c3c;
 }
 
+/* Responsive */
 @media (max-width: 768px) {
   .advisor-management {
-    padding: 16px;
+    padding: 12px;
   }
   
   .header {
     flex-direction: column;
-    gap: 16px;
     align-items: stretch;
+  }
+  
+  .header h1 {
+    font-size: 1.3rem;
+    text-align: center;
+  }
+  
+  .btn-primary {
+    width: 100%;
+    text-align: center;
   }
   
   .form-row {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
   
-  .advisors-table th,
-  .advisors-table td {
-    padding: 8px 12px;
-    font-size: 0.85rem;
+  .modal-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+  
+  .checkbox-label {
+    margin-top: 0;
   }
 }

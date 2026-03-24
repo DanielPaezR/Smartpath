@@ -11,6 +11,7 @@ import RealTimeTracking from './components/admin/RealTimeTracking';
 import AdvancedMetrics from './components/admin/AdvancedMetrics';
 import ProductManagement from './components/admin/ProductManagement';
 import AdvisorManagement from './components/admin/AdvisorManagement';
+import RouteConfig from './components/admin/RouteConfig';
 import './styles/global-fixes.css';
 import InstallPWA from './components/common/InstallPWA';
 import './App.css';
@@ -103,9 +104,9 @@ function App() {
               </AdminRoute>
             } />
             
-            <Route path="/admin/settings" element={
+            <Route path="/admin/route-config" element={
               <AdminRoute>
-                <PlaceholderPage title="Configuración de Rutas" />
+                <RouteConfig />
               </AdminRoute>
             } />
             

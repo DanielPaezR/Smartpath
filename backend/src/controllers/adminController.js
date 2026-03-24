@@ -904,6 +904,157 @@ class AdminController {
       await connection.end();
     }
   }
+
+  async getAdvisorSchedule(req, res) {
+    const connection = await createConnection();
+    try {
+      const { advisorId } = req.params;
+      
+      // Verificar que el asesor existe
+      const [advisor] = await connection.execute(
+        'SELECT id, name FROM users WHERE id = ? AND role = "advisor"',
+        [advisorId]
+      );
+      
+      if (advisor.length === 0) {
+        return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
+      }
+      
+      // Obtener la configuración semanal
+      const [schedule] = await connection.execute(`
+        SELECT aws.id, aws.day_of_week, aws.store_id, aws.visit_order, aws.is_active,
+               s.name as store_name, s.address, s.priority
+        FROM advisor_weekly_schedule aws
+        JOIN stores s ON aws.store_id = s.id
+        WHERE aws.advisor_id = ? AND aws.is_active = 1
+        ORDER BY aws.day_of_week, aws.visit_order
+      `, [advisorId]);
+      
+      // Agrupar por día de semana
+      const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const groupedSchedule = {};
+      
+      for (let i = 1; i <= 7; i++) {
+        groupedSchedule[i] = {
+          dayName: daysOfWeek[i-1],
+          dayNumber: i,
+          stores: schedule.filter(s => s.day_of_week === i)
+        };
+      }
+      
+      res.json({
+        success: true,
+        advisor: advisor[0],
+        schedule: groupedSchedule
+      });
+      
+    } catch (error) {
+      console.error('Error al obtener configuración de rutas:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+  
+  // 🆕 AGREGAR TIENDA A LA RUTA DE UN ASESOR
+  async addStoreToSchedule(req, res) {
+    const connection = await createConnection();
+    try {
+      const { advisorId } = req.params;
+      const { day_of_week, store_id, visit_order } = req.body;
+      
+      // Validar día
+      if (day_of_week < 1 || day_of_week > 7) {
+        return res.status(400).json({ success: false, message: 'Día inválido' });
+      }
+      
+      // Verificar que la tienda existe
+      const [store] = await connection.execute(
+        'SELECT id FROM stores WHERE id = ?',
+        [store_id]
+      );
+      if (store.length === 0) {
+        return res.status(404).json({ success: false, message: 'Tienda no encontrada' });
+      }
+      
+      // Insertar o actualizar
+      await connection.execute(`
+        INSERT INTO advisor_weekly_schedule (advisor_id, day_of_week, store_id, visit_order)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+        visit_order = VALUES(visit_order), is_active = 1, updated_at = NOW()
+      `, [advisorId, day_of_week, store_id, visit_order || 0]);
+      
+      res.json({ success: true, message: 'Tienda agregada a la ruta' });
+      
+    } catch (error) {
+      console.error('Error al agregar tienda a ruta:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+  
+  // 🆕 ELIMINAR TIENDA DE LA RUTA
+  async removeStoreFromSchedule(req, res) {
+    const connection = await createConnection();
+    try {
+      const { advisorId, scheduleId } = req.params;
+      
+      await connection.execute(
+        'DELETE FROM advisor_weekly_schedule WHERE id = ? AND advisor_id = ?',
+        [scheduleId, advisorId]
+      );
+      
+      res.json({ success: true, message: 'Tienda eliminada de la ruta' });
+      
+    } catch (error) {
+      console.error('Error al eliminar tienda de ruta:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+  
+  // 🆕 ACTUALIZAR ORDEN DE VISITAS
+  async updateScheduleOrder(req, res) {
+    const connection = await createConnection();
+    try {
+      const { advisorId } = req.params;
+      const { updates } = req.body; // Array de {id, visit_order}
+      
+      for (const update of updates) {
+        await connection.execute(
+          'UPDATE advisor_weekly_schedule SET visit_order = ? WHERE id = ? AND advisor_id = ?',
+          [update.visit_order, update.id, advisorId]
+        );
+      }
+      
+      res.json({ success: true, message: 'Orden actualizado' });
+      
+    } catch (error) {
+      console.error('Error al actualizar orden:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+  
+  // 🆕 OBTENER TODAS LAS TIENDAS (para el selector)
+  async getAllStoresSimple(req, res) {
+    const connection = await createConnection();
+    try {
+      const [stores] = await connection.execute(
+        'SELECT id, name, address, priority FROM stores ORDER BY name ASC'
+      );
+      res.json({ success: true, stores });
+    } catch (error) {
+      console.error('Error al obtener tiendas:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 export default new AdminController();

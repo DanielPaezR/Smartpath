@@ -18,6 +18,13 @@ const ProductManagement: React.FC = () => {
     stock: 0,
     description: ''
   });
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadProducts();
@@ -124,44 +131,82 @@ const ProductManagement: React.FC = () => {
         </button>
       </div>
 
-      <div className="products-table-container">
-        <table className="products-table">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Marca</th>
-              <th>Precio</th>
-              <th>Stock</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map(product => (
-              <tr key={product.id}>
-                <td className="barcode">{product.barcode}</td>
-                <td className="name">{product.name}</td>
-                <td>{product.category || '-'}</td>
-                <td>{product.brand || '-'}</td>
-                <td className="price">{formatCurrency(product.price)}</td>
-                <td className={`stock ${product.stock < 10 ? 'low-stock' : ''}`}>
-                  {product.stock}
-                </td>
-                <td className="actions">
-                  <button className="btn-edit" onClick={() => handleEdit(product)}>✏️</button>
-                  <button className="btn-delete" onClick={() => handleDelete(product.id)}>🗑️</button>
-                </td>
+      {/* Vista en tabla para desktop, tarjetas para móvil */}
+      {isMobile ? (
+        <div className="products-cards">
+          {products.map(product => (
+            <div key={product.id} className="product-card">
+              <div className="product-card-header">
+                <span className="product-card-name">{product.name}</span>
+                <span className={`stock-badge ${product.stock < 10 ? 'low' : ''}`}>
+                  Stock: {product.stock}
+                </span>
+              </div>
+              <div className="product-card-info">
+                <div className="info-row">
+                  <span className="info-label">Código:</span>
+                  <span className="info-value">{product.barcode}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Categoría:</span>
+                  <span className="info-value">{product.category || '-'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Marca:</span>
+                  <span className="info-value">{product.brand || '-'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Precio:</span>
+                  <span className="info-value price">{formatCurrency(product.price)}</span>
+                </div>
+              </div>
+              <div className="product-card-actions">
+                <button className="btn-edit" onClick={() => handleEdit(product)}>✏️ Editar</button>
+                <button className="btn-delete" onClick={() => handleDelete(product.id)}>🗑️ Eliminar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="products-table-container">
+          <table className="products-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Marca</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {products.map(product => (
+                <tr key={product.id}>
+                  <td className="barcode">{product.barcode}</td>
+                  <td className="name">{product.name}</td>
+                  <td>{product.category || '-'}</td>
+                  <td>{product.brand || '-'}</td>
+                  <td className="price">{formatCurrency(product.price)}</td>
+                  <td className={`stock ${product.stock < 10 ? 'low-stock' : ''}`}>
+                    {product.stock}
+                  </td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => handleEdit(product)}>✏️</button>
+                    <button className="btn-delete" onClick={() => handleDelete(product.id)}>🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Modal para crear/editar producto */}
+      {/* Modal responsivo */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className={`modal-content ${isMobile ? 'mobile-modal' : ''}`} onClick={e => e.stopPropagation()}>
             <h2>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">

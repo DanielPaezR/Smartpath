@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../services/api';
-import '../../styles/AdminDashboard.css'; // Importamos los estilos CSS
+import '../../styles/AdminDashboard.css';
 
 // Interfaces para los datos
 interface DashboardOverview {
@@ -15,13 +15,7 @@ interface DashboardOverview {
   avg_visit_duration: number;
 }
 
-interface ApiResponse {
-  success: boolean;
-  data?: DashboardOverview;
-  message?: string;
-}
-
-// Componente de tarjeta usando clases CSS
+// Componente de tarjeta
 const DashboardCard: React.FC<{ 
   title: string; 
   description: string; 
@@ -86,55 +80,22 @@ const AdminDashboard: React.FC = () => {
 
       console.log('📊 Status:', response.status);
 
-      if (response.status === 404) {
-        console.log('⚠️ Endpoint no encontrado, usando datos de prueba');
-        const mockData: DashboardOverview = {
-          active_advisors: 12,
-          active_routes: 8,
-          total_stores_today: 156,
-          completed_stores: 89,
-          in_progress_stores: 25,
-          avg_visit_duration: 42
-        };
-        setDashboardData(mockData);
-        setError('⚠️ Backend en desarrollo. Usando datos de prueba.');
-        return;
-      }
-
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      const apiResponse: ApiResponse = await response.json();
-      console.log('✅ Respuesta del backend:', apiResponse);
+      // El backend devuelve directamente los datos, no con { success: true, data: ... }
+      const data: DashboardOverview = await response.json();
+      console.log('✅ Datos reales del backend:', data);
       
-      if (apiResponse.success && apiResponse.data) {
-        setDashboardData(apiResponse.data);
-      } else {
-        console.log('⚠️ Backend sin datos, usando datos de prueba');
-        const mockData: DashboardOverview = {
-          active_advisors: 12,
-          active_routes: 8,
-          total_stores_today: 156,
-          completed_stores: 89,
-          in_progress_stores: 25,
-          avg_visit_duration: 42
-        };
-        setDashboardData(mockData);
-      }
+      setDashboardData(data);
       
     } catch (err: any) {
       console.error('❌ Error cargando dashboard:', err);
-      const mockData: DashboardOverview = {
-        active_advisors: 12,
-        active_routes: 8,
-        total_stores_today: 156,
-        completed_stores: 89,
-        in_progress_stores: 25,
-        avg_visit_duration: 42
-      };
-      setDashboardData(mockData);
-      setError(err instanceof Error ? err.message : 'Error desconocido. Usando datos de prueba.');
+      setError(err.message);
+      setBackendAvailable(false);
+      // No usar datos mock, mostrar error claramente
+      setDashboardData(null);
     } finally {
       setLoading(false);
     }
@@ -156,7 +117,6 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-container">
-          {/* Fila superior */}
           <div className="header-top">
             <div className="header-title">
               <h1>Panel de Administración</h1>
@@ -169,7 +129,6 @@ const AdminDashboard: React.FC = () => {
             </button>
           </div>
 
-          {/* Info del usuario */}
           <div className="user-info-row">
             <div className="user-badges">
               <span className="admin-badge">
@@ -200,7 +159,6 @@ const AdminDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Contenido Principal */}
       <main className="dashboard-content">
         {/* Grid de Tarjetas */}
         <section className="cards-section">
@@ -225,7 +183,6 @@ const AdminDashboard: React.FC = () => {
               onClick={() => navigate('/admin/stores')}
             />
             
-            {/* 🆕 NUEVA TARJETA: Productos */}
             <DashboardCard 
               icon="📦"
               title="Gestión de Productos" 
@@ -262,7 +219,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         </section>
 
-        {/* Resumen Rápido */}
+        {/* Resumen Rápido - Ahora con datos reales */}
         <section className="quick-overview">
           <div className="overview-header">
             <div className="overview-title-row">
@@ -271,7 +228,7 @@ const AdminDashboard: React.FC = () => {
               <div className="overview-actions">
                 {!backendAvailable && (
                   <span className="demo-badge">
-                    Modo Demo
+                    ⚠️ Sin conexión
                   </span>
                 )}
                 <button 
@@ -279,26 +236,23 @@ const AdminDashboard: React.FC = () => {
                   className="refresh-btn"
                   disabled={loading}
                 >
-                  Actualizar
+                  {loading ? 'Cargando...' : '🔄 Actualizar'}
                 </button>
               </div>
             </div>
           </div>
           
-          {error && !backendAvailable && (
+          {!backendAvailable && (
             <div className="error-banner">
               <div className="error-content">
                 <div className="error-text">
-                  <strong>⚠️ Modo Demo:</strong>
-                  <span> Backend no disponible.</span>
+                  <strong>⚠️ Error de conexión:</strong>
+                  <span> {error || 'No se pudo conectar al servidor backend'}</span>
                 </div>
               </div>
               <div className="debug-info">
-                <p>Para usar todas las funciones:</p>
-                <ol>
-                  <li>Ejecutar backend en localhost:10000</li>
-                  <li>Configurar rutas de admin</li>
-                </ol>
+                <p>Verifica que el backend esté corriendo en el puerto 10000</p>
+                <p>Comando: <code>pm2 logs backend</code> para ver errores</p>
               </div>
             </div>
           )}
@@ -306,48 +260,53 @@ const AdminDashboard: React.FC = () => {
           {loading ? (
             <div className="loading-state">
               <div className="spinner"></div>
-              <p className="loading-text">
-                {backendAvailable ? 'Cargando datos...' : 'Preparando demo...'}
-              </p>
+              <p className="loading-text">Cargando datos del servidor...</p>
             </div>
-          ) : (
+          ) : dashboardData ? (
             <div className="stats-grid">
               <div className="stat-item">
                 <strong className="stat-label">Asesores Activos:</strong>
                 <span className="stat-value">
-                  {dashboardData?.active_advisors ?? 'N/A'}
+                  {dashboardData.active_advisors}
                 </span>
               </div>
               <div className="stat-item">
                 <strong className="stat-label">Tiendas Hoy:</strong>
                 <span className="stat-value">
-                  {dashboardData?.total_stores_today ?? 'N/A'}
+                  {dashboardData.total_stores_today}
                 </span>
               </div>
               <div className="stat-item">
-                <strong className="stat-label">Rutas en Progreso:</strong>
+                <strong className="stat-label">Rutas Activas:</strong>
                 <span className="stat-value">
-                  {dashboardData?.active_routes ?? 'N/A'}
+                  {dashboardData.active_routes}
                 </span>
               </div>
               <div className="stat-item">
-                <strong className="stat-label">Tiendas Completadas:</strong>
+                <strong className="stat-label">Completadas:</strong>
                 <span className="stat-value">
-                  {dashboardData?.completed_stores ?? 'N/A'}
+                  {dashboardData.completed_stores}
                 </span>
               </div>
               <div className="stat-item">
-                <strong className="stat-label">Tiendas en Progreso:</strong>
+                <strong className="stat-label">En Progreso:</strong>
                 <span className="stat-value">
-                  {dashboardData?.in_progress_stores ?? 'N/A'}
+                  {dashboardData.in_progress_stores}
                 </span>
               </div>
               <div className="stat-item">
                 <strong className="stat-label">Duración Promedio:</strong>
                 <span className="stat-value">
-                  {dashboardData?.avg_visit_duration ? `${dashboardData.avg_visit_duration} min` : 'N/A'}
+                  {dashboardData.avg_visit_duration} min
                 </span>
               </div>
+            </div>
+          ) : (
+            <div className="error-state">
+              <p>No se pudieron cargar los datos</p>
+              <button onClick={loadDashboardData} className="retry-btn">
+                Reintentar
+              </button>
             </div>
           )}
         </section>

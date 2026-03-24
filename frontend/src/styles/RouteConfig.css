@@ -1,0 +1,396 @@
+/* frontend/src/styles/RouteConfig.css */
+.route-config {
+  padding: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.advisor-select {
+  padding: 10px 16px;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.days-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: white;
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  flex-wrap: wrap;
+}
+
+.day-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-height: 44px;
+}
+
+.day-tab:hover {
+  background: #f1f3f4;
+}
+
+.day-tab.active {
+  background: #2e7d32;
+  color: white;
+}
+
+.schedule-content {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.stores-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stores-list-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #2c3e50;
+}
+
+.btn-add {
+  background: #2e7d32;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-height: 44px;
+  font-weight: 500;
+}
+
+.btn-add:active {
+  transform: scale(0.98);
+}
+
+.btn-remove {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-height: 40px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #7f8c8d;
+}
+
+.empty-state p {
+  margin: 8px 0;
+}
+
+/* Vista de tarjetas para móvil */
+.stores-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.store-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.store-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.store-order {
+  font-weight: 600;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.priority-badge {
+  font-size: 0.8rem;
+}
+
+.store-card-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.store-card-address {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.store-card .btn-remove {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Vista de tabla para desktop */
+.stores-table-container {
+  overflow-x: auto;
+  background: white;
+  border-radius: 12px;
+}
+
+.stores-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.stores-table th,
+.stores-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.stores-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.stores-table tr:hover {
+  background: #f8f9fa;
+}
+
+.order {
+  width: 60px;
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.store-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.address {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.priority {
+  font-size: 0.85rem;
+}
+
+.actions {
+  width: 80px;
+}
+
+/* Modal responsivo */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content.mobile-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: none;
+  border-radius: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-content h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.store-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  flex: 1;
+  min-height: 48px;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: #2e7d32;
+  color: white;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #95a5a6;
+  color: white;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .route-config {
+    padding: 12px;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header h1 {
+    font-size: 1.3rem;
+    text-align: center;
+  }
+  
+  .advisor-select {
+    width: 100%;
+  }
+  
+  .days-tabs {
+    gap: 4px;
+    justify-content: center;
+  }
+  
+  .day-tab {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    flex: 1;
+    text-align: center;
+  }
+  
+  .schedule-content {
+    padding: 16px;
+  }
+  
+  .stores-list-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn-add {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+}

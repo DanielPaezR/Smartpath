@@ -28,4 +28,11 @@ router.post('/advisors', adminController.createAdvisor);
 router.put('/advisors/:id', adminController.updateAdvisor);
 router.delete('/advisors/:id', adminController.deleteAdvisor);
 
+// Configuración de rutas
+router.get('/advisors/:advisorId/schedule', adminController.getAdvisorSchedule);
+router.post('/advisors/:advisorId/schedule', adminController.addStoreToSchedule);
+router.delete('/advisors/:advisorId/schedule/:scheduleId', adminController.removeStoreFromSchedule);
+router.put('/advisors/:advisorId/schedule/order', adminController.updateScheduleOrder);
+router.get('/stores/simple', adminController.getAllStoresSimple);
+
 export default router;

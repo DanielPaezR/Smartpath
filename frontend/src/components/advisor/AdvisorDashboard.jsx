@@ -1,5 +1,5 @@
-// frontend/src/components/advisor/AdvisorDashboard.tsx - CORREGIDO
-import React, { useState, useEffect } from 'react';
+// frontend/src/components/advisor/AdvisorDashboard.tsx - CON UBICACIÓN AUTOMÁTICA AL ENTRAR
+import React, { useState, useEffect, useRef } from 'react';
 import { routeService } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
 import RouteMap from './RouteMap';
@@ -13,7 +13,106 @@ const AdvisorDashboard = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   
+  // ESTADOS PARA UBICACIÓN
+  const [locationStatus, setLocationStatus] = useState('requesting');
+  const [locationError, setLocationError] = useState(null);
+  const locationIntervalRef = useRef(null);
+  
   const { user: currentUser } = useAuth();
+
+  // FUNCIÓN PARA ENVIAR UBICACIÓN AL BACKEND
+  const sendLocationToBackend = async (latitude, longitude, activity_status = 'traveling') => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/~daniel.paez/smartpath/api/tracking/update-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          activity_status,
+          timestamp: new Date().toISOString()
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Error enviando ubicación:', response.status);
+      } else {
+        console.log('📍 Ubicación enviada correctamente:', latitude, longitude);
+      }
+    } catch (error) {
+      console.error('Error enviando ubicación:', error);
+    }
+  };
+
+  // FUNCIÓN PARA SOLICITAR UBICACIÓN (SE EJECUTA AUTOMÁTICAMENTE)
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Tu navegador no soporta geolocalización');
+      setLocationStatus('error');
+      return;
+    }
+
+    setLocationStatus('requesting');
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log('📍 Ubicación obtenida:', latitude, longitude);
+        
+        // Enviar ubicación al backend
+        sendLocationToBackend(latitude, longitude, 'traveling');
+        
+        setLocationStatus('active');
+        setLocationError(null);
+        
+        // Configurar intervalo para enviar ubicación cada 30 segundos
+        if (locationIntervalRef.current) {
+          clearInterval(locationIntervalRef.current);
+        }
+        
+        locationIntervalRef.current = setInterval(() => {
+          navigator.geolocation.getCurrentPosition(
+            (newPosition) => {
+              const { latitude: newLat, longitude: newLng } = newPosition.coords;
+              sendLocationToBackend(newLat, newLng, 'traveling');
+            },
+            (error) => {
+              console.error('Error actualizando ubicación:', error);
+            }
+          );
+        }, 30000);
+        
+      },
+      (error) => {
+        console.error('Error obteniendo ubicación:', error);
+        setLocationError('No se pudo obtener tu ubicación. Asegúrate de permitir el acceso.');
+        setLocationStatus('error');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  // EFECTO PARA SOLICITAR UBICACIÓN AUTOMÁTICAMENTE AL CARGAR EL DASHBOARD
+  useEffect(() => {
+    // Si hay una ruta cargada y con tiendas, solicitar ubicación automáticamente
+    if (currentRoute && currentRoute.stores && currentRoute.stores.length > 0) {
+      requestLocation();
+    }
+    
+    return () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+      }
+    };
+  }, [currentRoute]);
 
   useEffect(() => {
     console.log('🔄=== EFFECT ADVISOR DASHBOARD EJECUTADO ===');
@@ -73,7 +172,6 @@ const AdvisorDashboard = () => {
       console.log('   - Tiendas en array:', routeData.stores?.length);
       console.log('   - Fecha:', routeData.date);
       
-      // 🆕 NORMALIZAR STATUS DE TIENDAS
       const normalizedStores = routeData.stores?.map(store => ({
         ...store,
         status: normalizeStatus(store.status)
@@ -106,7 +204,6 @@ const AdvisorDashboard = () => {
     }
   };
 
-  // 🆕 FUNCIÓN PARA NORMALIZAR STATUS
   const normalizeStatus = (status) => {
     if (status === 'in_progress') return 'in-progress';
     return status;
@@ -127,12 +224,6 @@ const AdvisorDashboard = () => {
       console.error('❌ Tienda no encontrada');
       return;
     }
-
-    console.log('🔍 Datos de la tienda:', {
-      storeId: store.id,
-      routeId: currentRoute.id,
-      storeName: store.storeId?.name
-    });
 
     navigate('/store-visit', {
       state: {
@@ -184,8 +275,6 @@ const AdvisorDashboard = () => {
     }
   };
 
-
-  // 🆕 FUNCIÓN CORREGIDA PARA REINICIAR VISITA QUE FUE SALTADA
   const handleRestartSkippedVisit = async (storeId) => {
     if (!window.confirm('¿Quieres reiniciar esta visita que fue saltada?')) {
       return;
@@ -194,20 +283,14 @@ const AdvisorDashboard = () => {
     try {
       console.log('🔄 Reiniciando visita saltada:', storeId);
       
-      // NOTA: No necesitamos updateStoreStatus porque el backend
-      // probablemente maneja el cambio de status al iniciar la visita
-      
-      // Simplemente iniciar la visita normalmente
       await routeService.startVisit(
         currentRoute.id,
         storeId
       );
       
-      // Recargar los datos
       await loadRouteData(currentUser.id.toString());
       alert('✅ Visita reiniciada exitosamente');
       
-      // Navegar a la visita
       const store = currentRoute.stores.find(s => s.id === storeId);
       if (store) {
         navigate('/store-visit', {
@@ -222,7 +305,6 @@ const AdvisorDashboard = () => {
     } catch (error) {
       console.error('❌ Error reiniciando visita:', error);
       
-      // Mensaje más específico
       if (error.response?.status === 404) {
         alert('Error: El endpoint no existe. Contacta al administrador.');
       } else if (error.message?.includes('No se puede iniciar')) {
@@ -233,13 +315,11 @@ const AdvisorDashboard = () => {
     }
   };
 
-  // Función para obtener el total de tiendas
   const getTotalStoresCount = () => {
     if (!currentRoute) return 0;
     return currentRoute.total_stores || currentRoute.stores?.length || 0;
   };
 
-  // Función para obtener tiendas completadas
   const getCompletedStoresCount = () => {
     if (!currentRoute) return 0;
     return currentRoute.completed_stores || currentRoute.stores?.filter(store => store.status === 'completed').length || 0;
@@ -290,6 +370,32 @@ const AdvisorDashboard = () => {
     <div className="advisor-dashboard">
       <div className="dashboard-header-custom">
         <h1>Mi Ruta Diaria</h1>
+        
+        {/* INDICADOR DE UBICACIÓN */}
+        <div className="location-status">
+          {locationStatus === 'requesting' && (
+            <div className="location-badge requesting">
+              <span className="location-icon">📍</span>
+              <span>Solicitando ubicación...</span>
+            </div>
+          )}
+          {locationStatus === 'active' && (
+            <div className="location-badge active">
+              <span className="location-icon">📍</span>
+              <span>Ubicación compartida en tiempo real</span>
+            </div>
+          )}
+          {locationStatus === 'error' && (
+            <div className="location-badge error">
+              <span className="location-icon">⚠️</span>
+              <span>{locationError || 'Error de ubicación'}</span>
+              <button className="retry-location" onClick={requestLocation}>
+                Reintentar
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="route-stats">
           <div className="stat-item">
             <span className="stat-icon">🏪</span>
@@ -348,7 +454,6 @@ const AdvisorDashboard = () => {
                 <p className="store-address">{store.storeId?.address || store.address || 'Dirección no disponible'}</p>
                 <p className="store-zone">📍 {store.storeId?.zone || store.zone || 'Zona no especificada'}</p>
                 
-                {/* 🎯 BOTONES ESTANDARIZADOS CON GUION MEDIO */}
                 {store.status === 'pending' && (
                   <button 
                     className="action-btn start-visit-btn"
@@ -386,7 +491,6 @@ const AdvisorDashboard = () => {
                     <div className="skipped-badge">
                       ⏭️ Visita Saltada
                     </div>
-                    {/* 🆕 BOTÓN PARA REINICIAR VISITA SALTADA */}
                     <button 
                       className="action-btn restart-visit-btn"
                       onClick={() => handleRestartSkippedVisit(store.id)}
