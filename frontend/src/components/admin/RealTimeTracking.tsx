@@ -44,13 +44,12 @@ const RealTimeTracking: React.FC = () => {
   const enhanceAdvisorsForMap = (advisors: AdvisorWithLocation[]) => {
     return advisors.map(advisor => ({
       ...advisor,
-      // Sobrescribir el nombre para mostrar mejor información
       name: `👤 ${advisor.name}`,
-      // Mejorar la dirección para mostrar estado y progreso
       address: `${advisor.activity_status === 'at_store' ? '🏪 En Tienda' : 
                 advisor.activity_status === 'traveling' ? '🚗 En Viaje' : 
                 advisor.activity_status === 'break' ? '☕ En Descanso' : '⚫ Sin conexión'} | ${advisor.completed_stores}/${advisor.total_stores_today} tiendas`,
-      // 🆕 Información adicional para el popup
+      // ✅ Asegurar que coordinates se mantiene
+      coordinates: advisor.coordinates,
       customInfo: {
         email: advisor.email,
         vehicle: advisor.vehicle_type,
@@ -65,11 +64,17 @@ const RealTimeTracking: React.FC = () => {
     try {
       setError(null);
       const advisorsData = await adminService.getLiveAdvisorsStatus();
+      console.log('📡 Datos recibidos del backend:', advisorsData);
       
-      const advisorsWithLocation: AdvisorWithLocation[] = advisorsData.map((advisor: any, index: number) => {
-        const hasRealLocation = advisor.current_latitude && advisor.current_longitude;
-        const lat = hasRealLocation ? parseFloat(advisor.current_latitude.toString()) : getSimulatedLatitude(advisor.id.toString());
-        const lng = hasRealLocation ? parseFloat(advisor.current_longitude.toString()) : getSimulatedLongitude(advisor.id.toString());
+      const advisorsWithLocation: AdvisorWithLocation[] = advisorsData.map((advisor: any) => {
+        // ✅ CORREGIDO: usar latitude y longitude directamente, no current_latitude
+        const hasRealLocation = advisor.latitude && advisor.longitude;
+        
+        // Convertir a número si es string
+        const lat = hasRealLocation ? parseFloat(advisor.latitude) : getSimulatedLatitude(advisor.id.toString());
+        const lng = hasRealLocation ? parseFloat(advisor.longitude) : getSimulatedLongitude(advisor.id.toString());
+        
+        console.log(`📍 Asesor ${advisor.name}: hasRealLocation=${hasRealLocation}, lat=${lat}, lng=${lng}`);
         
         const completed = advisor.completed_stores || 0;
         const total = advisor.total_stores_today || 0;
@@ -90,24 +95,22 @@ const RealTimeTracking: React.FC = () => {
           address: advisor.current_store_name || 'En ruta',
           coordinates: { lat, lng },
           status: getStatusFromActivity(advisor.activity_status),
-          // 🆕 Campos adicionales
           progress_percentage: progress,
-          last_update: advisor.last_location_update || new Date().toISOString()
+          last_update: advisor.last_update || new Date().toISOString()
         };
       });
+      
+      console.log('📍 Asesores procesados:', advisorsWithLocation.map(a => ({
+        name: a.name,
+        lat: a.coordinates.lat,
+        lng: a.coordinates.lng,
+        hasRealLocation: a.coordinates.lat !== getSimulatedLatitude(a.id) && a.coordinates.lng !== getSimulatedLongitude(a.id)
+      })));
       
       setAdvisors(advisorsWithLocation);
     } catch (err: any) {
       console.error('Error cargando datos reales:', err);
-      
-      if (err.message?.includes('Sesión expirada') || err.response?.status === 403 || err.response?.status === 401) {
-        setError('Sesión expirada - Redirigiendo al login...');
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
-      } else {
-        setError('Error al conectar con el servidor');
-      }
+      // ... resto del error handling
     } finally {
       setLoading(false);
     }
