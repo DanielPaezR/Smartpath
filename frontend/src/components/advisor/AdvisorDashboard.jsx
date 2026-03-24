@@ -24,7 +24,7 @@ const AdvisorDashboard = () => {
   const sendLocationToBackend = async (latitude, longitude, activity_status = 'traveling') => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/~daniel.paez/smartpath/api/tracking/update-location', {
+      const response = await fetch(`${window.location.origin}/~daniel.paez/smartpath/api/tracking/update-location`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
