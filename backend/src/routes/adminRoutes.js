@@ -38,5 +38,6 @@ router.get('/stores/simple', adminController.getAllStoresSimple);
 // Generar rutas diarias
 router.post('/routes/generate-daily', adminController.generateDailyRoutes);
 router.post('/routes/generate-week', adminController.generateWeekRoutes);
+router.get('/advisors/:advisorId/weekly-pattern', adminController.getWeeklyPattern);
 
 export default router;

@@ -1143,6 +1143,95 @@ class AdminController {
       await connection.end();
     }
   }
+
+  async getWeeklyPattern(req, res) {
+    const connection = await createConnection();
+    try {
+      const { advisorId } = req.params;
+      
+      console.log(`📋 Obteniendo patrón semanal para asesor ${advisorId}`);
+      
+      // Obtener rutas de los últimos 7 días
+      const [routes] = await connection.execute(`
+        SELECT 
+          DAYOFWEEK(dr.route_date) as day_of_week,
+          rs.store_id,
+          rs.visit_order,
+          s.name as store_name,
+          s.address,
+          s.priority,
+          s.latitude,
+          s.longitude
+        FROM daily_routes dr
+        JOIN route_stores rs ON dr.id = rs.route_id
+        JOIN stores s ON rs.store_id = s.id
+        WHERE dr.user_id = ? 
+          AND dr.route_date >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY dr.route_date DESC, rs.visit_order ASC
+      `, [advisorId]);
+      
+      console.log(`📊 Encontrados ${routes.length} registros de rutas`);
+      
+      // Estructura para los 7 días
+      const schedule = {};
+      const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      
+      // Inicializar todos los días
+      for (let i = 1; i <= 7; i++) {
+        schedule[i] = {
+          dayName: daysOfWeek[i-1],
+          dayNumber: i,
+          stores: []
+        };
+      }
+      
+      // Agrupar por día, evitando duplicados
+      const addedStores = new Set();
+      
+      routes.forEach(route => {
+        const day = route.day_of_week;
+        const storeKey = `${day}_${route.store_id}`;
+        
+        if (!addedStores.has(storeKey)) {
+          addedStores.add(storeKey);
+          schedule[day].stores.push({
+            id: route.id,
+            store_id: route.store_id,
+            store_name: route.store_name,
+            address: route.address,
+            priority: route.priority,
+            visit_order: route.visit_order,
+            coordinates: {
+              lat: parseFloat(route.latitude) || null,
+              lng: parseFloat(route.longitude) || null
+            }
+          });
+        }
+      });
+      
+      // Ordenar tiendas por visit_order
+      for (let i = 1; i <= 7; i++) {
+        schedule[i].stores.sort((a, b) => (a.visit_order || 0) - (b.visit_order || 0));
+      }
+      
+      const advisorInfo = await connection.execute(
+        'SELECT id, name FROM users WHERE id = ?',
+        [advisorId]
+      );
+      
+      res.json({ 
+        success: true, 
+        schedule, 
+        advisor: advisorInfo[0][0] || { id: advisorId, name: 'Asesor' }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error obteniendo patrón semanal:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 

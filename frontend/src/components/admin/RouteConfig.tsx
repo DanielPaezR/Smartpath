@@ -84,46 +84,58 @@ const RouteConfig: React.FC = () => {
     }
   };
 
+  const loadFromDailyRoutes = async (advisorId: number) => {
+    try {
+      console.log('📋 Cargando patrón desde daily_routes...');
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/admin/advisors/${advisorId}/weekly-pattern`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        console.log('No se pudo cargar patrón semanal');
+        return null;
+      }
+      
+      const data = await response.json();
+      console.log('✅ Patrón semanal cargado:', data);
+      return data;
+    } catch (error) {
+      console.error('Error cargando desde daily_routes:', error);
+      return null;
+    }
+  };
+
+  // Modifica loadSchedule
   const loadSchedule = async (advisorId: number) => {
     try {
       console.log('📋 Cargando configuración para asesor:', advisorId);
       
-      // 1. Cargar configuración semanal existente
-      const data = await routeConfigService.getAdvisorSchedule(advisorId);
+      // 1. Intentar cargar configuración semanal existente
+      let data = await routeConfigService.getAdvisorSchedule(advisorId);
       
-      // Verificar si la respuesta tiene la estructura esperada
-      if (!data || !data.schedule) {
-        console.log('⚠️ No hay configuración semanal, creando estructura vacía');
-        
-        // Crear estructura vacía para los 7 días
-        const emptySchedule: AdvisorSchedule = {
-          advisor: { id: advisorId, name: '' },
-          schedule: {} as Record<number, DaySchedule>
-        };
-        
-        for (let i = 1; i <= 7; i++) {
-          emptySchedule.schedule[i] = {
-            dayName: daysOfWeek[i-1].name,
-            dayNumber: i,
-            stores: []
-          };
-        }
-        
-        setSchedule(emptySchedule);
-        return;
-      }
-      
-      // Verificar si hay datos en la configuración semanal
+      // 2. Verificar si hay datos en la configuración semanal
       const hasData = daysOfWeek.some(day => 
-        data.schedule[day.number]?.stores?.length > 0
+        data?.schedule?.[day.number]?.stores?.length > 0
       );
       
       if (!hasData) {
-        console.log('📋 No hay configuración semanal, mostrando vacío');
-        // Mostrar estructura vacía
+        console.log('📋 No hay configuración semanal, cargando desde daily_routes...');
+        const weeklyData = await loadFromDailyRoutes(advisorId);
+        if (weeklyData && weeklyData.schedule) {
+          console.log('✅ Configuración cargada desde daily_routes');
+          setSchedule(weeklyData);
+          return;
+        }
+      }
+      
+      if (data) {
+        setSchedule(data);
+      } else {
+        // Crear estructura vacía
         const emptySchedule: AdvisorSchedule = {
-          advisor: data.advisor,
-          schedule: {} as Record<number, DaySchedule>
+          advisor: { id: advisorId, name: '' },
+          schedule: {} as Record<number, any>
         };
         
         for (let i = 1; i <= 7; i++) {
@@ -133,45 +145,11 @@ const RouteConfig: React.FC = () => {
             stores: []
           };
         }
-        
         setSchedule(emptySchedule);
-        return;
       }
-      
-      console.log('✅ Configuración semanal cargada:', data);
-      setSchedule(data);
       
     } catch (error) {
       console.error('Error cargando configuración:', error);
-      
-      // En caso de error, crear estructura vacía
-      const emptySchedule: AdvisorSchedule = {
-        advisor: { id: advisorId, name: '' },
-        schedule: {} as Record<number, DaySchedule>
-      };
-      
-      for (let i = 1; i <= 7; i++) {
-        emptySchedule.schedule[i] = {
-          dayName: daysOfWeek[i-1].name,
-          dayNumber: i,
-          stores: []
-        };
-      }
-      
-      setSchedule(emptySchedule);
-    }
-  };
-
-  const loadFromDailyRoutes = async (advisorId: number) => {
-    try {
-      // Obtener las rutas de los últimos 7 días para inferir la configuración semanal
-      const response = await fetch(`${API_BASE_URL}/admin/advisors/${advisorId}/weekly-pattern`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Error cargando desde daily_routes:', error);
-      return null;
     }
   };
 
