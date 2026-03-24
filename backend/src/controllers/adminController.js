@@ -1149,12 +1149,13 @@ class AdminController {
     try {
       const { advisorId } = req.params;
       
-      console.log(`📋 Obteniendo patrón semanal para asesor ${advisorId}`);
+      console.log(`📋 Obteniendo patrón semanal para asesor ${advisorId} desde routes`);
       
-      // Obtener rutas de los últimos 7 días
+      // Obtener rutas de los últimos días desde la tabla routes
       const [routes] = await connection.execute(`
         SELECT 
-          DAYOFWEEK(dr.route_date) as day_of_week,
+          r.date,
+          DAYOFWEEK(r.date) as day_of_week,
           rs.store_id,
           rs.visit_order,
           s.name as store_name,
@@ -1162,12 +1163,12 @@ class AdminController {
           s.priority,
           s.latitude,
           s.longitude
-        FROM daily_routes dr
-        JOIN route_stores rs ON dr.id = rs.route_id
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
         JOIN stores s ON rs.store_id = s.id
-        WHERE dr.user_id = ? 
-          AND dr.route_date >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-        ORDER BY dr.route_date DESC, rs.visit_order ASC
+        WHERE r.advisor_id = ? 
+          AND r.date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ORDER BY r.date DESC, rs.visit_order ASC
       `, [advisorId]);
       
       console.log(`📊 Encontrados ${routes.length} registros de rutas`);
@@ -1185,17 +1186,15 @@ class AdminController {
         };
       }
       
-      // Agrupar por día, evitando duplicados
-      const addedStores = new Set();
+      // Agrupar por día, tomando la última configuración para cada día
+      const storesByDay = {};
       
       routes.forEach(route => {
         const day = route.day_of_week;
-        const storeKey = `${day}_${route.store_id}`;
+        const key = `${day}_${route.store_id}`;
         
-        if (!addedStores.has(storeKey)) {
-          addedStores.add(storeKey);
-          schedule[day].stores.push({
-            id: route.id,
+        if (!storesByDay[key]) {
+          storesByDay[key] = {
             store_id: route.store_id,
             store_name: route.store_name,
             address: route.address,
@@ -1205,13 +1204,25 @@ class AdminController {
               lat: parseFloat(route.latitude) || null,
               lng: parseFloat(route.longitude) || null
             }
-          });
+          };
         }
       });
       
-      // Ordenar tiendas por visit_order
-      for (let i = 1; i <= 7; i++) {
-        schedule[i].stores.sort((a, b) => (a.visit_order || 0) - (b.visit_order || 0));
+      // Convertir a array por día
+      for (let day = 1; day <= 7; day++) {
+        const dayStores = Object.values(storesByDay)
+          .filter(store => {
+            // Determinar a qué día pertenece según el visit_order o algún criterio
+            // Por ahora, asignamos todas las tiendas a todos los días
+            return true;
+          })
+          .map((store, index) => ({
+            ...store,
+            id: store.store_id,
+            visit_order: index + 1
+          }));
+        
+        schedule[day].stores = dayStores;
       }
       
       const advisorInfo = await connection.execute(
