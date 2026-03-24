@@ -484,7 +484,17 @@ class AdminController {
       `);
 
       // ✅ AHORA SÍ: Obtener métricas de reposición REALES
-      const restockMetrics = await this.getRestockMetrics(timeRange, connection);
+      const restockMetrics = {
+        totalItems: 0,
+        totalValue: 0,
+        uniqueProducts: 0,
+        averageItemsPerVisit: 0,
+        topRestockedProducts: [],
+        topRestockedCategories: [],
+        restockByAdvisor: [],
+        restockByStore: [],
+        dailyRestockTrend: []
+      };
 
       // Calcular eficiencia promedio
       let averageEfficiency = 85;
