@@ -23,7 +23,6 @@ class AdminController {
     const connection = await createConnection();
     try {
       console.log('📊 getDashboardOverview llamado - MySQL');
-      const today = new Date().toISOString().split('T')[0];
       const dayOfWeek = new Date().toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
 
       // Asesores activos
@@ -63,7 +62,7 @@ class AdminController {
         active_advisors: activeAdvisors,
         active_routes: activeTemplates,
         total_stores_today: stats.totalStores,
-        completed_stores: 0, // Las plantillas no tienen estados de completado
+        completed_stores: 0,
         in_progress_stores: 0,
         avg_visit_duration: 35
       };
@@ -236,7 +235,7 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Obtener métricas de reposición (AHORA ACTIVADA)
+  // FUNCIÓN: Obtener métricas de reposición
   async getRestockMetrics(timeRange, connection) {
     try {
       console.log(`📦 [getRestockMetrics] Obteniendo datos para: ${timeRange}`);
@@ -256,7 +255,6 @@ class AdminController {
           timeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
-      // Verificar si la tabla existe
       const [tableCheck] = await connection.execute(`
         SELECT COUNT(*) as count FROM information_schema.tables 
         WHERE table_schema = DATABASE() AND table_name = 'restock_items'
@@ -267,7 +265,6 @@ class AdminController {
         return emptyRestockMetrics();
       }
 
-      // 1. Métricas generales
       const [generalMetrics] = await connection.execute(`
         SELECT 
           COALESCE(SUM(ri.quantity), 0) as totalItems,
@@ -279,9 +276,6 @@ class AdminController {
         WHERE 1=1 ${timeCondition}
       `);
 
-      console.log(`📦 Datos generales:`, generalMetrics[0]);
-
-      // 2. Top productos
       const [topProducts] = await connection.execute(`
         SELECT 
           ri.product_name as productName,
@@ -295,7 +289,6 @@ class AdminController {
         LIMIT 10
       `);
 
-      // 3. Por categoría
       const [topCategories] = await connection.execute(`
         SELECT 
           COALESCE(ri.product_category, 'Sin categoría') as category,
@@ -307,7 +300,6 @@ class AdminController {
         ORDER BY quantity DESC
       `);
 
-      // 4. Por asesor
       const [restockByAdvisor] = await connection.execute(`
         SELECT 
           u.id as advisorId,
@@ -324,7 +316,6 @@ class AdminController {
         ORDER BY totalItems DESC
       `);
 
-      // 5. Por tienda
       const [restockByStore] = await connection.execute(`
         SELECT 
           s.id as storeId,
@@ -341,7 +332,6 @@ class AdminController {
         LIMIT 10
       `);
 
-      // 6. Tendencia diaria
       const [dailyTrend] = await connection.execute(`
         SELECT 
           DATE(ri.reported_at) as date,
@@ -396,7 +386,7 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Obtener métricas avanzadas (CON REPOSICIONES ACTIVADAS)
+  // FUNCIÓN: Obtener métricas avanzadas
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     
@@ -489,7 +479,6 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      // ✅ AHORA SÍ: Obtener métricas de reposición REALES
       const restockMetrics = {
         totalItems: 0,
         totalValue: 0,
@@ -502,7 +491,6 @@ class AdminController {
         dailyRestockTrend: []
       };
 
-      // Calcular eficiencia promedio
       let averageEfficiency = 85;
       if (advisorPerformance.length > 0) {
         const totalEfficiency = advisorPerformance.reduce((sum, a) => sum + a.efficiencyScore, 0);
@@ -540,8 +528,6 @@ class AdminController {
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
-      console.log('📦 Reposiciones:', restockMetrics.totalItems, 'productos');
-      console.log('👥 Asesores con datos:', metrics.advisorPerformance.length);
       res.json(metrics);
 
     } catch (error) {
@@ -755,7 +741,6 @@ class AdminController {
     }
   }
 
-  // 🆕 OBTENER ASESOR POR ID
   async getAdvisorById(req, res) {
     const connection = await createConnection();
     try {
@@ -781,7 +766,6 @@ class AdminController {
     }
   }
 
-  // 🆕 CREAR ASESOR
   async createAdvisor(req, res) {
     const connection = await createConnection();
     try {
@@ -790,7 +774,6 @@ class AdminController {
         assigned_zone, work_start_time, work_end_time 
       } = req.body;
       
-      // Verificar si el email ya existe
       const [existing] = await connection.execute(
         'SELECT id FROM users WHERE email = ?',
         [email]
@@ -803,7 +786,6 @@ class AdminController {
         });
       }
       
-      // Hashear contraseña
       const bcrypt = await import('bcrypt');
       const hashedPassword = await bcrypt.hash(password, 10);
       
@@ -827,7 +809,6 @@ class AdminController {
     }
   }
 
-  // 🆕 ACTUALIZAR ASESOR
   async updateAdvisor(req, res) {
     const connection = await createConnection();
     try {
@@ -837,7 +818,6 @@ class AdminController {
         assigned_zone, work_start_time, work_end_time, is_active 
       } = req.body;
       
-      // Verificar si el asesor existe
       const [existing] = await connection.execute(
         'SELECT id FROM users WHERE id = ? AND role = "advisor"',
         [id]
@@ -847,7 +827,6 @@ class AdminController {
         return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
       }
       
-      // Si cambió el email, verificar que no esté duplicado
       if (email) {
         const [duplicate] = await connection.execute(
           'SELECT id FROM users WHERE email = ? AND id != ?',
@@ -879,13 +858,11 @@ class AdminController {
     }
   }
 
-  // 🆕 ELIMINAR ASESOR (o desactivar)
   async deleteAdvisor(req, res) {
     const connection = await createConnection();
     try {
       const { id } = req.params;
       
-      // Verificar si el asesor existe
       const [existing] = await connection.execute(
         'SELECT id FROM users WHERE id = ? AND role = "advisor"',
         [id]
@@ -895,12 +872,7 @@ class AdminController {
         return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
       }
       
-      // Opcional: eliminar físicamente o solo desactivar
-      // Opción 1: Eliminar físicamente
       await connection.execute('DELETE FROM users WHERE id = ?', [id]);
-      
-      // Opción 2: Solo desactivar (comentar la línea de arriba y descomentar esta)
-      // await connection.execute('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
       
       res.json({ success: true, message: 'Asesor eliminado exitosamente' });
     } catch (error) {
@@ -911,12 +883,13 @@ class AdminController {
     }
   }
 
+  // ✅ FUNCIONES CORREGIDAS - USANDO route_templates
+
   async getAdvisorSchedule(req, res) {
     const connection = await createConnection();
     try {
       const { advisorId } = req.params;
       
-      // Verificar que el asesor existe
       const [advisor] = await connection.execute(
         'SELECT id, name FROM users WHERE id = ? AND role = "advisor"',
         [advisorId]
@@ -926,33 +899,43 @@ class AdminController {
         return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
       }
       
-      // Obtener la configuración semanal
-      const [schedule] = await connection.execute(`
-        SELECT aws.id, aws.day_of_week, aws.store_id, aws.visit_order, aws.is_active,
-               s.name as store_name, s.address, s.priority
-        FROM advisor_weekly_schedule aws
-        JOIN stores s ON aws.store_id = s.id
-        WHERE aws.advisor_id = ? AND aws.is_active = 1
-        ORDER BY aws.day_of_week, aws.visit_order
+      // Obtener plantillas del asesor
+      const [templates] = await connection.execute(`
+        SELECT id, day_of_week, template_name, total_stores
+        FROM route_templates
+        WHERE advisor_id = ? AND is_active = 1
       `, [advisorId]);
       
-      // Agrupar por día de semana
-      const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-      const groupedSchedule = {};
+      const daysMap = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7 };
+      const dayNames = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const schedule = {};
       
       for (let i = 1; i <= 7; i++) {
-        groupedSchedule[i] = {
-          dayName: daysOfWeek[i-1],
-          dayNumber: i,
-          stores: schedule.filter(s => s.day_of_week === i)
-        };
+        schedule[i] = { dayName: dayNames[i], dayNumber: i, stores: [] };
       }
       
-      res.json({
-        success: true,
-        advisor: advisor[0],
-        schedule: groupedSchedule
-      });
+      for (const template of templates) {
+        const dayNum = daysMap[template.day_of_week];
+        
+        const [stores] = await connection.execute(`
+          SELECT rts.id, rts.store_id, rts.visit_order, s.name as store_name, s.address, s.priority
+          FROM route_template_stores rts
+          JOIN stores s ON rts.store_id = s.id
+          WHERE rts.template_id = ?
+          ORDER BY rts.visit_order
+        `, [template.id]);
+        
+        schedule[dayNum].stores = stores.map(store => ({
+          id: store.id,
+          store_id: store.store_id,
+          store_name: store.store_name,
+          address: store.address,
+          priority: store.priority,
+          visit_order: store.visit_order
+        }));
+      }
+      
+      res.json({ success: true, advisor: advisor[0], schedule });
       
     } catch (error) {
       console.error('Error al obtener configuración de rutas:', error);
@@ -962,77 +945,110 @@ class AdminController {
     }
   }
   
-  // 🆕 AGREGAR TIENDA A LA RUTA DE UN ASESOR
+  // ✅ AGREGAR TIENDA A PLANTILLA
   async addStoreToSchedule(req, res) {
     const connection = await createConnection();
     try {
       const { advisorId } = req.params;
       const { day_of_week, store_id, visit_order } = req.body;
       
-      // Validar día
-      if (day_of_week < 1 || day_of_week > 7) {
+      const dayNames = { 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday', 7: 'sunday' };
+      const dayName = dayNames[day_of_week];
+      
+      if (!dayName) {
         return res.status(400).json({ success: false, message: 'Día inválido' });
       }
       
-      // Verificar que la tienda existe
-      const [store] = await connection.execute(
-        'SELECT id FROM stores WHERE id = ?',
-        [store_id]
-      );
+      const [store] = await connection.execute('SELECT id FROM stores WHERE id = ?', [store_id]);
       if (store.length === 0) {
         return res.status(404).json({ success: false, message: 'Tienda no encontrada' });
       }
       
-      // Insertar o actualizar
+      const [template] = await connection.execute(
+        `SELECT id FROM route_templates WHERE advisor_id = ? AND day_of_week = ? AND is_active = 1`,
+        [advisorId, dayName]
+      );
+      
+      if (template.length === 0) {
+        return res.status(404).json({ success: false, message: 'No existe plantilla para este día' });
+      }
+      
+      const templateId = template[0].id;
+      
+      const [maxOrder] = await connection.execute(
+        `SELECT COALESCE(MAX(visit_order), 0) as max_order FROM route_template_stores WHERE template_id = ?`,
+        [templateId]
+      );
+      
+      const newOrder = visit_order || maxOrder[0].max_order + 1;
+      
       await connection.execute(`
-        INSERT INTO advisor_weekly_schedule (advisor_id, day_of_week, store_id, visit_order)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-        visit_order = VALUES(visit_order), is_active = 1, updated_at = NOW()
-      `, [advisorId, day_of_week, store_id, visit_order || 0]);
+        INSERT INTO route_template_stores (template_id, store_id, visit_order)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE visit_order = VALUES(visit_order)
+      `, [templateId, store_id, newOrder]);
+      
+      await connection.execute(`
+        UPDATE route_templates 
+        SET total_stores = (SELECT COUNT(*) FROM route_template_stores WHERE template_id = ?)
+        WHERE id = ?
+      `, [templateId, templateId]);
       
       res.json({ success: true, message: 'Tienda agregada a la ruta' });
       
     } catch (error) {
-      console.error('Error al agregar tienda a ruta:', error);
+      console.error('Error al agregar tienda:', error);
       res.status(500).json({ success: false, message: error.message });
     } finally {
       await connection.end();
     }
   }
   
-  // 🆕 ELIMINAR TIENDA DE LA RUTA
+  // ✅ ELIMINAR TIENDA DE PLANTILLA
   async removeStoreFromSchedule(req, res) {
     const connection = await createConnection();
     try {
       const { advisorId, scheduleId } = req.params;
       
-      await connection.execute(
-        'DELETE FROM advisor_weekly_schedule WHERE id = ? AND advisor_id = ?',
-        [scheduleId, advisorId]
+      const [storeInfo] = await connection.execute(
+        `SELECT template_id FROM route_template_stores WHERE id = ?`,
+        [scheduleId]
       );
+      
+      if (storeInfo.length === 0) {
+        return res.status(404).json({ success: false, message: 'Tienda no encontrada' });
+      }
+      
+      const templateId = storeInfo[0].template_id;
+      
+      await connection.execute('DELETE FROM route_template_stores WHERE id = ?', [scheduleId]);
+      
+      await connection.execute(`
+        UPDATE route_templates 
+        SET total_stores = (SELECT COUNT(*) FROM route_template_stores WHERE template_id = ?)
+        WHERE id = ?
+      `, [templateId, templateId]);
       
       res.json({ success: true, message: 'Tienda eliminada de la ruta' });
       
     } catch (error) {
-      console.error('Error al eliminar tienda de ruta:', error);
+      console.error('Error al eliminar tienda:', error);
       res.status(500).json({ success: false, message: error.message });
     } finally {
       await connection.end();
     }
   }
   
-  // 🆕 ACTUALIZAR ORDEN DE VISITAS
   async updateScheduleOrder(req, res) {
     const connection = await createConnection();
     try {
       const { advisorId } = req.params;
-      const { updates } = req.body; // Array de {id, visit_order}
+      const { updates } = req.body;
       
       for (const update of updates) {
         await connection.execute(
-          'UPDATE advisor_weekly_schedule SET visit_order = ? WHERE id = ? AND advisor_id = ?',
-          [update.visit_order, update.id, advisorId]
+          'UPDATE route_template_stores SET visit_order = ? WHERE id = ?',
+          [update.visit_order, update.id]
         );
       }
       
@@ -1046,7 +1062,6 @@ class AdminController {
     }
   }
   
-  // 🆕 OBTENER TODAS LAS TIENDAS (para el selector)
   async getAllStoresSimple(req, res) {
     const connection = await createConnection();
     try {
@@ -1073,7 +1088,6 @@ class AdminController {
     }
   }
   
-  // Generar rutas semanales
   async generateWeekRoutes(req, res) {
     try {
       const results = await routeGenerator.generateWeekRoutes();
@@ -1084,7 +1098,6 @@ class AdminController {
     }
   }
 
-  // Obtener patrón semanal desde route_templates (plantillas)
   async getWeeklyPattern(req, res) {
     const connection = await createConnection();
     try {
@@ -1092,7 +1105,6 @@ class AdminController {
       
       console.log(`📋 Obteniendo plantillas para asesor ${advisorId}`);
       
-      // Obtener todas las plantillas del asesor
       const [templates] = await connection.execute(`
         SELECT id, day_of_week, template_name, total_stores
         FROM route_templates
@@ -1100,9 +1112,6 @@ class AdminController {
         ORDER BY FIELD(day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday')
       `, [advisorId]);
       
-      console.log(`📊 Encontradas ${templates.length} plantillas`);
-      
-      // Estructura para los 7 días
       const daysOfWeek = {
         'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 
         'friday': 5, 'saturday': 6, 'sunday': 7
@@ -1110,37 +1119,23 @@ class AdminController {
       const dayNames = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       
       const schedule = {};
-      
-      // Inicializar todos los días
       for (let i = 1; i <= 7; i++) {
-        schedule[i] = {
-          dayName: dayNames[i],
-          dayNumber: i,
-          stores: []
-        };
+        schedule[i] = { dayName: dayNames[i], dayNumber: i, stores: [] };
       }
       
-      // Para cada plantilla, obtener sus tiendas
       for (const template of templates) {
         const dayNum = daysOfWeek[template.day_of_week];
         
         const [stores] = await connection.execute(`
           SELECT 
-            rts.id,
-            rts.store_id,
-            rts.visit_order,
-            s.name as store_name,
-            s.address,
-            s.priority,
-            s.latitude,
-            s.longitude
+            rts.id, rts.store_id, rts.visit_order,
+            s.name as store_name, s.address, s.priority,
+            s.latitude, s.longitude
           FROM route_template_stores rts
           JOIN stores s ON rts.store_id = s.id
           WHERE rts.template_id = ?
           ORDER BY rts.visit_order ASC
         `, [template.id]);
-        
-        console.log(`📅 ${template.day_of_week}: ${stores.length} tiendas`);
         
         schedule[dayNum].stores = stores.map(store => ({
           id: store.id,
@@ -1156,13 +1151,10 @@ class AdminController {
         }));
       }
       
-      // Obtener información del asesor
       const [advisorInfo] = await connection.execute(
         'SELECT id, name FROM users WHERE id = ?',
         [advisorId]
       );
-      
-      console.log(`✅ Plantillas cargadas para ${advisorInfo[0]?.name || 'Asesor'}`);
       
       res.json({ 
         success: true, 
@@ -1178,6 +1170,5 @@ class AdminController {
     }
   }
 }
-
 
 export default new AdminController();
