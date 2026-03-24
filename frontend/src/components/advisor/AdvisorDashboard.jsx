@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import RouteMap from './RouteMap';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/AdvisorDashboard.css';
+import { API_BASE_URL } from '../../services/api';
 
 const AdvisorDashboard = () => {
   const [currentRoute, setCurrentRoute] = useState(null);
@@ -24,7 +25,7 @@ const AdvisorDashboard = () => {
   const sendLocationToBackend = async (latitude, longitude, activity_status = 'traveling') => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${window.location.origin}/~daniel.paez/smartpath/api/tracking/update-location`, {
+      const response = await fetch(`${API_BASE_URL}/tracking/update-location`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
