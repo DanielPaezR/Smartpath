@@ -18,34 +18,39 @@ const emptyRestockMetrics = () => ({
 
 class AdminController {
   
-  // Obtener resumen general del dashboard
+  // Obtener resumen general del dashboard - USANDO PLANTILLAS
   async getDashboardOverview(req, res) {
     const connection = await createConnection();
     try {
       console.log('📊 getDashboardOverview llamado - MySQL');
       const today = new Date().toISOString().split('T')[0];
+      const dayOfWeek = new Date().toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
 
+      // Asesores activos
       const [activeAdvisorsRows] = await connection.execute(
         'SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = TRUE',
         ['advisor']
       );
       const activeAdvisors = activeAdvisorsRows[0].count;
 
-      const [activeRoutesRows] = await connection.execute(
-        `SELECT COUNT(*) as count FROM daily_routes 
-         WHERE DATE(route_date) = ? AND status IN ('pending', 'in_progress')`,
-        [today]
+      // Plantillas activas para hoy
+      const [activeTemplatesRows] = await connection.execute(
+        `SELECT COUNT(*) as count FROM route_templates 
+         WHERE day_of_week = ? AND is_active = TRUE`,
+        [dayOfWeek]
       );
-      const activeRoutes = activeRoutesRows[0].count;
+      const activeTemplates = activeTemplatesRows[0].count;
 
+      // Tiendas totales en plantillas de hoy
       const [storesStatsRows] = await connection.execute(
         `SELECT 
           COUNT(*) as totalStores,
-          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedStores,
-          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as inProgressStores
-         FROM route_stores 
-         WHERE DATE(start_time) = ?`,
-        [today]
+          0 as completedStores,
+          0 as inProgressStores
+         FROM route_templates rt
+         JOIN route_template_stores rts ON rt.id = rts.template_id
+         WHERE rt.day_of_week = ? AND rt.is_active = 1`,
+        [dayOfWeek]
       );
 
       const stats = storesStatsRows[0] || { 
@@ -56,14 +61,14 @@ class AdminController {
 
       const overview = {
         active_advisors: activeAdvisors,
-        active_routes: activeRoutes,
+        active_routes: activeTemplates,
         total_stores_today: stats.totalStores,
-        completed_stores: stats.completedStores,
-        in_progress_stores: stats.inProgressStores,
+        completed_stores: 0, // Las plantillas no tienen estados de completado
+        in_progress_stores: 0,
         avg_visit_duration: 35
       };
 
-      console.log('✅ Datos REALES de MySQL:', overview);
+      console.log('✅ Datos REALES de MySQL (desde plantillas):', overview);
       res.json(overview);
 
     } catch (error) {
@@ -71,10 +76,10 @@ class AdminController {
       
       const fallbackOverview = {
         active_advisors: 6,
-        active_routes: 3,
+        active_routes: 5,
         total_stores_today: 45,
-        completed_stores: 12,
-        in_progress_stores: 8,
+        completed_stores: 0,
+        in_progress_stores: 0,
         avg_visit_duration: 35
       };
       
