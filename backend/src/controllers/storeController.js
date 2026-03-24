@@ -1,6 +1,6 @@
 // backend/src/controllers/storeController.js
 import { Store } from '../models/Store.js';
-import { createConnection } from '../config/database.js'; 
+import { createConnection } from '../config/database.js';
 
 export const storeController = {
   // Listar todas las tiendas
@@ -32,12 +32,11 @@ export const storeController = {
   // Asignar tienda a asesor 
   async assignStore(req, res) {
     try {
-      const { id } = req.params; // ID de la tienda
-      const { advisorId } = req.body; // ID del asesor
+      const { id } = req.params;
+      const { advisorId } = req.body;
       
       console.log(`📋 Asignando tienda ${id} al asesor ${advisorId}`);
       
-      // Lógica para asignar la tienda
       const success = await Store.assignToAdvisor(parseInt(id), parseInt(advisorId));
       
       if (!success) {
@@ -61,12 +60,11 @@ export const storeController = {
   // Obtener tienda por ID
   async getStoreById(req, res) {
     try {
-      const { id } = req.params; // Cambiado de storeId a id
+      const { id } = req.params;
       const store = await Store.findById(parseInt(id));
       
       if (!store) {
-        res.status(404).json({ message: 'Tienda no encontrada' });
-        return;
+        return res.status(404).json({ message: 'Tienda no encontrada' });
       }
       
       res.json(store);
@@ -79,14 +77,13 @@ export const storeController = {
   // Actualizar tienda
   async updateStore(req, res) {
     try {
-      const { id } = req.params; // Cambiado de storeId a id
+      const { id } = req.params;
       const storeData = req.body;
       
       const success = await Store.update(parseInt(id), storeData);
       
       if (!success) {
-        res.status(404).json({ message: 'Tienda no encontrada' });
-        return;
+        return res.status(404).json({ message: 'Tienda no encontrada' });
       }
       
       res.json({ message: 'Tienda actualizada exitosamente' });
@@ -96,19 +93,33 @@ export const storeController = {
     }
   },
 
-  // Desactivar tienda - COMENTADO porque no hay columna is_active
+  // Desactivar tienda
   async deactivateStore(req, res) {
     try {
-      res.status(501).json({ 
-        message: 'Funcionalidad no implementada. La tabla no tiene columna para desactivar tiendas.' 
-      });
+      const { id } = req.params;
+      
+      const connection = await createConnection();
+      try {
+        const [result] = await connection.execute(
+          'UPDATE stores SET is_active = 0 WHERE id = ?',
+          [id]
+        );
+        
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ message: 'Tienda no encontrada' });
+        }
+        
+        res.json({ message: 'Tienda desactivada exitosamente' });
+      } finally {
+        await connection.end();
+      }
     } catch (error) {
-      console.error('Error en desactivación:', error);
+      console.error('Error desactivando tienda:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   },
 
-  // Obtener tiendas por asesor - COMENTADO porque no hay columna
+  // Obtener tiendas por asesor
   async getStoresByAdvisor(req, res) {
     try {
       const { advisorId } = req.params;
@@ -120,10 +131,9 @@ export const storeController = {
     }
   },
 
-  // Búsqueda de tiendas (para la ruta /search)
+  // Búsqueda de tiendas
   async searchStores(req, res) {
     try {
-      // Implementación básica de búsqueda - por ahora devuelve todas
       const stores = await Store.findAll();
       res.json(stores);
     } catch (error) {
@@ -132,15 +142,18 @@ export const storeController = {
     }
   },
 
-  // Eliminar tienda - COMENTADO porque no hay soft delete
+  // ✅ ELIMINAR TIENDA - CORREGIDO
   async deleteStore(req, res) {
+    const connection = await createConnection();
     try {
       const { id } = req.params;
       
-      // Usar el modelo Store si tiene método delete
-      const success = await Store.delete(parseInt(id));
+      const [result] = await connection.execute(
+        'DELETE FROM stores WHERE id = ?',
+        [id]
+      );
       
-      if (!success) {
+      if (result.affectedRows === 0) {
         return res.status(404).json({ message: 'Tienda no encontrada' });
       }
       
@@ -148,6 +161,8 @@ export const storeController = {
     } catch (error) {
       console.error('Error eliminando tienda:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
+    } finally {
+      await connection.end();
     }
   }
 };
