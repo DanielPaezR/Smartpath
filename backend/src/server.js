@@ -8,6 +8,7 @@ import routes from './routes/routes.js';
 import authRoutes from './routes/authRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import productRoutes from './routes/productRoutes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/routes', routes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/products', productRoutes);
 
 // Ruta de salud para Render
 app.get('/api/health', (req, res) => {

@@ -14,13 +14,18 @@ router.get('/dashboard/overview', adminController.getDashboardOverview);
 router.get('/tracking/live-status', adminController.getLiveAdvisorsStatus);
 router.get('/tracking/advisor/:advisorId', adminController.getAdvisorDetail);
 router.get('/notifications', adminController.getNotifications);
-router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
-
-// Métricas avanzadas (con reposiciones incluidas)
+router.get('/advisors', adminController.getAllAdvisors);
+router.get('/advisors/:id', adminController.getAdvisorById);
+router.get('/reports/damage', adminController.getDamageReports);
 router.get('/metrics/advanced', adminController.getAdvancedMetrics);
+
+router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
 
 // Rutas de optimización y reportes (ahora en adminController)
 router.post('/routes/optimize', adminController.generateOptimizedRoute);
-router.get('/reports/damage', adminController.getDamageReports);
+router.post('/advisors', adminController.createAdvisor);
+
+router.put('/advisors/:id', adminController.updateAdvisor);
+router.delete('/advisors/:id', adminController.deleteAdvisor);
 
 export default router;

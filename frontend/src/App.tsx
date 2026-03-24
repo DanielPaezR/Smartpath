@@ -9,6 +9,8 @@ import StoreVisit from './components/advisor/StoreVisit';
 import RouteMap from './components/advisor/RouteMap';
 import RealTimeTracking from './components/admin/RealTimeTracking';
 import AdvancedMetrics from './components/admin/AdvancedMetrics';
+import ProductManagement from './components/admin/ProductManagement';
+import AdvisorManagement from './components/admin/AdvisorManagement';
 import './styles/global-fixes.css';
 import InstallPWA from './components/common/InstallPWA';
 import './App.css';
@@ -116,6 +118,18 @@ function App() {
             <Route path="/admin/notifications" element={
               <AdminRoute>
                 <PlaceholderPage title="Notificaciones y Alertas" />
+              </AdminRoute>
+            } />
+
+            <Route path="/admin/products" element={
+              <AdminRoute>
+                <ProductManagement />
+              </AdminRoute>
+            } />
+
+            <Route path="/admin/advisors" element={
+              <AdminRoute>
+                <AdvisorManagement />
               </AdminRoute>
             } />
 

@@ -238,6 +238,62 @@ const AdminDashboard: React.FC = () => {
               }}
             />
           </div>
+          <div className="cards-grid">
+            <DashboardCard 
+              icon="📍"
+              title="Seguimiento" 
+              description="Monitorear ubicación actual de asesores"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/tracking');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
+            />
+            
+            <DashboardCard 
+              icon="🏪"
+              title="Gestión de Tiendas" 
+              description="Asignar tiendas a asesores y gestionar puntos de venta"
+              onClick={() => navigate('/admin/stores')}
+            />
+            
+            {/* 🆕 NUEVA TARJETA: Productos */}
+            <DashboardCard 
+              icon="📦"
+              title="Gestión de Productos" 
+              description="Crear, editar y gestionar productos del catálogo"
+              onClick={() => navigate('/admin/products')}
+            />
+            
+            <DashboardCard 
+              icon="📊"
+              title="Métricas" 
+              description="Ver datos de productos, ventas y métricas"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/metrics');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
+            />
+
+            <DashboardCard 
+              icon="👥"
+              title="Gestión de Asesores" 
+              description="Crear y gestionar perfiles de asesores comerciales"
+              onClick={() => navigate('/admin/advisors')}
+            />
+
+            <DashboardCard 
+              icon="🗓️"
+              title="Configuración de Rutas" 
+              description="Asignar tiendas a asesores por día de la semana"
+              onClick={() => navigate('/admin/route-config')}
+            />
+          </div>
         </section>
 
         {/* Resumen Rápido */}

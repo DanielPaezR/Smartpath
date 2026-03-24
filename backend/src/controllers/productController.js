@@ -286,6 +286,167 @@ export const productController = {
     } finally {
       await connection.end();
     }
+  },
+  async getAllProducts(req, res) {
+    const connection = await createConnection();
+    try {
+      const [products] = await connection.execute(
+        'SELECT * FROM products ORDER BY name ASC'
+      );
+      
+      // Verificar si se solicitó en formato simplificado
+      const { format } = req.query;
+      if (format === 'simple') {
+        return res.json(products.map(p => ({ id: p.id, name: p.name, barcode: p.barcode })));
+      }
+      
+      res.json({ success: true, products });
+    } catch (error) {
+      console.error('Error al obtener productos:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  },
+
+  // 🆕 OBTENER PRODUCTO POR ID
+  async getProductById(req, res) {
+    const connection = await createConnection();
+    try {
+      const { id } = req.params;
+      const [products] = await connection.execute(
+        'SELECT * FROM products WHERE id = ?',
+        [id]
+      );
+      
+      if (products.length === 0) {
+        return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+      }
+      
+      res.json({ success: true, product: products[0] });
+    } catch (error) {
+      console.error('Error al obtener producto:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  },
+
+  // 🆕 CREAR PRODUCTO
+  async createProduct(req, res) {
+    const connection = await createConnection();
+    try {
+      const { barcode, name, category, brand, price, stock, description } = req.body;
+      
+      // Verificar si ya existe un producto con ese código de barras
+      const [existing] = await connection.execute(
+        'SELECT id FROM products WHERE barcode = ?',
+        [barcode]
+      );
+      
+      if (existing.length > 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Ya existe un producto con este código de barras' 
+        });
+      }
+      
+      const [result] = await connection.execute(
+        `INSERT INTO products (barcode, name, category, brand, price, stock, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [barcode, name, category || null, brand || null, price || 0, stock || 0, description || null]
+      );
+      
+      res.json({ 
+        success: true, 
+        message: 'Producto creado exitosamente',
+        productId: result.insertId
+      });
+    } catch (error) {
+      console.error('Error al crear producto:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  },
+
+  // 🆕 ACTUALIZAR PRODUCTO
+  async updateProduct(req, res) {
+    const connection = await createConnection();
+    try {
+      const { id } = req.params;
+      const { barcode, name, category, brand, price, stock, description } = req.body;
+      
+      // Verificar si el producto existe
+      const [existing] = await connection.execute(
+        'SELECT id FROM products WHERE id = ?',
+        [id]
+      );
+      
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+      }
+      
+      // Si cambió el código de barras, verificar que no esté duplicado
+      if (barcode) {
+        const [duplicate] = await connection.execute(
+          'SELECT id FROM products WHERE barcode = ? AND id != ?',
+          [barcode, id]
+        );
+        
+        if (duplicate.length > 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Ya existe otro producto con este código de barras' 
+          });
+        }
+      }
+      
+      const [result] = await connection.execute(
+        `UPDATE products SET 
+          barcode = ?, name = ?, category = ?, brand = ?, 
+          price = ?, stock = ?, description = ?
+         WHERE id = ?`,
+        [barcode, name, category || null, brand || null, price || 0, stock || 0, description || null, id]
+      );
+      
+      res.json({ success: true, message: 'Producto actualizado exitosamente' });
+    } catch (error) {
+      console.error('Error al actualizar producto:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  },
+
+  // 🆕 ELIMINAR PRODUCTO
+  async deleteProduct(req, res) {
+    const connection = await createConnection();
+    try {
+      const { id } = req.params;
+      
+      // Verificar si el producto existe
+      const [existing] = await connection.execute(
+        'SELECT id FROM products WHERE id = ?',
+        [id]
+      );
+      
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+      }
+      
+      const [result] = await connection.execute(
+        'DELETE FROM products WHERE id = ?',
+        [id]
+      );
+      
+      res.json({ success: true, message: 'Producto eliminado exitosamente' });
+    } catch (error) {
+      console.error('Error al eliminar producto:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
   }
 };
 

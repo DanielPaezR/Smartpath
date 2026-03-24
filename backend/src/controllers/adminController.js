@@ -15,92 +15,6 @@ const emptyRestockMetrics = () => ({
   dailyRestockTrend: []
 });
 
-// Funciones auxiliares
-const calculateDateRange = (timeRange) => {
-  const now = new Date();
-  let start = new Date();
-  let end = new Date();
-
-  switch (timeRange) {
-    case 'week':
-      start.setDate(now.getDate() - 7);
-      break;
-    case 'month':
-      start.setMonth(now.getMonth() - 1);
-      break;
-    case 'quarter':
-      start.setMonth(now.getMonth() - 3);
-      break;
-    default:
-      start.setMonth(now.getMonth() - 1);
-  }
-
-  return { 
-    start: start.toISOString().split('T')[0] + ' 00:00:00', 
-    end: end.toISOString().split('T')[0] + ' 23:59:59' 
-  };
-};
-
-const mapProductToCategory = (productName) => {
-  if (!productName) return 'Otros';
-  
-  const name = productName.toLowerCase();
-  
-  if (name.includes('vitagranola')) return 'Vitagranola';
-  if (name.includes('nutrinola')) return 'Nutrinola';
-  if (name.includes('vitayum')) return 'Vitayum';
-  if (name.includes('vitao') || name.includes('avena')) return 'VITAO Avena';
-  if (name.includes('sunshine')) return 'SUNSHINE';
-  if ((name.includes('hojuela') && name.includes('maíz')) || (name.includes('hojuela') && name.includes('maiz'))) return 'Cereales de Maíz';
-  if (name.includes('arroz')) return 'Arroz';
-  if (name.includes('aritos') || name.includes('aros')) return 'Cereales Frutados';
-  if (name.includes('granola')) return 'Granola';
-  if (name.includes('cereal')) return 'Cereal';
-  
-  return 'Otros';
-};
-
-const generateMonthlyTrend = (damageReports) => {
-  if (!damageReports || damageReports.length === 0) {
-    return [
-      { month: 'Ene', damageCount: 0 },
-      { month: 'Feb', damageCount: 0 },
-      { month: 'Mar', damageCount: 0 },
-      { month: 'Abr', damageCount: 0 }
-    ];
-  }
-
-  const monthlyCount = {};
-  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  
-  damageReports.forEach(report => {
-    if (report.created_at) {
-      const date = new Date(report.created_at);
-      const monthIndex = date.getMonth();
-      const monthKey = monthNames[monthIndex];
-      
-      if (!monthlyCount[monthKey]) {
-        monthlyCount[monthKey] = 0;
-      }
-      monthlyCount[monthKey] += 1;
-    }
-  });
-
-  const trend = [];
-  const currentMonth = new Date().getMonth();
-  
-  for (let i = 3; i >= 0; i--) {
-    const monthIndex = (currentMonth - i + 12) % 12;
-    const monthName = monthNames[monthIndex];
-    trend.push({
-      month: monthName,
-      damageCount: monthlyCount[monthName] || 0
-    });
-  }
-
-  return trend;
-};
-
 class AdminController {
   
   // Obtener resumen general del dashboard
@@ -316,7 +230,7 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Obtener métricas de reposición
+  // FUNCIÓN: Obtener métricas de reposición (AHORA ACTIVADA)
   async getRestockMetrics(timeRange, connection) {
     try {
       console.log(`📦 [getRestockMetrics] Obteniendo datos para: ${timeRange}`);
@@ -476,7 +390,7 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Obtener métricas avanzadas (COMPLETA con reposiciones)
+  // FUNCIÓN: Obtener métricas avanzadas (CON REPOSICIONES ACTIVADAS)
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     
@@ -569,25 +483,15 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      // Obtener métricas de reposición
-      const restockMetrics = {
-        totalItems: 0,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
+      // ✅ AHORA SÍ: Obtener métricas de reposición REALES
+      const restockMetrics = await this.getRestockMetrics(timeRange, connection);
 
       // Calcular eficiencia promedio
       let averageEfficiency = 85;
       if (advisorPerformance.length > 0) {
         const totalEfficiency = advisorPerformance.reduce((sum, a) => sum + a.efficiencyScore, 0);
         averageEfficiency = Math.round(totalEfficiency / advisorPerformance.length);
-      } else if (overall[0]?.avgVisitDuration) {
+      } else if (overall[0]?.avgVisitDuration && overall[0].avgVisitDuration > 0) {
         averageEfficiency = Math.max(0, Math.min(100, 100 - ((overall[0].avgVisitDuration - 30) * 2)));
       }
 
@@ -621,6 +525,7 @@ class AdminController {
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
       console.log('📦 Reposiciones:', restockMetrics.totalItems, 'productos');
+      console.log('👥 Asesores con datos:', metrics.advisorPerformance.length);
       res.json(metrics);
 
     } catch (error) {
@@ -809,6 +714,182 @@ class AdminController {
     } catch (error) {
       console.error('Error en markNotificationAsRead:', error);
       res.status(500).json({ error: 'Error al actualizar notificación' });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  async getAllAdvisors(req, res) {
+    const connection = await createConnection();
+    try {
+      const [advisors] = await connection.execute(
+        `SELECT id, name, email, vehicle_type, license_plate, assigned_zone, 
+                work_start_time, work_end_time, is_active, created_at
+         FROM users 
+         WHERE role = 'advisor' 
+         ORDER BY name ASC`
+      );
+      
+      res.json({ success: true, advisors });
+    } catch (error) {
+      console.error('Error al obtener asesores:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // 🆕 OBTENER ASESOR POR ID
+  async getAdvisorById(req, res) {
+    const connection = await createConnection();
+    try {
+      const { id } = req.params;
+      const [advisors] = await connection.execute(
+        `SELECT id, name, email, vehicle_type, license_plate, assigned_zone, 
+                work_start_time, work_end_time, is_active
+         FROM users 
+         WHERE id = ? AND role = 'advisor'`,
+        [id]
+      );
+      
+      if (advisors.length === 0) {
+        return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
+      }
+      
+      res.json({ success: true, advisor: advisors[0] });
+    } catch (error) {
+      console.error('Error al obtener asesor:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // 🆕 CREAR ASESOR
+  async createAdvisor(req, res) {
+    const connection = await createConnection();
+    try {
+      const { 
+        name, email, password, vehicle_type, license_plate, 
+        assigned_zone, work_start_time, work_end_time 
+      } = req.body;
+      
+      // Verificar si el email ya existe
+      const [existing] = await connection.execute(
+        'SELECT id FROM users WHERE email = ?',
+        [email]
+      );
+      
+      if (existing.length > 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Ya existe un usuario con este email' 
+        });
+      }
+      
+      // Hashear contraseña
+      const bcrypt = await import('bcrypt');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      const [result] = await connection.execute(
+        `INSERT INTO users 
+         (name, email, password, role, vehicle_type, license_plate, assigned_zone, work_start_time, work_end_time, is_active)
+         VALUES (?, ?, ?, 'advisor', ?, ?, ?, ?, ?, 1)`,
+        [name, email, hashedPassword, vehicle_type, license_plate || null, assigned_zone || null, work_start_time || '08:00:00', work_end_time || '17:00:00']
+      );
+      
+      res.json({ 
+        success: true, 
+        message: 'Asesor creado exitosamente',
+        advisorId: result.insertId
+      });
+    } catch (error) {
+      console.error('Error al crear asesor:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // 🆕 ACTUALIZAR ASESOR
+  async updateAdvisor(req, res) {
+    const connection = await createConnection();
+    try {
+      const { id } = req.params;
+      const { 
+        name, email, vehicle_type, license_plate, 
+        assigned_zone, work_start_time, work_end_time, is_active 
+      } = req.body;
+      
+      // Verificar si el asesor existe
+      const [existing] = await connection.execute(
+        'SELECT id FROM users WHERE id = ? AND role = "advisor"',
+        [id]
+      );
+      
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
+      }
+      
+      // Si cambió el email, verificar que no esté duplicado
+      if (email) {
+        const [duplicate] = await connection.execute(
+          'SELECT id FROM users WHERE email = ? AND id != ?',
+          [email, id]
+        );
+        
+        if (duplicate.length > 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Ya existe otro usuario con este email' 
+          });
+        }
+      }
+      
+      await connection.execute(
+        `UPDATE users SET 
+          name = ?, email = ?, vehicle_type = ?, license_plate = ?, 
+          assigned_zone = ?, work_start_time = ?, work_end_time = ?, is_active = ?
+         WHERE id = ?`,
+        [name, email, vehicle_type, license_plate || null, assigned_zone || null, work_start_time, work_end_time, is_active, id]
+      );
+      
+      res.json({ success: true, message: 'Asesor actualizado exitosamente' });
+    } catch (error) {
+      console.error('Error al actualizar asesor:', error);
+      res.status(500).json({ success: false, message: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // 🆕 ELIMINAR ASESOR (o desactivar)
+  async deleteAdvisor(req, res) {
+    const connection = await createConnection();
+    try {
+      const { id } = req.params;
+      
+      // Verificar si el asesor existe
+      const [existing] = await connection.execute(
+        'SELECT id FROM users WHERE id = ? AND role = "advisor"',
+        [id]
+      );
+      
+      if (existing.length === 0) {
+        return res.status(404).json({ success: false, message: 'Asesor no encontrado' });
+      }
+      
+      // Opcional: eliminar físicamente o solo desactivar
+      // Opción 1: Eliminar físicamente
+      await connection.execute('DELETE FROM users WHERE id = ?', [id]);
+      
+      // Opción 2: Solo desactivar (comentar la línea de arriba y descomentar esta)
+      // await connection.execute('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
+      
+      res.json({ success: true, message: 'Asesor eliminado exitosamente' });
+    } catch (error) {
+      console.error('Error al eliminar asesor:', error);
+      res.status(500).json({ success: false, message: error.message });
     } finally {
       await connection.end();
     }
