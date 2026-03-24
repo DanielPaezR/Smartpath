@@ -57,6 +57,7 @@ const AdvisorDashboard = () => {
     }
 
     setLocationStatus('requesting');
+    console.log('📍 Solicitando ubicación...');
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -78,18 +79,31 @@ const AdvisorDashboard = () => {
           navigator.geolocation.getCurrentPosition(
             (newPosition) => {
               const { latitude: newLat, longitude: newLng } = newPosition.coords;
+              console.log('📍 Actualizando ubicación:', newLat, newLng);
               sendLocationToBackend(newLat, newLng, 'traveling');
             },
             (error) => {
               console.error('Error actualizando ubicación:', error);
-            }
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
           );
         }, 30000);
-        
       },
       (error) => {
-        console.error('Error obteniendo ubicación:', error);
-        setLocationError('No se pudo obtener tu ubicación. Asegúrate de permitir el acceso.');
+        console.error('❌ Error obteniendo ubicación:', error);
+        console.log('   - Código de error:', error.code);
+        console.log('   - Mensaje:', error.message);
+        
+        let userMessage = 'No se pudo obtener tu ubicación. ';
+        if (error.code === 1) {
+          userMessage += 'Debes permitir el acceso a la ubicación en tu navegador. Haz clic en el candado 🔒 en la barra de direcciones y permite la ubicación.';
+        } else if (error.code === 2) {
+          userMessage += 'La ubicación no está disponible. Verifica que tu GPS esté activado.';
+        } else if (error.code === 3) {
+          userMessage += 'La solicitud de ubicación tomó demasiado tiempo. Intenta nuevamente.';
+        }
+        
+        setLocationError(userMessage);
         setLocationStatus('error');
       },
       {
@@ -102,9 +116,15 @@ const AdvisorDashboard = () => {
 
   // EFECTO PARA SOLICITAR UBICACIÓN AUTOMÁTICAMENTE AL CARGAR EL DASHBOARD
   useEffect(() => {
-    // Si hay una ruta cargada y con tiendas, solicitar ubicación automáticamente
+    console.log('📍 Verificando si hay ruta para solicitar ubicación...');
+    console.log('   - currentRoute:', !!currentRoute);
+    console.log('   - stores:', currentRoute?.stores?.length);
+    
     if (currentRoute && currentRoute.stores && currentRoute.stores.length > 0) {
+      console.log('📍 Hay ruta activa, solicitando ubicación...');
       requestLocation();
+    } else {
+      console.log('📍 No hay ruta activa, no se solicita ubicación');
     }
     
     return () => {
