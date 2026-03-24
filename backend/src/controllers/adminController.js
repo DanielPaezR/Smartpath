@@ -1,6 +1,7 @@
 // backend/src/controllers/adminController.js
 import { createConnection } from '../config/database.js';
 import { User } from '../models/User.js';
+import { routeGenerator } from '../services/routeGenerator.js';
 
 // Función auxiliar para métricas vacías de reposición
 const emptyRestockMetrics = () => ({
@@ -1055,6 +1056,94 @@ class AdminController {
       await connection.end();
     }
   }
+
+  async generateDailyRoutes(req, res) {
+    try {
+      const { date } = req.body;
+      const result = await routeGenerator.generateDailyRoutes(date);
+      res.json(result);
+    } catch (error) {
+      console.error('Error generando rutas:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+  
+  // Generar rutas semanales
+  async generateWeekRoutes(req, res) {
+    try {
+      const results = await routeGenerator.generateWeekRoutes();
+      res.json({ success: true, results });
+    } catch (error) {
+      console.error('Error generando rutas semanales:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async getWeeklyPattern(req, res) {
+    const connection = await createConnection();
+    try {
+      const { advisorId } = req.params;
+      
+      // Obtener las rutas de los últimos 7 días para inferir el patrón
+      const [routes] = await connection.execute(`
+        SELECT 
+          DAYOFWEEK(dr.route_date) as day_of_week,
+          rs.store_id,
+          rs.visit_order
+        FROM daily_routes dr
+        JOIN route_stores rs ON dr.id = rs.route_id
+        WHERE dr.user_id = ? 
+          AND dr.route_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ORDER BY dr.route_date, rs.visit_order
+      `, [advisorId]);
+      
+      // Agrupar por día
+      const schedule = {};
+      for (let i = 1; i <= 7; i++) {
+        schedule[i] = {
+          dayName: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][i-1],
+          dayNumber: i,
+          stores: []
+        };
+      }
+      
+      routes.forEach(route => {
+        const day = route.day_of_week;
+        if (!schedule[day].stores.some(s => s.store_id === route.store_id)) {
+          schedule[day].stores.push({
+            id: route.store_id,
+            store_id: route.store_id,
+            store_name: 'Cargando...',
+            visit_order: route.visit_order
+          });
+        }
+      });
+      
+      // Cargar nombres de tiendas
+      for (let day of Object.values(schedule)) {
+        for (let store of day.stores) {
+          const [storeInfo] = await connection.execute(
+            'SELECT name, address, priority FROM stores WHERE id = ?',
+            [store.store_id]
+          );
+          if (storeInfo[0]) {
+            store.store_name = storeInfo[0].name;
+            store.address = storeInfo[0].address;
+            store.priority = storeInfo[0].priority;
+          }
+        }
+      }
+      
+      res.json({ success: true, schedule, advisor: { id: advisorId } });
+      
+    } catch (error) {
+      console.error('Error obteniendo patrón semanal:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
+
 
 export default new AdminController();

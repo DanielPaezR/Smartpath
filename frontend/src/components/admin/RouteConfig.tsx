@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { routeConfigService, AdvisorSchedule } from '../../services/routeConfigService';
 import { advisorService, Advisor } from '../../services/advisorService';
+import { API_BASE_URL } from '../../services/api';
 import '../../styles/RouteConfig.css';
 
 const daysOfWeek = [
@@ -32,6 +33,8 @@ const RouteConfig: React.FC = () => {
   const [selectedStore, setSelectedStore] = useState<number | null>(null);
   const [activeDay, setActiveDay] = useState<number>(1);
   const [isMobile, setIsMobile] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   // Detectar si es móvil
   useEffect(() => {
@@ -77,10 +80,38 @@ const RouteConfig: React.FC = () => {
 
   const loadSchedule = async (advisorId: number) => {
     try {
-      const data = await routeConfigService.getAdvisorSchedule(advisorId);
+      // 1. Cargar configuración semanal existente
+      let data = await routeConfigService.getAdvisorSchedule(advisorId);
+      
+      // 2. Si no hay datos semanales, cargar desde daily_routes
+      const hasData = Object.keys(data.schedule).some(key => 
+        data.schedule[parseInt(key)]?.stores?.length > 0
+      );
+      
+      if (!hasData) {
+        console.log('📋 No hay configuración semanal, cargando desde daily_routes...');
+        const weeklyData = await loadFromDailyRoutes(advisorId);
+        if (weeklyData) {
+          data = weeklyData;
+        }
+      }
+      
       setSchedule(data);
     } catch (error) {
       console.error('Error cargando configuración:', error);
+    }
+  };
+
+  const loadFromDailyRoutes = async (advisorId: number) => {
+    try {
+      // Obtener las rutas de los últimos 7 días para inferir la configuración semanal
+      const response = await fetch(`${API_BASE_URL}/admin/advisors/${advisorId}/weekly-pattern`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error cargando desde daily_routes:', error);
+      return null;
     }
   };
 
@@ -111,6 +142,65 @@ const RouteConfig: React.FC = () => {
     }
   };
 
+  // 🆕 GUARDAR CAMBIOS EN LA CONFIGURACIÓN SEMANAL
+  const handleSaveChanges = async () => {
+    if (!selectedAdvisor) return;
+    
+    setSaving(true);
+    try {
+      // 1. Guardar en advisor_weekly_schedule (ya se hace con add/remove)
+      
+      // 2. Regenerar daily_routes para los próximos días
+      const response = await fetch(`${API_BASE_URL}/admin/routes/regenerate-week`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ advisorId: selectedAdvisor })
+      });
+      
+      const result = await response.json();
+      alert(`✅ Configuración guardada. ${result.message}`);
+      
+    } catch (error) {
+      console.error('Error guardando cambios:', error);
+      alert('❌ Error al guardar la configuración');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 🆕 GENERAR RUTAS DIARIAS A PARTIR DE LA CONFIGURACIÓN SEMANAL
+  const handleGenerateRoutes = async () => {
+    if (!selectedAdvisor) return;
+    
+    if (!confirm('¿Generar rutas para hoy con la configuración actual? Esto actualizará las rutas de los asesores.')) return;
+    
+    setGenerating(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/routes/generate-daily`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ ${result.message}\n📊 Rutas generadas: ${result.created} nuevas, ${result.updated} actualizadas`);
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error generando rutas:', error);
+      alert('❌ Error al generar las rutas');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const getPriorityBadge = (priority: string) => {
     switch(priority) {
       case 'high': return '🔴 Alta';
@@ -120,15 +210,29 @@ const RouteConfig: React.FC = () => {
     }
   };
 
+  // Calcular total de tiendas asignadas al asesor
+  const getTotalStoresCount = () => {
+    if (!schedule) return 0;
+    let total = 0;
+    for (let i = 1; i <= 7; i++) {
+      total += schedule.schedule[i]?.stores.length || 0;
+    }
+    return total;
+  };
+
   if (loading) return <div className="loading">Cargando...</div>;
 
   const currentDaySchedule = schedule?.schedule[activeDay];
   const currentDayName = daysOfWeek.find(d => d.number === activeDay)?.name;
+  const totalStores = getTotalStoresCount();
 
   return (
     <div className="route-config">
       <div className="header">
-        <h1>🗓️ Configuración de Rutas</h1>
+        <div>
+          <h1>🗓️ Configuración de Rutas</h1>
+          <p className="subtitle">Configura las rutas semanales de cada asesor</p>
+        </div>
         <select
           value={selectedAdvisor || ''}
           onChange={(e) => setSelectedAdvisor(parseInt(e.target.value))}
@@ -140,16 +244,44 @@ const RouteConfig: React.FC = () => {
         </select>
       </div>
 
-      <div className="days-tabs">
-        {daysOfWeek.map(day => (
-          <button
-            key={day.number}
-            className={`day-tab ${activeDay === day.number ? 'active' : ''}`}
-            onClick={() => setActiveDay(day.number)}
+      {/* Barra de acciones */}
+      <div className="action-bar">
+        <div className="stats-info">
+          <span className="stat-badge">📋 Total tiendas asignadas: {totalStores}</span>
+          <span className="stat-badge">🗓️ {daysOfWeek.length} días configurados</span>
+        </div>
+        <div className="action-buttons">
+          <button 
+            className="btn-save"
+            onClick={handleSaveChanges}
+            disabled={saving}
           >
-            {day.name}
+            {saving ? '💾 Guardando...' : '💾 Guardar Configuración'}
           </button>
-        ))}
+          <button 
+            className="btn-generate"
+            onClick={handleGenerateRoutes}
+            disabled={generating}
+          >
+            {generating ? '⚙️ Generando...' : '⚙️ Generar Rutas para Hoy'}
+          </button>
+        </div>
+      </div>
+
+      <div className="days-tabs">
+        {daysOfWeek.map(day => {
+          const dayStores = schedule?.schedule[day.number]?.stores.length || 0;
+          return (
+            <button
+              key={day.number}
+              className={`day-tab ${activeDay === day.number ? 'active' : ''}`}
+              onClick={() => setActiveDay(day.number)}
+            >
+              {day.name}
+              {dayStores > 0 && <span className="day-badge">{dayStores}</span>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="schedule-content">
@@ -193,18 +325,18 @@ const RouteConfig: React.FC = () => {
           <div className="stores-table-container">
             <table className="stores-table">
               <thead>
-                <thead>
+                <tr>
                   <th>Orden</th>
                   <th>Tienda</th>
                   <th>Dirección</th>
                   <th>Prioridad</th>
                   <th>Acciones</th>
-                </thead>
+                </tr>
               </thead>
               <tbody>
                 {currentDaySchedule.stores.map((store, index) => (
                   <tr key={store.id}>
-                    <td className="order">{index + 1} </td>
+                    <td className="order">{index + 1}</td>
                     <td className="store-name">{store.store_name}</td>
                     <td className="address">{store.address || '-'}</td>
                     <td className="priority">{getPriorityBadge(store.priority)}</td>

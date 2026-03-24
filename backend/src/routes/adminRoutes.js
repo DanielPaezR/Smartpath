@@ -35,4 +35,8 @@ router.delete('/advisors/:advisorId/schedule/:scheduleId', adminController.remov
 router.put('/advisors/:advisorId/schedule/order', adminController.updateScheduleOrder);
 router.get('/stores/simple', adminController.getAllStoresSimple);
 
+// Generar rutas diarias
+router.post('/routes/generate-daily', adminController.generateDailyRoutes);
+router.post('/routes/generate-week', adminController.generateWeekRoutes);
+
 export default router;
