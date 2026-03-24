@@ -115,17 +115,23 @@ const AdvisorDashboard = () => {
     );
   };
 
-  // EFECTO PARA SOLICITAR UBICACIÓN AUTOMÁTICAMENTE AL CARGAR EL DASHBOARD
+  // EFECTO PARA SOLICITAR UBICACIÓN DESPUÉS DE QUE LA RUTA ESTÉ CARGADA
   useEffect(() => {
     console.log('📍 Verificando si hay ruta para solicitar ubicación...');
     console.log('   - currentRoute:', !!currentRoute);
     console.log('   - stores:', currentRoute?.stores?.length);
     
-    if (currentRoute && currentRoute.stores && currentRoute.stores.length > 0) {
-      console.log('📍 Hay ruta activa, solicitando ubicación...');
+    // Solo solicitar ubicación si:
+    // 1. Hay una ruta cargada
+    // 2. La ruta tiene tiendas
+    // 3. No estamos en estado de error
+    if (currentRoute && currentRoute.stores && currentRoute.stores.length > 0 && !error) {
+      console.log('📍 Hay ruta activa con', currentRoute.stores.length, 'tiendas, solicitando ubicación...');
       requestLocation();
-    } else {
-      console.log('📍 No hay ruta activa, no se solicita ubicación');
+    } else if (currentRoute && (!currentRoute.stores || currentRoute.stores.length === 0)) {
+      console.log('📍 Hay ruta pero sin tiendas, no se solicita ubicación');
+    } else if (!currentRoute && !loading) {
+      console.log('📍 No hay ruta cargada, esperando...');
     }
     
     return () => {
@@ -133,7 +139,7 @@ const AdvisorDashboard = () => {
         clearInterval(locationIntervalRef.current);
       }
     };
-  }, [currentRoute]);
+  }, [currentRoute, loading, error]);
 
   useEffect(() => {
     console.log('🔄=== EFFECT ADVISOR DASHBOARD EJECUTADO ===');
@@ -207,6 +213,8 @@ const AdvisorDashboard = () => {
       
       setCurrentRoute(normalizedRoute);
       setStores(normalizedStores);
+      
+      console.log('✅ currentRoute actualizado:', normalizedRoute.id);
       
     } catch (err) {
       console.error('❌ Error en loadRouteData:', err);
