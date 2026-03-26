@@ -1,4 +1,6 @@
 // frontend/src/services/restockService.ts
+import { API_BASE_URL } from './api';
+
 export interface IRestockItem {
     id?: number;
     route_store_id: number;
@@ -23,10 +25,13 @@ export interface IRestockSummary {
 }
 
 class RestockService {
-    private baseUrl = '/api/routes/restock';
+    private baseUrl = `${API_BASE_URL}/routes/restock`;
 
     async addRestockItem(item: Omit<IRestockItem, 'id' | 'reported_at' | 'total_value'>): Promise<IRestockItem> {
         try {
+            console.log('📦 Enviando reposición a:', `${this.baseUrl}/add-item`);
+            console.log('📦 Datos:', item);
+            
             const response = await fetch(`${this.baseUrl}/add-item`, {
                 method: 'POST',
                 headers: {
@@ -37,7 +42,9 @@ class RestockService {
             });
 
             if (!response.ok) {
-                throw new Error('Error al registrar producto repuesto');
+                const errorText = await response.text();
+                console.error('❌ Error response:', response.status, errorText);
+                throw new Error(`Error al registrar producto repuesto: ${response.status}`);
             }
 
             return await response.json();
