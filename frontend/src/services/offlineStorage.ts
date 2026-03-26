@@ -1,8 +1,8 @@
 // frontend/src/services/offlineStorage.ts
-import { openDB, DBSchema } from 'idb';
-import { API_BASE_URL } from '../services/api';
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
-interface StoreVisitDB extends DBSchema {
+// Definir la estructura de la base de datos
+interface MyDB extends DBSchema {
   visits: {
     key: string;
     value: {
@@ -12,6 +12,7 @@ interface StoreVisitDB extends DBSchema {
       storeName: string;
       startTime: string;
       lastUpdate: string;
+      timeInStore: number;
       status: 'pending' | 'in-progress' | 'completed' | 'skipped';
       tasks: any[];
       damageReports: any[];
@@ -21,41 +22,46 @@ interface StoreVisitDB extends DBSchema {
       signature?: string;
       synced: boolean;
     };
-    indexes: { 'synced': boolean };
+    indexes: {
+      'by-synced': string;
+    };
   };
   pendingSync: {
     key: string;
     value: {
-      id: string;
+      id?: string;
       type: 'damage' | 'restock' | 'visit_complete' | 'task_update';
       data: any;
       timestamp: string;
       retryCount: number;
     };
-    indexes: { 'timestamp': string; 'retryCount': number };
+    indexes: {
+      'by-timestamp': string;
+      'by-retryCount': number;
+    };
   };
 }
 
 class OfflineStorageService {
-  private db: any = null;
+  private db: IDBPDatabase<MyDB> | null = null;
   private syncInProgress = false;
 
   async init() {
     if (this.db) return this.db;
     
-    this.db = await openDB<StoreVisitDB>('SmartPathOffline', 1, {
+    this.db = await openDB<MyDB>('SmartPathOffline', 1, {
       upgrade(db) {
         // Almacenamiento de visitas en progreso
         if (!db.objectStoreNames.contains('visits')) {
           const visitStore = db.createObjectStore('visits', { keyPath: 'id' });
-          visitStore.createIndex('synced', 'synced');
+          visitStore.createIndex('by-synced', 'synced');
         }
         
         // Cola de sincronización pendiente
         if (!db.objectStoreNames.contains('pendingSync')) {
           const syncStore = db.createObjectStore('pendingSync', { keyPath: 'id', autoIncrement: true });
-          syncStore.createIndex('timestamp', 'timestamp');
-          syncStore.createIndex('retryCount', 'retryCount');
+          syncStore.createIndex('by-timestamp', 'timestamp');
+          syncStore.createIndex('by-retryCount', 'retryCount');
         }
       },
     });
@@ -64,7 +70,20 @@ class OfflineStorageService {
   }
 
   // Guardar estado completo de la visita
-  async saveVisitState(visitId: string, data: any) {
+  async saveVisitState(visitId: string, data: {
+    routeStoreId: number;
+    storeId: number;
+    storeName: string;
+    startTime: string;
+    status: 'pending' | 'in-progress' | 'completed' | 'skipped';
+    tasks: any[];
+    timeInStore: number;
+    damageReports: any[];
+    restockItems: any[];
+    notes: string;
+    photos: any[];
+    signature?: string;
+  }) {
     const db = await this.init();
     await db.put('visits', {
       ...data,
@@ -81,7 +100,7 @@ class OfflineStorageService {
     return await db.get('visits', visitId);
   }
 
-  // Eliminar visita (cuando se completa y sincroniza)
+  // Eliminar visita
   async deleteVisitState(visitId: string) {
     const db = await this.init();
     await db.delete('visits', visitId);
@@ -103,13 +122,15 @@ class OfflineStorageService {
   // Obtener todas las acciones pendientes
   async getPendingSync() {
     const db = await this.init();
-    return await db.getAllFromIndex('pendingSync', 'timestamp');
+    const index = db.transaction('pendingSync').store.index('by-timestamp');
+    return await index.getAll();
   }
 
   // Eliminar acción sincronizada
   async removeSyncedAction(id: string) {
     const db = await this.init();
     await db.delete('pendingSync', id);
+    console.log(`🗑️ Acción eliminada de la cola: ${id}`);
   }
 
   // Incrementar contador de reintentos
@@ -134,13 +155,12 @@ class OfflineStorageService {
       for (const action of pendingActions) {
         try {
           await this.processSyncAction(action);
-          await this.removeSyncedAction(action.id);
+          await this.removeSyncedAction(action.id as string);
           console.log(`✅ Acción sincronizada: ${action.type}`);
         } catch (error) {
           console.error(`❌ Error sincronizando acción ${action.id}:`, error);
-          await this.incrementRetryCount(action.id);
+          await this.incrementRetryCount(action.id as string);
           
-          // Si falló más de 3 veces, marcar para revisión manual
           if (action.retryCount >= 3) {
             console.warn(`⚠️ Acción ${action.id} falló ${action.retryCount} veces, requiere atención manual`);
           }
@@ -155,10 +175,11 @@ class OfflineStorageService {
   private async processSyncAction(action: any) {
     const { type, data } = action;
     const token = localStorage.getItem('token');
+    const API_BASE_URL = '/~daniel.paez/smartpath/api';
     
     switch (type) {
       case 'damage':
-        await fetch(`${API_BASE_URL}/products/report-damage`, {
+        const damageResponse = await fetch(`${API_BASE_URL}/products/report-damage`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -166,10 +187,11 @@ class OfflineStorageService {
           },
           body: JSON.stringify(data)
         });
+        if (!damageResponse.ok) throw new Error('Error reportando daño');
         break;
         
       case 'restock':
-        await fetch(`${API_BASE_URL}/routes/restock/add-item`, {
+        const restockResponse = await fetch(`${API_BASE_URL}/routes/restock/add-item`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -177,10 +199,11 @@ class OfflineStorageService {
           },
           body: JSON.stringify(data)
         });
+        if (!restockResponse.ok) throw new Error('Error registrando reposición');
         break;
         
       case 'visit_complete':
-        await fetch(`${API_BASE_URL}/routes/complete-visit`, {
+        const visitResponse = await fetch(`${API_BASE_URL}/routes/complete-visit`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -188,10 +211,11 @@ class OfflineStorageService {
           },
           body: JSON.stringify(data)
         });
+        if (!visitResponse.ok) throw new Error('Error completando visita');
         break;
         
       case 'task_update':
-        await fetch(`${API_BASE_URL}/routes/update-tasks`, {
+        const taskResponse = await fetch(`${API_BASE_URL}/routes/update-tasks`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -199,6 +223,7 @@ class OfflineStorageService {
           },
           body: JSON.stringify(data)
         });
+        if (!taskResponse.ok) throw new Error('Error actualizando tareas');
         break;
     }
   }
