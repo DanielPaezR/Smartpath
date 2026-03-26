@@ -291,3 +291,93 @@
     font-size: 0.75rem;
     margin-top: 4px;
 }
+
+/* Agregar al final de RestockModal.css */
+
+.product-confirmation {
+    background: #e8f5e9;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border-left: 4px solid #2e7d32;
+}
+
+.confirmation-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #2e7d32;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #c8e6c9;
+}
+
+.confirmation-icon {
+    font-size: 1.2rem;
+}
+
+.product-details {
+    margin-bottom: 16px;
+}
+
+.detail-row {
+    display: flex;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.detail-label {
+    width: 100px;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.detail-value {
+    flex: 1;
+    color: #2c3e50;
+}
+
+.detail-value.product-name {
+    font-weight: 600;
+    color: #2e7d32;
+}
+
+.detail-value.product-price {
+    font-weight: 600;
+    color: #27ae60;
+}
+
+.detail-value.low-stock {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.detail-value.description {
+    color: #7f8c8d;
+    font-size: 0.85rem;
+}
+
+.confirmation-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.btn-secondary.small, .btn-primary.small {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    min-height: 32px;
+}
+
+.info-message {
+    background: #e3f2fd;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #1976d2;
+}

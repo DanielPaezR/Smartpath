@@ -29,11 +29,11 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [showProductForm, setShowProductForm] = useState(false);
     const [manualEntry, setManualEntry] = useState(false);
+    const [confirmProduct, setConfirmProduct] = useState(false); // 🆕 Estado para confirmación
 
     const handleBarcodeScanned = async (barcode: string) => {
         setLoading(true);
         try {
-            // Buscar producto por código de barras - USANDO API_BASE_URL
             const response = await fetch(`${API_BASE_URL}/products/barcode/${barcode}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -45,12 +45,13 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                 setCurrentProduct(product);
                 setCurrentBarcode(barcode);
                 setShowProductForm(true);
+                setConfirmProduct(true); // 🆕 Mostrar confirmación
             } else {
-                // Producto no encontrado, permitir ingreso manual
                 if (confirm('Producto no encontrado. ¿Quieres ingresarlo manualmente?')) {
                     setCurrentBarcode(barcode);
                     setManualEntry(true);
                     setShowProductForm(true);
+                    setConfirmProduct(false);
                 }
             }
         } catch (error) {
@@ -97,6 +98,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
             setNotes('');
             setShowProductForm(false);
             setManualEntry(false);
+            setConfirmProduct(false);
 
         } catch (error) {
             console.error('Error guardando item:', error);
@@ -112,6 +114,14 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
         onSave(items);
         onClose();
+    };
+
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+        }).format(price);
     };
 
     return (
@@ -156,15 +166,81 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                 onClick={() => {
                                     setManualEntry(true);
                                     setShowProductForm(true);
+                                    setConfirmProduct(false);
                                 }}
                             >
-                                ⌨️ Registrar Producto
+                                ⌨️ Registrar Producto Manualmente
                             </button>
                         </div>
                     ) : (
                         <div className="product-form">
                             <h4>{manualEntry ? 'Ingreso manual' : 'Producto encontrado'}</h4>
                             
+                            {/* 🆕 SECCIÓN DE CONFIRMACIÓN DEL PRODUCTO */}
+                            {confirmProduct && currentProduct && (
+                                <div className="product-confirmation">
+                                    <div className="confirmation-header">
+                                        <span className="confirmation-icon">✅</span>
+                                        <span>Producto encontrado</span>
+                                    </div>
+                                    <div className="product-details">
+                                        <div className="detail-row">
+                                            <span className="detail-label">Nombre:</span>
+                                            <span className="detail-value product-name">{currentProduct.name}</span>
+                                        </div>
+                                        {currentProduct.brand && (
+                                            <div className="detail-row">
+                                                <span className="detail-label">Marca:</span>
+                                                <span className="detail-value">{currentProduct.brand}</span>
+                                            </div>
+                                        )}
+                                        {currentProduct.category && (
+                                            <div className="detail-row">
+                                                <span className="detail-label">Categoría:</span>
+                                                <span className="detail-value">{currentProduct.category}</span>
+                                            </div>
+                                        )}
+                                        {currentProduct.price && (
+                                            <div className="detail-row">
+                                                <span className="detail-label">Precio referencia:</span>
+                                                <span className="detail-value product-price">{formatPrice(currentProduct.price)}</span>
+                                            </div>
+                                        )}
+                                        {currentProduct.stock !== undefined && (
+                                            <div className="detail-row">
+                                                <span className="detail-label">Stock actual:</span>
+                                                <span className={`detail-value ${currentProduct.stock < 10 ? 'low-stock' : ''}`}>
+                                                    {currentProduct.stock} unidades
+                                                </span>
+                                            </div>
+                                        )}
+                                        {currentProduct.description && (
+                                            <div className="detail-row">
+                                                <span className="detail-label">Descripción:</span>
+                                                <span className="detail-value description">{currentProduct.description}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="confirmation-actions">
+                                        <button 
+                                            className="btn-secondary small"
+                                            onClick={() => {
+                                                setManualEntry(true);
+                                                setConfirmProduct(false);
+                                            }}
+                                        >
+                                            ✏️ Editar producto
+                                        </button>
+                                        <button 
+                                            className="btn-primary small"
+                                            onClick={() => setConfirmProduct(false)}
+                                        >
+                                            ✅ Confirmar
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="form-group">
                                 <label>Código de barras:</label>
                                 <input 
@@ -172,7 +248,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     value={currentBarcode}
                                     onChange={(e) => setCurrentBarcode(e.target.value)}
                                     className="form-input"
-                                    disabled={!manualEntry}
+                                    disabled={!manualEntry && confirmProduct}
                                 />
                             </div>
 
@@ -183,9 +259,10 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                         <input 
                                             type="text"
                                             value={currentProduct?.name || ''}
-                                            onChange={(e) => setCurrentProduct({ name: e.target.value })}
+                                            onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
                                             className="form-input"
                                             placeholder="Ej: Leche Entera"
+                                            autoFocus
                                         />
                                     </div>
 
@@ -194,7 +271,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                         <input 
                                             type="text"
                                             value={currentProduct?.brand || ''}
-                                            onChange={(e) => setCurrentProduct((prev: any) => ({ ...prev, brand: e.target.value }))}
+                                            onChange={(e) => setCurrentProduct({ ...currentProduct, brand: e.target.value })}
                                             className="form-input"
                                             placeholder="Ej: Alpina"
                                         />
@@ -204,7 +281,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                         <label>Categoría:</label>
                                         <select 
                                             value={currentProduct?.category || ''}
-                                            onChange={(e) => setCurrentProduct((prev: any) => ({ ...prev, category: e.target.value }))}
+                                            onChange={(e) => setCurrentProduct({ ...currentProduct, category: e.target.value })}
                                             className="form-select"
                                         >
                                             <option value="">Seleccionar categoría</option>
@@ -216,63 +293,90 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                             <option value="otros">Otros</option>
                                         </select>
                                     </div>
+
+                                    <div className="form-group">
+                                        <label>Precio referencia (opcional):</label>
+                                        <input 
+                                            type="number"
+                                            step="0.01"
+                                            value={unitPrice || currentProduct?.price || ''}
+                                            onChange={(e) => {
+                                                const price = e.target.value ? parseFloat(e.target.value) : undefined;
+                                                setUnitPrice(price);
+                                                setCurrentProduct({ ...currentProduct, price });
+                                            }}
+                                            className="form-input"
+                                            placeholder="$0.00"
+                                        />
+                                    </div>
                                 </>
                             )}
 
-                            <div className="form-row">
-                                <div className="form-group half">
-                                    <label>Cantidad repuesta:</label>
-                                    <input 
-                                        type="number"
-                                        min="1"
-                                        value={quantity === 0 ? '' : quantity}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (val === '') {
-                                                setQuantity(0);
-                                            } else {
-                                                const num = parseInt(val, 10);
-                                                if (!isNaN(num) && num >= 0) {
-                                                    setQuantity(num);
-                                                }
-                                            }
-                                        }}
-                                        onBlur={() => {
-                                            if (quantity === 0 || isNaN(quantity) || quantity < 1) {
-                                                setQuantity(1);
-                                            }
-                                        }}
-                                        className={`form-input ${quantity < 1 ? 'input-error' : ''}`}
-                                    />
-                                    {quantity < 1 && (
-                                        <span className="error-message">La cantidad debe ser mayor a 0</span>
-                                    )}
+                            {!manualEntry && !confirmProduct && (
+                                <div className="info-message">
+                                    <span>ℹ️</span>
+                                    <span>Confirma que el producto escaneado es correcto antes de continuar</span>
                                 </div>
+                            )}
 
-                                <div className="form-group half">
-                                    <label>Precio unitario (opcional):</label>
-                                    <input 
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={unitPrice || ''}
-                                        onChange={(e) => setUnitPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
-                                        className="form-input"
-                                        placeholder="$0.00"
-                                    />
-                                </div>
-                            </div>
+                            {(manualEntry || !confirmProduct) && (
+                                <>
+                                    <div className="form-row">
+                                        <div className="form-group half">
+                                            <label>Cantidad repuesta:</label>
+                                            <input 
+                                                type="number"
+                                                min="1"
+                                                value={quantity === 0 ? '' : quantity}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '') {
+                                                        setQuantity(0);
+                                                    } else {
+                                                        const num = parseInt(val, 10);
+                                                        if (!isNaN(num) && num >= 0) {
+                                                            setQuantity(num);
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    if (quantity === 0 || isNaN(quantity) || quantity < 1) {
+                                                        setQuantity(1);
+                                                    }
+                                                }}
+                                                className={`form-input ${quantity < 1 ? 'input-error' : ''}`}
+                                            />
+                                            {quantity < 1 && (
+                                                <span className="error-message">La cantidad debe ser mayor a 0</span>
+                                            )}
+                                        </div>
 
-                            <div className="form-group">
-                                <label>Notas (opcional):</label>
-                                <textarea 
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    className="form-textarea"
-                                    rows={2}
-                                    placeholder="Ej: Se repusieron 3 unidades porque estaban agotadas"
-                                />
-                            </div>
+                                        <div className="form-group half">
+                                            <label>Precio unitario (opcional):</label>
+                                            <input 
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={unitPrice || ''}
+                                                onChange={(e) => setUnitPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                className="form-input"
+                                                placeholder="$0.00"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>Notas (opcional):</label>
+                                        <textarea 
+                                            value={notes}
+                                            onChange={(e) => setNotes(e.target.value)}
+                                            className="form-textarea"
+                                            rows={2}
+                                            placeholder="Ej: Se repusieron 3 unidades porque estaban agotadas"
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             <div className="form-actions">
                                 <button 
@@ -281,17 +385,27 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                         setShowProductForm(false);
                                         setManualEntry(false);
                                         setCurrentProduct(null);
+                                        setConfirmProduct(false);
                                     }}
                                 >
                                     Cancelar
                                 </button>
-                                <button 
-                                    className="btn-primary"
-                                    onClick={handleAddItem}
-                                    disabled={loading || !currentBarcode}
-                                >
-                                    {loading ? '⏳ Agregando...' : '➕ Agregar producto'}
-                                </button>
+                                {confirmProduct ? (
+                                    <button 
+                                        className="btn-primary"
+                                        onClick={() => setConfirmProduct(false)}
+                                    >
+                                        Continuar
+                                    </button>
+                                ) : (
+                                    <button 
+                                        className="btn-primary"
+                                        onClick={handleAddItem}
+                                        disabled={loading || !currentBarcode || (manualEntry && !currentProduct?.name)}
+                                    >
+                                        {loading ? '⏳ Agregando...' : '➕ Agregar producto'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
