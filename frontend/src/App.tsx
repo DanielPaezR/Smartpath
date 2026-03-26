@@ -15,6 +15,7 @@ import RouteConfig from './components/admin/RouteConfig';
 import './styles/global-fixes.css';
 import InstallPWA from './components/common/InstallPWA';
 import './App.css';
+import AdvisorMetrics from './components/advisor/AdvisorMetrics';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -126,6 +127,12 @@ function App() {
               <AdminRoute>
                 <AdvisorManagement />
               </AdminRoute>
+            } />
+
+            <Route path="/advisor/metrics" element={
+              <AdvisorRoute>
+                <AdvisorMetrics />
+              </AdvisorRoute>
             } />
 
             {/* Ruta 404 */}

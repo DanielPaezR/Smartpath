@@ -449,6 +449,9 @@ const AdvisorDashboard = () => {
               <span className="stat-label">Duración</span>
             </div>
           </div>
+          <Link to="/advisor/metrics" className="metrics-link">
+            📊 Mis Estadísticas
+          </Link>
         </div>
       </div>
 

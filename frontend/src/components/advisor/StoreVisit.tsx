@@ -638,7 +638,6 @@ const StoreVisit: React.FC = () => {
       alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
     } else {
       const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
     }
   };
 

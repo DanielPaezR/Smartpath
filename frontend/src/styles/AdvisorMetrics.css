@@ -1,0 +1,253 @@
+/* frontend/src/styles/AdvisorMetrics.css */
+.advisor-metrics {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.metrics-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.metrics-header h1 {
+  font-size: 1.8rem;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.metrics-header p {
+  color: #7f8c8d;
+}
+
+.period-selector {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.period-selector button {
+  padding: 10px 24px;
+  border: none;
+  background: white;
+  border-radius: 30px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.period-selector button.active {
+  background: #2e7d32;
+  color: white;
+  box-shadow: 0 4px 12px rgba(46,125,50,0.3);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metric-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: transform 0.3s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.metric-card.warning {
+  border-left: 4px solid #f39c12;
+}
+
+.metric-card.success {
+  border-left: 4px solid #27ae60;
+}
+
+.metric-icon {
+  font-size: 2rem;
+  background: #f8f9fa;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-info {
+  flex: 1;
+}
+
+.metric-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1.2;
+}
+
+.metric-subtitle {
+  font-size: 0.7rem;
+  color: #95a5a6;
+}
+
+.trend-section, .efficiency-section {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.trend-section h3, .efficiency-section h3 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.trend-chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 180px;
+  gap: 8px;
+}
+
+.trend-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 50px;
+}
+
+.trend-bar {
+  width: 100%;
+  background: linear-gradient(180deg, #2e7d32, #66bb6a);
+  border-radius: 8px 8px 0 0;
+  transition: height 0.3s;
+  position: relative;
+  margin-bottom: 8px;
+  min-height: 20px;
+}
+
+.trend-value {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.trend-label {
+  font-size: 0.7rem;
+  color: #7f8c8d;
+}
+
+.efficiency-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.efficiency-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.efficiency-bar {
+  flex: 1;
+  background: linear-gradient(90deg, #2e7d32, #66bb6a);
+  border-radius: 20px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  transition: width 0.3s;
+}
+
+.efficiency-value {
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.efficiency-label {
+  width: 70px;
+  font-size: 0.8rem;
+  color: #7f8c8d;
+}
+
+.metrics-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.refresh-btn {
+  background: #2e7d32;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.3s;
+}
+
+.refresh-btn:hover {
+  background: #1b5e20;
+  transform: translateY(-2px);
+}
+
+.advisor-metrics-loading, .advisor-metrics-error, .advisor-metrics-empty {
+  text-align: center;
+  padding: 60px;
+  font-size: 1.1rem;
+  color: #7f8c8d;
+}
+
+.advisor-metrics-error {
+  color: #e74c3c;
+}
+
+@media (max-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .period-selector {
+    flex-wrap: wrap;
+  }
+  
+  .trend-chart {
+    height: 140px;
+  }
+}

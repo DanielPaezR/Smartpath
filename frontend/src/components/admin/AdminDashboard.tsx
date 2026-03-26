@@ -216,6 +216,13 @@ const AdminDashboard: React.FC = () => {
                 }
               }}
             />
+
+            <DashboardCard 
+              icon="🤖"
+              title="Machine Learning" 
+              description="Visualiza datos para entrenamiento del modelo de optimización"
+              onClick={() => navigate('/admin/ml-dashboard')}
+            />
           </div>
         </section>
 
