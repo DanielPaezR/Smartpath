@@ -195,7 +195,7 @@ const productService = {
         })) : []
       };
       
-      const response = await fetch('/api/routes/products/report-damage', {
+      const response = await fetch(`${API_BASE_URL}/products/report-damage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
