@@ -1,9 +1,8 @@
 // frontend/src/components/advisor/RestockModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { restockService, IRestockItem } from '../../services/restockService';
-import BarcodeScannerButton from './BarcodeScannerButton';
-import '../../styles/RestockModal.css';
 import { API_BASE_URL } from '../../services/api';
+import '../../styles/RestockModal.css';
 
 interface IRestockModalProps {
     routeStoreId: number;
@@ -11,6 +10,13 @@ interface IRestockModalProps {
     reportedBy: number;
     onClose: () => void;
     onSave: (items: IRestockItem[]) => void;
+}
+
+interface TempItem {
+    barcode: string;
+    product: any;
+    quantity: number;
+    unitPrice?: number;
 }
 
 const RestockModal: React.FC<IRestockModalProps> = ({
@@ -21,37 +27,49 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     onSave
 }) => {
     const [items, setItems] = useState<IRestockItem[]>([]);
-    const [currentBarcode, setCurrentBarcode] = useState('');
-    const [currentProduct, setCurrentProduct] = useState<any>(null);
-    const [quantity, setQuantity] = useState(1);
-    const [unitPrice, setUnitPrice] = useState<number | undefined>();
-    const [notes, setNotes] = useState('');
+    const [tempItem, setTempItem] = useState<TempItem | null>(null);
+    const [scanning, setScanning] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [showProductForm, setShowProductForm] = useState(false);
-    const [manualEntry, setManualEntry] = useState(false);
-    const [confirmProduct, setConfirmProduct] = useState(false); // 🆕 Estado para confirmación
+    const [barcodeInput, setBarcodeInput] = useState('');
+    const [manualMode, setManualMode] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleBarcodeScanned = async (barcode: string) => {
+    // Enfocar input automáticamente
+    useEffect(() => {
+        if (scanning && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [scanning]);
+
+    // Buscar producto por código de barras
+    const searchProduct = async (barcode: string) => {
         setLoading(true);
         try {
             const response = await fetch(`${API_BASE_URL}/products/barcode/${barcode}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
 
             if (response.ok) {
                 const product = await response.json();
-                setCurrentProduct(product);
-                setCurrentBarcode(barcode);
-                setShowProductForm(true);
-                setConfirmProduct(true); // 🆕 Mostrar confirmación
+                setTempItem({
+                    barcode,
+                    product,
+                    quantity: 1,
+                    unitPrice: product.price
+                });
+                setScanning(false);
+                setBarcodeInput('');
             } else {
-                if (confirm('Producto no encontrado. ¿Quieres ingresarlo manualmente?')) {
-                    setCurrentBarcode(barcode);
-                    setManualEntry(true);
-                    setShowProductForm(true);
-                    setConfirmProduct(false);
+                // Producto no encontrado - preguntar si ingresar manual
+                if (confirm(`Producto con código ${barcode} no encontrado.\n¿Quieres ingresarlo manualmente?`)) {
+                    setTempItem({
+                        barcode,
+                        product: { name: '', brand: '', category: '' },
+                        quantity: 1,
+                        unitPrice: undefined
+                    });
+                    setManualMode(true);
+                    setScanning(false);
                 }
             }
         } catch (error) {
@@ -62,58 +80,93 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
     };
 
-    const handleAddItem = async () => {
-        if (!currentBarcode) {
-            alert('Debes ingresar un código de barras');
-            return;
+    // Manejar escaneo manual (tecla Enter)
+    const handleBarcodeSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (barcodeInput.trim()) {
+            searchProduct(barcodeInput.trim());
         }
+    };
 
-        if (quantity < 1) {
+    // Agregar producto actual a la lista
+    const addCurrentItem = async () => {
+        if (!tempItem) return;
+
+        if (tempItem.quantity < 1) {
             alert('La cantidad debe ser mayor a 0');
             return;
         }
 
+        // Crear el item para guardar
+        const newItem: IRestockItem = {
+            route_store_id: routeStoreId,
+            store_id: storeId,
+            product_barcode: tempItem.barcode,
+            product_name: tempItem.product.name || 'Producto manual',
+            product_brand: tempItem.product.brand,
+            product_category: tempItem.product.category,
+            quantity: tempItem.quantity,
+            unit_price: tempItem.unitPrice,
+            reported_by: reportedBy,
+            notes: ''
+        };
+
+        setItems(prev => [...prev, newItem]);
+        setTempItem(null);
+        setManualMode(false);
+        setScanning(true);
+        
+        // Enfocar input para siguiente escaneo
+        setTimeout(() => {
+            if (inputRef.current) inputRef.current.focus();
+        }, 100);
+    };
+
+    // Finalizar y guardar todos los productos
+    const handleFinish = async () => {
+        if (items.length === 0 && !tempItem) {
+            if (!confirm('No has registrado ningún producto. ¿Continuar sin registrar?')) {
+                return;
+            }
+            onSave([]);
+            onClose();
+            return;
+        }
+
+        // Si hay un producto pendiente, agregarlo primero
+        if (tempItem) {
+            await addCurrentItem();
+        }
+
         setLoading(true);
         try {
-            const newItem = await restockService.addRestockItem({
-                route_store_id: routeStoreId,
-                store_id: storeId,
-                product_barcode: currentBarcode,
-                product_name: currentProduct?.name || 'Producto manual',
-                product_brand: currentProduct?.brand,
-                product_category: currentProduct?.category,
-                quantity,
-                unit_price: unitPrice,
-                reported_by: reportedBy,
-                notes: notes || undefined
-            });
-
-            setItems(prev => [...prev, newItem]);
-            
-            // Resetear formulario
-            setCurrentBarcode('');
-            setCurrentProduct(null);
-            setQuantity(1);
-            setUnitPrice(undefined);
-            setNotes('');
-            setShowProductForm(false);
-            setManualEntry(false);
-            setConfirmProduct(false);
-
+            // Guardar todos los productos uno por uno
+            const savedItems: IRestockItem[] = [];
+            for (const item of items) {
+                const saved = await restockService.addRestockItem(item);
+                savedItems.push(saved);
+            }
+            alert(`✅ ${savedItems.length} productos registrados correctamente`);
+            onSave(savedItems);
+            onClose();
         } catch (error) {
-            console.error('Error guardando item:', error);
-            alert('Error al guardar el producto');
+            console.error('Error guardando productos:', error);
+            alert('Error al guardar los productos');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleFinish = () => {
-        if (items.length === 0 && !confirm('¿No has repuesto ningún producto? Puedes agregar productos ahora o continuar sin registrar.')) {
-            return;
-        }
-        onSave(items);
-        onClose();
+    const incrementQuantity = () => {
+        setTempItem(prev => prev ? { ...prev, quantity: prev.quantity + 1 } : null);
+    };
+
+    const decrementQuantity = () => {
+        setTempItem(prev => prev ? { ...prev, quantity: Math.max(1, prev.quantity - 1) } : null);
+    };
+
+    const removeItem = (index: number) => {
+        setItems(prev => prev.filter((_, i) => i !== index));
     };
 
     const formatPrice = (price: number) => {
@@ -126,286 +179,232 @@ const RestockModal: React.FC<IRestockModalProps> = ({
 
     return (
         <div className="restock-modal-overlay">
-            <div className="restock-modal">
+            <div className="restock-modal agile">
                 <div className="restock-modal-header">
                     <h3>📦 Registrar Productos Repuestos</h3>
                     <button onClick={onClose} className="close-btn">×</button>
                 </div>
 
                 <div className="restock-modal-content">
-                    {/* Lista de items ya agregados */}
+                    {/* Lista de productos ya agregados */}
                     {items.length > 0 && (
                         <div className="items-list">
                             <h4>Productos registrados ({items.length})</h4>
                             {items.map((item, index) => (
                                 <div key={index} className="item-row">
-                                    <span className="item-name">{item.product_name}</span>
-                                    <span className="item-quantity">x{item.quantity}</span>
-                                    {item.unit_price && (
-                                        <span className="item-price">${(item.quantity * item.unit_price).toFixed(2)}</span>
-                                    )}
+                                    <div className="item-info">
+                                        <span className="item-name">{item.product_name}</span>
+                                        {item.product_brand && (
+                                            <span className="item-brand">{item.product_brand}</span>
+                                        )}
+                                    </div>
+                                    <div className="item-actions">
+                                        <span className="item-quantity">x{item.quantity}</span>
+                                        {item.unit_price && (
+                                            <span className="item-price">{formatPrice(item.quantity * item.unit_price)}</span>
+                                        )}
+                                        <button 
+                                            className="remove-item-btn"
+                                            onClick={() => removeItem(index)}
+                                            title="Eliminar"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* Formulario para nuevo producto */}
-                    {!showProductForm ? (
-                        <div className="scan-section">
+                    {/* Área de escaneo */}
+                    {!tempItem ? (
+                        <div className="scan-area">
                             <p className="scan-instruction">
-                                Escanea el código de barras del producto repuesto:
+                                {items.length === 0 
+                                    ? '🔍 Escanea el código de barras del primer producto repuesto'
+                                    : '➕ Escanea otro producto o finaliza'}
                             </p>
                             
-                            <BarcodeScannerButton 
-                                onScan={handleBarcodeScanned}
-                                disabled={loading}
-                            />
+                            <form onSubmit={handleBarcodeSubmit} className="barcode-form">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={barcodeInput}
+                                    onChange={(e) => setBarcodeInput(e.target.value)}
+                                    placeholder="Código de barras"
+                                    className="barcode-input"
+                                    autoFocus
+                                    disabled={loading}
+                                />
+                                <button 
+                                    type="submit" 
+                                    className="scan-btn"
+                                    disabled={loading || !barcodeInput.trim()}
+                                >
+                                    {loading ? '⏳' : '🔍 Escanear'}
+                                </button>
+                            </form>
 
                             <button 
-                                className="manual-entry-btn"
+                                className="manual-mode-btn"
                                 onClick={() => {
-                                    setManualEntry(true);
-                                    setShowProductForm(true);
-                                    setConfirmProduct(false);
+                                    setTempItem({
+                                        barcode: '',
+                                        product: { name: '', brand: '', category: '' },
+                                        quantity: 1,
+                                        unitPrice: undefined
+                                    });
+                                    setManualMode(true);
                                 }}
                             >
-                                ⌨️ Registrar Producto Manualmente
+                                ⌨️ Ingresar manualmente
                             </button>
                         </div>
                     ) : (
-                        <div className="product-form">
-                            <h4>{manualEntry ? 'Ingreso manual' : 'Producto encontrado'}</h4>
+                        <div className="product-confirmation-area">
+                            <h4>📦 Producto encontrado</h4>
                             
-                            {/* 🆕 SECCIÓN DE CONFIRMACIÓN DEL PRODUCTO */}
-                            {confirmProduct && currentProduct && (
-                                <div className="product-confirmation">
-                                    <div className="confirmation-header">
-                                        <span className="confirmation-icon">✅</span>
-                                        <span>Producto encontrado</span>
-                                    </div>
-                                    <div className="product-details">
-                                        <div className="detail-row">
-                                            <span className="detail-label">Nombre:</span>
-                                            <span className="detail-value product-name">{currentProduct.name}</span>
+                            <div className="product-details-card">
+                                <div className="product-info-row">
+                                    <span className="product-label">Código:</span>
+                                    <span className="product-value barcode">{tempItem.barcode}</span>
+                                </div>
+                                
+                                {manualMode ? (
+                                    <>
+                                        <div className="product-info-row">
+                                            <span className="product-label">Nombre:</span>
+                                            <input
+                                                type="text"
+                                                value={tempItem.product.name || ''}
+                                                onChange={(e) => setTempItem({
+                                                    ...tempItem,
+                                                    product: { ...tempItem.product, name: e.target.value }
+                                                })}
+                                                className="product-input"
+                                                placeholder="Nombre del producto"
+                                                autoFocus
+                                            />
                                         </div>
-                                        {currentProduct.brand && (
-                                            <div className="detail-row">
-                                                <span className="detail-label">Marca:</span>
-                                                <span className="detail-value">{currentProduct.brand}</span>
+                                        <div className="product-info-row">
+                                            <span className="product-label">Marca:</span>
+                                            <input
+                                                type="text"
+                                                value={tempItem.product.brand || ''}
+                                                onChange={(e) => setTempItem({
+                                                    ...tempItem,
+                                                    product: { ...tempItem.product, brand: e.target.value }
+                                                })}
+                                                className="product-input"
+                                                placeholder="Marca"
+                                            />
+                                        </div>
+                                        <div className="product-info-row">
+                                            <span className="product-label">Categoría:</span>
+                                            <select
+                                                value={tempItem.product.category || ''}
+                                                onChange={(e) => setTempItem({
+                                                    ...tempItem,
+                                                    product: { ...tempItem.product, category: e.target.value }
+                                                })}
+                                                className="product-select"
+                                            >
+                                                <option value="">Seleccionar</option>
+                                                <option value="lacteos">Lácteos</option>
+                                                <option value="carnicos">Cárnicos</option>
+                                                <option value="bebidas">Bebidas</option>
+                                                <option value="aseo">Aseo</option>
+                                                <option value="granos">Granos</option>
+                                                <option value="otros">Otros</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="product-info-row">
+                                            <span className="product-label">Producto:</span>
+                                            <span className="product-value name">{tempItem.product.name}</span>
+                                        </div>
+                                        {tempItem.product.brand && (
+                                            <div className="product-info-row">
+                                                <span className="product-label">Marca:</span>
+                                                <span className="product-value">{tempItem.product.brand}</span>
                                             </div>
                                         )}
-                                        {currentProduct.category && (
-                                            <div className="detail-row">
-                                                <span className="detail-label">Categoría:</span>
-                                                <span className="detail-value">{currentProduct.category}</span>
+                                        {tempItem.product.category && (
+                                            <div className="product-info-row">
+                                                <span className="product-label">Categoría:</span>
+                                                <span className="product-value">{tempItem.product.category}</span>
                                             </div>
                                         )}
-                                        {currentProduct.price && (
-                                            <div className="detail-row">
-                                                <span className="detail-label">Precio referencia:</span>
-                                                <span className="detail-value product-price">{formatPrice(currentProduct.price)}</span>
+                                        {tempItem.product.price && (
+                                            <div className="product-info-row">
+                                                <span className="product-label">Precio ref:</span>
+                                                <span className="product-value price">{formatPrice(tempItem.product.price)}</span>
                                             </div>
                                         )}
-                                        {currentProduct.stock !== undefined && (
-                                            <div className="detail-row">
-                                                <span className="detail-label">Stock actual:</span>
-                                                <span className={`detail-value ${currentProduct.stock < 10 ? 'low-stock' : ''}`}>
-                                                    {currentProduct.stock} unidades
-                                                </span>
-                                            </div>
-                                        )}
-                                        {currentProduct.description && (
-                                            <div className="detail-row">
-                                                <span className="detail-label">Descripción:</span>
-                                                <span className="detail-value description">{currentProduct.description}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="confirmation-actions">
+                                    </>
+                                )}
+                                
+                                <div className="quantity-selector">
+                                    <span className="product-label">Cantidad:</span>
+                                    <div className="quantity-controls">
                                         <button 
-                                            className="btn-secondary small"
-                                            onClick={() => {
-                                                setManualEntry(true);
-                                                setConfirmProduct(false);
-                                            }}
+                                            type="button" 
+                                            className="qty-btn"
+                                            onClick={decrementQuantity}
+                                            disabled={tempItem.quantity <= 1}
                                         >
-                                            ✏️ Editar producto
+                                            -
                                         </button>
+                                        <span className="quantity-value">{tempItem.quantity}</span>
                                         <button 
-                                            className="btn-primary small"
-                                            onClick={() => setConfirmProduct(false)}
+                                            type="button" 
+                                            className="qty-btn"
+                                            onClick={incrementQuantity}
                                         >
-                                            ✅ Confirmar
+                                            +
                                         </button>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="form-group">
-                                <label>Código de barras:</label>
-                                <input 
-                                    type="text"
-                                    value={currentBarcode}
-                                    onChange={(e) => setCurrentBarcode(e.target.value)}
-                                    className="form-input"
-                                    disabled={!manualEntry && confirmProduct}
-                                />
-                            </div>
-
-                            {manualEntry && (
-                                <>
-                                    <div className="form-group">
-                                        <label>Nombre del producto:</label>
-                                        <input 
-                                            type="text"
-                                            value={currentProduct?.name || ''}
-                                            onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
-                                            className="form-input"
-                                            placeholder="Ej: Leche Entera"
-                                            autoFocus
-                                        />
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Marca:</label>
-                                        <input 
-                                            type="text"
-                                            value={currentProduct?.brand || ''}
-                                            onChange={(e) => setCurrentProduct({ ...currentProduct, brand: e.target.value })}
-                                            className="form-input"
-                                            placeholder="Ej: Alpina"
-                                        />
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Categoría:</label>
-                                        <select 
-                                            value={currentProduct?.category || ''}
-                                            onChange={(e) => setCurrentProduct({ ...currentProduct, category: e.target.value })}
-                                            className="form-select"
-                                        >
-                                            <option value="">Seleccionar categoría</option>
-                                            <option value="lacteos">Lácteos</option>
-                                            <option value="carnicos">Cárnicos</option>
-                                            <option value="bebidas">Bebidas</option>
-                                            <option value="aseo">Aseo</option>
-                                            <option value="granos">Granos</option>
-                                            <option value="otros">Otros</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Precio referencia (opcional):</label>
-                                        <input 
+                                {manualMode && (
+                                    <div className="product-info-row">
+                                        <span className="product-label">Precio unitario:</span>
+                                        <input
                                             type="number"
                                             step="0.01"
-                                            value={unitPrice || currentProduct?.price || ''}
-                                            onChange={(e) => {
-                                                const price = e.target.value ? parseFloat(e.target.value) : undefined;
-                                                setUnitPrice(price);
-                                                setCurrentProduct({ ...currentProduct, price });
-                                            }}
-                                            className="form-input"
+                                            value={tempItem.unitPrice || ''}
+                                            onChange={(e) => setTempItem({
+                                                ...tempItem,
+                                                unitPrice: e.target.value ? parseFloat(e.target.value) : undefined
+                                            })}
+                                            className="product-input price-input"
                                             placeholder="$0.00"
                                         />
                                     </div>
-                                </>
-                            )}
+                                )}
+                            </div>
 
-                            {!manualEntry && !confirmProduct && (
-                                <div className="info-message">
-                                    <span>ℹ️</span>
-                                    <span>Confirma que el producto escaneado es correcto antes de continuar</span>
-                                </div>
-                            )}
-
-                            {(manualEntry || !confirmProduct) && (
-                                <>
-                                    <div className="form-row">
-                                        <div className="form-group half">
-                                            <label>Cantidad repuesta:</label>
-                                            <input 
-                                                type="number"
-                                                min="1"
-                                                value={quantity === 0 ? '' : quantity}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === '') {
-                                                        setQuantity(0);
-                                                    } else {
-                                                        const num = parseInt(val, 10);
-                                                        if (!isNaN(num) && num >= 0) {
-                                                            setQuantity(num);
-                                                        }
-                                                    }
-                                                }}
-                                                onBlur={() => {
-                                                    if (quantity === 0 || isNaN(quantity) || quantity < 1) {
-                                                        setQuantity(1);
-                                                    }
-                                                }}
-                                                className={`form-input ${quantity < 1 ? 'input-error' : ''}`}
-                                            />
-                                            {quantity < 1 && (
-                                                <span className="error-message">La cantidad debe ser mayor a 0</span>
-                                            )}
-                                        </div>
-
-                                        <div className="form-group half">
-                                            <label>Precio unitario (opcional):</label>
-                                            <input 
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={unitPrice || ''}
-                                                onChange={(e) => setUnitPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
-                                                className="form-input"
-                                                placeholder="$0.00"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Notas (opcional):</label>
-                                        <textarea 
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                            className="form-textarea"
-                                            rows={2}
-                                            placeholder="Ej: Se repusieron 3 unidades porque estaban agotadas"
-                                        />
-                                    </div>
-                                </>
-                            )}
-
-                            <div className="form-actions">
+                            <div className="product-actions">
                                 <button 
                                     className="btn-secondary"
                                     onClick={() => {
-                                        setShowProductForm(false);
-                                        setManualEntry(false);
-                                        setCurrentProduct(null);
-                                        setConfirmProduct(false);
+                                        setTempItem(null);
+                                        setManualMode(false);
+                                        setScanning(true);
+                                        setTimeout(() => inputRef.current?.focus(), 100);
                                     }}
                                 >
-                                    Cancelar
+                                    🔄 Cancelar
                                 </button>
-                                {confirmProduct ? (
-                                    <button 
-                                        className="btn-primary"
-                                        onClick={() => setConfirmProduct(false)}
-                                    >
-                                        Continuar
-                                    </button>
-                                ) : (
-                                    <button 
-                                        className="btn-primary"
-                                        onClick={handleAddItem}
-                                        disabled={loading || !currentBarcode || (manualEntry && !currentProduct?.name)}
-                                    >
-                                        {loading ? '⏳ Agregando...' : '➕ Agregar producto'}
-                                    </button>
-                                )}
+                                <button 
+                                    className="btn-primary"
+                                    onClick={addCurrentItem}
+                                    disabled={manualMode && !tempItem.product.name}
+                                >
+                                    ➕ Agregar producto
+                                </button>
                             </div>
                         </div>
                     )}
@@ -418,16 +417,17 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                     <button 
                         className="btn-primary"
                         onClick={handleFinish}
+                        disabled={loading}
                     >
-                        {items.length > 0 ? '✅ Finalizar y guardar' : '⏭️ Continuar sin productos'}
+                        {loading ? '⏳ Guardando...' : (items.length > 0 ? `✅ Finalizar (${items.length})` : '⏭️ Continuar sin productos')}
                     </button>
                 </div>
 
                 {items.length > 0 && (
                     <div className="items-summary">
-                        Total productos: {items.reduce((sum, item) => sum + item.quantity, 0)} unidades
+                        Total: {items.reduce((sum, item) => sum + item.quantity, 0)} unidades
                         {items.some(i => i.unit_price) && (
-                            <> | Valor total: ${items.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0).toFixed(2)}</>
+                            <> | Valor: {formatPrice(items.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0))}</>
                         )}
                     </div>
                 )}

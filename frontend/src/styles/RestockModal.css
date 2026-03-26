@@ -1,4 +1,6 @@
 /* frontend/src/components/advisor/RestockModal.css */
+
+/* Overlay y modal base */
 .restock-modal-overlay {
     position: fixed;
     top: 0;
@@ -23,6 +25,11 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+.restock-modal.agile {
+    max-width: 500px;
+}
+
+/* Header */
 .restock-modal-header {
     padding: 1.5rem;
     border-bottom: 1px solid #eee;
@@ -53,10 +60,12 @@
     color: #333;
 }
 
+/* Contenido */
 .restock-modal-content {
     padding: 1.5rem;
 }
 
+/* Lista de items ya agregados */
 .items-list {
     background: #f8f9fa;
     border-radius: 8px;
@@ -82,53 +91,250 @@
     border-bottom: none;
 }
 
+.item-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
 .item-name {
-    flex: 2;
-    font-size: 0.95rem;
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+
+.item-brand {
+    font-size: 0.7rem;
+    color: #95a5a6;
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .item-quantity {
-    flex: 0 0 60px;
+    font-weight: 600;
+    color: #27ae60;
+    min-width: 50px;
     text-align: center;
+}
+
+.item-price {
+    color: #2c3e50;
+    font-weight: 500;
+    min-width: 80px;
+    text-align: right;
+}
+
+.remove-item-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    font-size: 1rem;
+}
+
+.remove-item-btn:hover {
+    opacity: 1;
+}
+
+/* Área de escaneo */
+.scan-area {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.scan-instruction {
+    font-size: 0.9rem;
+    color: #2c3e50;
+    margin-bottom: 16px;
+}
+
+.barcode-form {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.barcode-input {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.barcode-input:focus {
+    outline: none;
+    border-color: #2e7d32;
+}
+
+.scan-btn {
+    padding: 12px 20px;
+    background: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.scan-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.manual-mode-btn {
+    background: none;
+    border: 1px solid #95a5a6;
+    color: #7f8c8d;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 0.85rem;
+    transition: all 0.3s;
+}
+
+.manual-mode-btn:hover {
+    background: #7f8c8d;
+    color: white;
+}
+
+/* Área de confirmación de producto */
+.product-confirmation-area {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.product-confirmation-area h4 {
+    margin: 0 0 16px 0;
+    color: #2e7d32;
+    font-size: 1rem;
+}
+
+.product-details-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.product-info-row {
+    display: flex;
+    margin-bottom: 12px;
+    align-items: center;
+    gap: 12px;
+}
+
+.product-label {
+    width: 70px;
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.product-value {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+
+.product-value.name {
+    font-weight: 600;
+    color: #2e7d32;
+}
+
+.product-value.price {
     font-weight: 600;
     color: #27ae60;
 }
 
-.item-price {
-    flex: 0 0 80px;
-    text-align: right;
-    color: #2c3e50;
-    font-weight: 500;
+.product-value.barcode {
+    font-family: monospace;
+    font-size: 0.85rem;
 }
 
-.scan-section {
-    text-align: center;
-    padding: 1rem 0;
+.product-input,
+.product-select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
 }
 
-.scan-instruction {
-    color: #666;
-    margin-bottom: 1.5rem;
+.product-input:focus,
+.product-select:focus {
+    outline: none;
+    border-color: #3498db;
 }
 
-.manual-entry-btn {
-    background: none;
-    border: 1px solid #3498db;
-    color: #3498db;
-    padding: 0.75rem 1rem;
+.price-input {
+    width: 120px;
+    flex: none;
+}
+
+/* Selector de cantidad */
+.quantity-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.qty-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #2e7d32;
+    background: white;
+    color: #2e7d32;
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 1.2rem;
+    font-weight: bold;
     cursor: pointer;
-    width: 100%;
-    margin-top: 1rem;
-    transition: all 0.3s;
+    transition: all 0.2s;
 }
 
-.manual-entry-btn:hover {
-    background: #3498db;
+.qty-btn:hover:not(:disabled) {
+    background: #2e7d32;
     color: white;
 }
 
+.qty-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.quantity-value {
+    font-size: 1.2rem;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Acciones del producto */
+.product-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* Formulario de ingreso manual */
 .product-form {
     background: #f8f9fa;
     border-radius: 8px;
@@ -185,6 +391,7 @@
     margin-top: 1.5rem;
 }
 
+/* Botones principales */
 .btn-primary,
 .btn-secondary {
     flex: 1;
@@ -219,6 +426,14 @@
     background: #c0392b;
 }
 
+.btn-secondary.small,
+.btn-primary.small {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    min-height: 32px;
+}
+
+/* Footer */
 .restock-modal-footer {
     padding: 1.5rem;
     border-top: 1px solid #eee;
@@ -229,6 +444,7 @@
     background: white;
 }
 
+/* Resumen */
 .items-summary {
     padding: 1rem 1.5rem;
     background: #e8f5e9;
@@ -238,48 +454,20 @@
     text-align: center;
 }
 
-.restock-summary {
-    background: #f8f9fa;
+/* Mensajes informativos */
+.info-message {
+    background: #e3f2fd;
     border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
-}
-
-.restock-summary h4 {
-    margin: 0 0 0.75rem 0;
-    color: #2c3e50;
-    font-size: 1rem;
-}
-
-.restock-items-list {
+    padding: 10px 12px;
+    margin: 12px 0;
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.restock-item {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0.5rem;
-    background: white;
-    border-radius: 4px;
-    font-size: 0.95rem;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #1976d2;
 }
 
-.restock-quantity {
-    font-weight: 600;
-    color: #27ae60;
-}
-
-.more-items {
-    color: #666;
-    font-size: 0.9rem;
-    font-style: italic;
-    margin: 0.25rem 0 0 0;
-}
-
-/* En RestockModal.css */
+/* Validación de errores */
 .input-error {
     border-color: #e74c3c !important;
     background-color: #fff5f5;
@@ -292,92 +480,45 @@
     margin-top: 4px;
 }
 
-/* Agregar al final de RestockModal.css */
-
-.product-confirmation {
-    background: #e8f5e9;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-    border-left: 4px solid #2e7d32;
-}
-
-.confirmation-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    color: #2e7d32;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #c8e6c9;
-}
-
-.confirmation-icon {
-    font-size: 1.2rem;
-}
-
-.product-details {
-    margin-bottom: 16px;
-}
-
-.detail-row {
-    display: flex;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-}
-
-.detail-label {
-    width: 100px;
-    color: #7f8c8d;
-    font-weight: 500;
-}
-
-.detail-value {
-    flex: 1;
-    color: #2c3e50;
-}
-
-.detail-value.product-name {
-    font-weight: 600;
-    color: #2e7d32;
-}
-
-.detail-value.product-price {
-    font-weight: 600;
-    color: #27ae60;
-}
-
-.detail-value.low-stock {
-    color: #e74c3c;
-    font-weight: 600;
-}
-
-.detail-value.description {
-    color: #7f8c8d;
-    font-size: 0.85rem;
-}
-
-.confirmation-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
-.btn-secondary.small, .btn-primary.small {
-    padding: 6px 12px;
-    font-size: 0.8rem;
-    min-height: 32px;
-}
-
-.info-message {
-    background: #e3f2fd;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin: 12px 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
-    color: #1976d2;
+/* Responsive */
+@media (max-width: 768px) {
+    .restock-modal {
+        max-width: 95%;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .barcode-form {
+        flex-direction: column;
+    }
+    
+    .scan-btn {
+        width: 100%;
+    }
+    
+    .product-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .product-label {
+        width: auto;
+    }
+    
+    .product-input,
+    .product-select {
+        width: 100%;
+    }
+    
+    .quantity-selector {
+        flex-wrap: wrap;
+    }
+    
+    .item-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
 }
