@@ -34,6 +34,8 @@ router.post('/advisors/:advisorId/schedule', adminController.addStoreToSchedule)
 router.delete('/advisors/:advisorId/schedule/:scheduleId', adminController.removeStoreFromSchedule);
 router.put('/advisors/:advisorId/schedule/order', adminController.updateScheduleOrder);
 router.get('/stores/simple', adminController.getAllStoresSimple);
+router.get('/advisor/metrics', authenticateToken, adminController.getAdvisorMetrics);
+router.get('/ml/metrics', adminController.getMLMetrics);
 
 // Generar rutas diarias
 router.post('/routes/generate-daily', adminController.generateDailyRoutes);

@@ -1169,6 +1169,280 @@ class AdminController {
       await connection.end();
     }
   }
+
+  // En adminController.js o routeController.js
+  async getAdvisorMetrics(req, res) {
+    const connection = await createConnection();
+    try {
+      const advisorId = req.user.id;
+      const { period = 'weekly' } = req.query;
+      
+      let dateCondition = '';
+      if (period === 'daily') {
+        dateCondition = "AND DATE(r.date) = CURDATE()";
+      } else if (period === 'weekly') {
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+      } else {
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+      }
+      
+      // Obtener estadísticas
+      const [stats] = await connection.execute(`
+        SELECT 
+          COUNT(DISTINCT r.id) as visits,
+          SUM(CASE WHEN rs.status = 'completed' THEN 1 ELSE 0 END) as completed,
+          COALESCE(AVG(rs.actual_duration), 0) as avgTime,
+          COALESCE(SUM(ri.quantity), 0) as restocks,
+          COALESCE(COUNT(DISTINCT dr.id), 0) as damages,
+          COALESCE(SUM(r.total_distance), 0) as totalDistance,
+          COALESCE(
+            (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
+            NULLIF(COUNT(rs.id), 0), 0
+          ) as efficiency
+        FROM users u
+        LEFT JOIN routes r ON u.id = r.advisor_id ${dateCondition}
+        LEFT JOIN route_stores rs ON r.id = rs.route_id
+        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
+        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        WHERE u.id = ?
+        GROUP BY u.id
+      `, [advisorId]);
+      
+      // Tendencia diaria
+      const [dailyTrend] = await connection.execute(`
+        SELECT 
+          DATE(r.date) as date,
+          COUNT(DISTINCT rs.id) as count
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        WHERE r.advisor_id = ? AND r.date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+        GROUP BY DATE(r.date)
+        ORDER BY date ASC
+      `, [advisorId]);
+      
+      // Tendencia de eficiencia semanal
+      const [efficiencyTrend] = await connection.execute(`
+        SELECT 
+          CONCAT('Semana ', WEEK(r.date)) as week,
+          COALESCE(
+            (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
+            NULLIF(COUNT(rs.id), 0), 0
+          ) as score
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        WHERE r.advisor_id = ? AND r.date >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)
+        GROUP BY WEEK(r.date)
+        ORDER BY r.date ASC
+      `, [advisorId]);
+      
+      const result = {
+        daily: {
+          visits: stats[0]?.visits || 0,
+          completed: stats[0]?.completed || 0,
+          avgTime: Math.round(stats[0]?.avgTime || 0),
+          restocks: stats[0]?.restocks || 0,
+          damages: stats[0]?.damages || 0
+        },
+        weekly: {
+          visits: stats[0]?.visits || 0,
+          completed: stats[0]?.completed || 0,
+          avgTime: Math.round(stats[0]?.avgTime || 0),
+          restocks: stats[0]?.restocks || 0,
+          damages: stats[0]?.damages || 0,
+          efficiency: Math.round(stats[0]?.efficiency || 0)
+        },
+        monthly: {
+          visits: stats[0]?.visits || 0,
+          completed: stats[0]?.completed || 0,
+          avgTime: Math.round(stats[0]?.avgTime || 0),
+          restocks: stats[0]?.restocks || 0,
+          damages: stats[0]?.damages || 0,
+          efficiency: Math.round(stats[0]?.efficiency || 0),
+          totalDistance: stats[0]?.totalDistance || 0
+        },
+        trends: {
+          dailyVisits: dailyTrend,
+          efficiencyTrend: efficiencyTrend
+        }
+      };
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error obteniendo métricas del asesor:', error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  async getMLMetrics(req, res) {
+    const connection = await createConnection();
+    try {
+      const { period = 'month' } = req.query;
+      
+      let dateCondition = '';
+      if (period === 'week') {
+        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+      } else if (period === 'month') {
+        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      } else {
+        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+      }
+      
+      // Resumen general
+      const [summary] = await connection.execute(`
+        SELECT 
+          COUNT(DISTINCT rs.id) as totalVisits,
+          COALESCE(AVG(rs.actual_duration), 0) as avgDuration,
+          COALESCE(SUM(ri.quantity), 0) as totalRestocks,
+          COALESCE(COUNT(DISTINCT dr.id), 0) as totalDamages,
+          COALESCE(
+            (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
+            NULLIF(COUNT(rs.id), 0), 0
+          ) as efficiencyScore,
+          COUNT(DISTINCT r.id) as routesOptimized
+        FROM route_stores rs
+        LEFT JOIN routes r ON rs.route_id = r.id
+        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
+        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        WHERE rs.status = 'completed' ${dateCondition}
+      `);
+      
+      // Datos de visitas
+      const [visitsData] = await connection.execute(`
+        SELECT 
+          rs.id,
+          s.name as storeName,
+          rs.visit_order as visitOrder,
+          rs.actual_duration as actualDuration,
+          rs.estimated_duration as estimatedDuration,
+          (rs.actual_duration - rs.estimated_duration) as timeDifference,
+          rs.end_time as date
+        FROM route_stores rs
+        JOIN stores s ON rs.store_id = s.id
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
+        ORDER BY rs.end_time DESC
+        LIMIT 100
+      `);
+      
+      // Distancias entre tiendas
+      const [distancesData] = await connection.execute(`
+        SELECT 
+          s.id as storeId,
+          s.name as storeName,
+          'Anterior' as fromStore,
+          0 as distanceKm,
+          0 as travelTime
+        FROM stores s
+        LIMIT 10
+      `);
+      
+      // Tiendas más lentas
+      const [slowestStores] = await connection.execute(`
+        SELECT 
+          s.name,
+          AVG(rs.actual_duration) as avgTime,
+          COUNT(*) as visits
+        FROM route_stores rs
+        JOIN stores s ON rs.store_id = s.id
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
+        GROUP BY s.id, s.name
+        ORDER BY avgTime DESC
+        LIMIT 5
+      `);
+      
+      // Mejores rutas
+      const [bestRoutes] = await connection.execute(`
+        SELECT 
+          r.id as routeId,
+          COUNT(rs.id) as stores,
+          COALESCE(
+            (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
+            NULLIF(COUNT(rs.id), 0), 0
+          ) as efficiency
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        WHERE rs.status = 'completed' ${dateCondition}
+        GROUP BY r.id
+        HAVING stores >= 3
+        ORDER BY efficiency DESC
+        LIMIT 5
+      `);
+      
+      // Patrones de daños
+      const [damagePatterns] = await connection.execute(`
+        SELECT 
+          COALESCE(product_category, 'Otros') as category,
+          COUNT(*) as count,
+          (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM damage_reports WHERE 1=1 ${dateCondition})) as percentage
+        FROM damage_reports
+        WHERE 1=1 ${dateCondition}
+        GROUP BY category
+        ORDER BY count DESC
+        LIMIT 5
+      `);
+      
+      // Recomendaciones basadas en datos
+      const recommendations = [];
+      if (summary[0].avgDuration > 40) {
+        recommendations.push('⏱️ El tiempo promedio por tienda es superior a 40 minutos. Se recomienda optimizar las rutas para reducir tiempos.');
+      }
+      if (summary[0].totalDamages > summary[0].totalRestocks * 0.1) {
+        recommendations.push('⚠️ Los productos dañados representan más del 10% de las reposiciones. Revisar manejo de inventario.');
+      }
+      if (slowestStores.length > 0 && slowestStores[0].avgTime > 60) {
+        recommendations.push(`🐌 La tienda "${slowestStores[0].name}" toma ${Math.round(slowestStores[0].avgTime)} minutos en promedio. Considerar reasignación de prioridad.`);
+      }
+      if (bestRoutes.length > 0 && bestRoutes[0].efficiency > 85) {
+        recommendations.push(`🏆 La ruta #${bestRoutes[0].routeId} tiene ${Math.round(bestRoutes[0].efficiency)}% de eficiencia. Usar como modelo para optimización.`);
+      }
+      if (recommendations.length === 0) {
+        recommendations.push('✅ Los datos actuales son buenos. Continúa recolectando más información para mejorar el modelo.');
+      }
+      
+      res.json({
+        summary: {
+          totalVisits: summary[0]?.totalVisits || 0,
+          avgDuration: Math.round(summary[0]?.avgDuration || 0),
+          totalRestocks: summary[0]?.totalRestocks || 0,
+          totalDamages: summary[0]?.totalDamages || 0,
+          efficiencyScore: Math.round(summary[0]?.efficiencyScore || 0),
+          routesOptimized: summary[0]?.routesOptimized || 0
+        },
+        visitsData: visitsData.map(v => ({
+          ...v,
+          actualDuration: v.actualDuration,
+          estimatedDuration: v.estimatedDuration || 40,
+          timeDifference: (v.actualDuration - (v.estimatedDuration || 40))
+        })),
+        distancesData: distancesData,
+        patterns: {
+          slowestStores: slowestStores.map(s => ({
+            name: s.name,
+            avgTime: Math.round(s.avgTime),
+            visits: s.visits
+          })),
+          bestRoutes: bestRoutes.map(r => ({
+            routeId: r.routeId,
+            efficiency: Math.round(r.efficiency),
+            stores: r.stores
+          })),
+          damagePatterns: damagePatterns.map(d => ({
+            category: d.category,
+            count: d.count,
+            percentage: parseFloat(d.percentage)
+          }))
+        },
+        recommendations: recommendations
+      });
+      
+    } catch (error) {
+      console.error('Error obteniendo métricas ML:', error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 export default new AdminController();
