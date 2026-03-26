@@ -1,14 +1,14 @@
 // frontend/src/components/advisor/StoreVisit.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { routeService, type IRoute } from '../../services/routeService';
 import { useAuth } from '../../contexts/AuthContext';
-import PhotoUpload from '../common/PhotoUpload';
 import SignaturePad from '../common/SignaturePad';
 import BarcodeScannerButton from './BarcodeScannerButton';
 import RestockModal from './RestockModal';
 import TaskProgress from '../common/TaskProgress';
 import { restockService, IRestockItem } from '../../services/restockService';
+import { offlineStorage } from '../../services/offlineStorage';
 import '../../styles/StoreVisit.css';
 import { API_BASE_URL } from '../../services/api';
 
@@ -248,13 +248,15 @@ const StoreVisit: React.FC = () => {
   
   const [visitNotes, setVisitNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncing, setSyncing] = useState(false);
 
   // Estados de visita
   const [visitStatus, setVisitStatus] = useState<'pending' | 'in-progress' | 'in_progress' | 'completed' | 'skipped'>('pending');
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
   const [hasInitializedTasks, setHasInitializedTasks] = useState(false);
 
-  // Tareas - CONFIGURACIÓN DE FOTOS OPTIMIZADA
+  // Tareas
   const taskDefinitions: ITask[] = [
     { 
       key: 'evidenceBefore', 
@@ -312,6 +314,23 @@ const StoreVisit: React.FC = () => {
       completed: false
     }
   ];
+
+  // Cargar estado guardado localmente
+  const loadSavedState = async () => {
+    if (!storeVisitId) return;
+    const saved = await offlineStorage.getVisitState(storeVisitId);
+    if (saved) {
+      console.log('🔄 Cargando estado guardado localmente');
+      setTasks(saved.tasks || []);
+      setTimeInStore(saved.timeInStore || 0);
+      setDamageReports(saved.damageReports || []);
+      setRestockItems(saved.restockItems || []);
+      setVisitNotes(saved.notes || '');
+      setVisitStatus(saved.status || 'in-progress');
+      setHasInitializedTasks(true);
+      setIsTimerRunning(true);
+    }
+  };
 
   const normalizeStatus = useCallback((status: string): 'pending' | 'in-progress' | 'completed' | 'skipped' => {
     if (status === 'in_progress' || status === 'in-progress') {
@@ -379,7 +398,6 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // FUNCIÓN PARA TAREA DE DAÑOS
   const handleDamageCheckTask = (taskIndex: number) => {
     const task = tasks[taskIndex];
     
@@ -486,14 +504,12 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // Manejo de fotos con cámara
   const handlePhotosChange = (taskIndex: number, photos: string[]) => {
     const updatedTasks = [...tasks];
     updatedTasks[taskIndex].photos = photos;
     setTasks(updatedTasks);
   };
 
-  // Manejo de códigos de barras para daños
   const handleBarcodeScanned = async (barcode: string) => {
     setLoading(true);
     try {
@@ -521,12 +537,10 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // FUNCIÓN PARA MANEJAR FOTOS DE DAÑOS
   const handleDamagePhotosChange = (photos: string[]) => {
     setDamagePhotos(photos);
   };
 
-  // FUNCIÓN PARA GUARDAR REPORTE DE DAÑO
   const handleAddDamageReport = async () => {
     if (!currentProduct || !route) return;
     
@@ -543,14 +557,24 @@ const StoreVisit: React.FC = () => {
         reportedBy: user!.id
       };
 
-      const savedReport = await productService.reportDamage(newReport);
-      
-      const reportWithId: IDamageReport = {
-        ...savedReport,
-        timestamp: new Date()
-      };
-      
-      setDamageReports(prev => [...prev, reportWithId]);
+      if (isOnline) {
+        const savedReport = await productService.reportDamage(newReport);
+        const reportWithId: IDamageReport = {
+          ...savedReport,
+          timestamp: new Date()
+        };
+        setDamageReports(prev => [...prev, reportWithId]);
+        alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
+      } else {
+        await offlineStorage.queueSyncAction('damage', newReport);
+        const tempReport: IDamageReport = {
+          id: `local_${Date.now()}`,
+          ...newReport,
+          timestamp: new Date()
+        };
+        setDamageReports(prev => [...prev, tempReport]);
+        alert(`📱 Reporte guardado localmente. Se sincronizará cuando haya conexión.`);
+      }
       
       const damageTaskIndex = tasks.findIndex(t => t.key === 'damageCheck');
       if (damageTaskIndex !== -1) {
@@ -570,26 +594,7 @@ const StoreVisit: React.FC = () => {
         setTasks(updatedTasks);
       }
       
-      alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
-      
-      const continueAdding = window.confirm(
-        `¿Quieres agregar otro producto dañado?\n\n` +
-        `✅ Aceptar = Escanear otro producto\n` +
-        `❌ Cancelar = Volver a tareas`
-      );
-      
-      if (continueAdding) {
-        setCurrentBarcode('');
-        setCurrentProduct(null);
-        setDamageDescription('');
-        setDamageType('');
-        setDamageSeverity('low');
-        setDamagePhotos([]);
-        setShowDamageReport(false);
-        setShowBarcodeScanner(true);
-      } else {
-        handleCloseDamageReport();
-      }
+      handleCloseDamageReport();
       
     } catch (error) {
       console.error('Error guardando reporte de daño:', error);
@@ -609,7 +614,6 @@ const StoreVisit: React.FC = () => {
     setDamagePhotos([]);
   };
 
-  // 🆕 MANEJAR GUARDADO DE REPOSICIONES
   const handleRestockSave = async (items: IRestockItem[]) => {
     setRestockItems(prev => [...prev, ...items]);
     
@@ -627,12 +631,17 @@ const StoreVisit: React.FC = () => {
     setShowRestockModal(false);
     setCurrentTaskIndex(null);
     
-    // Mostrar resumen
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-    alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+    if (!isOnline) {
+      for (const item of items) {
+        await offlineStorage.queueSyncAction('restock', item);
+      }
+      alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
+    } else {
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+    }
   };
 
-  // 🆕 FUNCIÓN PARA MANEJAR CHECKBOX DE TAREAS (ACTUALIZADA)
   const handleTaskCheckbox = (task: ITask, index: number) => {
     if (task.completed) {
       const updatedTasks = [...tasks];
@@ -643,7 +652,6 @@ const StoreVisit: React.FC = () => {
       return;
     }
 
-    // Para la tarea de picking, abrir modal de reposición
     if (task.key === 'picking') {
       setCurrentTaskIndex(index);
       setShowRestockModal(true);
@@ -673,7 +681,6 @@ const StoreVisit: React.FC = () => {
     setTasks(updatedTasks);
   };
 
-  // 🆕 VALIDACIÓN DE VISITA COMPLETA (ACTUALIZADA)
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
     const missingTasks: string[] = [];
     
@@ -720,53 +727,64 @@ const StoreVisit: React.FC = () => {
       return;
     }
 
-    try {
-      await routeService.completeVisit(
-        route.id,
-        route.stores[currentStoreIndex].id,
-        {
-          duration: timeInStore,
-          notes: visitNotes || `Tareas completadas: ${completedTasks}/${totalTasks}. Reportes de daño: ${damageReports.length}. Productos repuestos: ${restockItems.reduce((sum, item) => sum + item.quantity, 0)}`,
-          damageReports: damageReports,
-          signature: tasks.find(t => t.key === 'signature')?.signature
-        }
-      );
-      
-      const updatedStores = [...route.stores];
-      updatedStores[currentStoreIndex] = {
-        ...updatedStores[currentStoreIndex],
-        status: 'completed'
-      };
-      
-      setRoute({
-        ...route,
-        stores: updatedStores,
-        completed_stores: (route.completed_stores || 0) + 1
-      });
-      
-      setIsTimerRunning(false);
-      setVisitStatus('completed');
-      
-      localStorage.removeItem('storeVisitState');
-      
-      navigate('/dashboard', { 
-        state: { 
-          message: `¡Visita a ${storeInfo.name} completada!`,
-          summary: {
-            tasksCompleted: completedTasks,
-            totalTasks,
-            timeSpent: timeInStore,
-            damageReports: damageReports.length,
-            restockedItems: restockItems.length,
-            restockedQuantity: restockItems.reduce((sum, item) => sum + item.quantity, 0)
-          }
-        } 
-      });
-      
-    } catch (error) {
-      console.error('❌ Error finalizando visita:', error);
-      alert('Error al completar la visita. Intenta nuevamente.');
+    const visitData = {
+      duration: timeInStore,
+      notes: visitNotes,
+      damageReports: damageReports,
+      signature: tasks.find(t => t.key === 'signature')?.signature,
+      routeId: route.id,
+      storeVisitId: route.stores[currentStoreIndex].id
+    };
+
+    if (isOnline) {
+      try {
+        await routeService.completeVisit(route.id, route.stores[currentStoreIndex].id, visitData);
+        await finalizeVisit();
+      } catch (error) {
+        console.error('Error finalizando visita:', error);
+        await offlineStorage.queueSyncAction('visit_complete', visitData);
+        await finalizeVisit(true);
+        alert(`✅ Visita completada en modo offline. Se sincronizará cuando haya conexión.`);
+      }
+    } else {
+      await offlineStorage.queueSyncAction('visit_complete', visitData);
+      await finalizeVisit(true);
+      alert(`✅ Visita completada en modo offline. Se sincronizará cuando haya conexión.`);
     }
+  };
+
+  const finalizeVisit = async (offlineMode = false) => {
+    const updatedStores = [...route.stores];
+    updatedStores[currentStoreIndex] = {
+      ...updatedStores[currentStoreIndex],
+      status: 'completed'
+    };
+    
+    setRoute({
+      ...route,
+      stores: updatedStores,
+      completed_stores: (route.completed_stores || 0) + 1
+    });
+    
+    setIsTimerRunning(false);
+    setVisitStatus('completed');
+    
+    await offlineStorage.deleteVisitState(storeVisitId);
+    localStorage.removeItem('storeVisitState');
+    
+    navigate('/dashboard', { 
+      state: { 
+        message: `¡Visita a ${storeInfo.name} completada!`,
+        summary: {
+          tasksCompleted: completedTasks,
+          totalTasks,
+          timeSpent: timeInStore,
+          damageReports: damageReports.length,
+          restockedItems: restockItems.length,
+          restockedQuantity: restockItems.reduce((sum, item) => sum + item.quantity, 0)
+        }
+      } 
+    });
   };
 
   const handleSkipStore = async (reason: string) => {
@@ -801,9 +819,7 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  // Componente de tarea con cámara
   const renderTask = (task: ITask, index: number) => {
-    // TAREA DE DAMAGE CHECK ESPECIAL
     if (task.key === 'damageCheck') {
       return (
         <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
@@ -815,51 +831,34 @@ const StoreVisit: React.FC = () => {
                 onChange={() => handleDamageCheckTask(index)}
                 className="task-checkbox"
               />
-              
-              <span className="task-label">
-                {task.label}
-              </span>
-              
+              <span className="task-label">{task.label}</span>
               <div className="task-requirements">
                 {task.requiresPhotos && <span className="requirement-badge">📸</span>}
                 {task.requiresBarcode && <span className="requirement-badge">📱</span>}
               </div>
             </div>
-            
             {task.completed ? (
               <div className="task-status">
                 <p className="status-success">
                   ✅ {task.additionalData?.hasDamages 
                     ? `Reporte completado (${task.barcodes?.length || 0} productos)`
-                    : 'Revisión completada sin daños'
-                  }
+                    : 'Revisión completada sin daños'}
                 </p>
-                <button 
-                  className="secondary-btn outline"
-                  onClick={() => handleDamageCheckTask(index)}
-                >
-                  ✏️ Cambiar
-                </button>
+                <button className="secondary-btn outline" onClick={() => handleDamageCheckTask(index)}>✏️ Cambiar</button>
               </div>
             ) : (
               <div className="task-actions">
-                <p className="task-instruction">
-                  Haz clic en el checkbox para revisar daños en bodega
-                </p>
+                <p className="task-instruction">Haz clic en el checkbox para revisar daños en bodega</p>
               </div>
             )}
-            
             {task.timestamp && (
-              <div className="task-timestamp">
-                Actualizado: {task.timestamp.toLocaleTimeString()}
-              </div>
+              <div className="task-timestamp">Actualizado: {task.timestamp.toLocaleTimeString()}</div>
             )}
           </div>
         </div>
       );
     }
     
-    // TAREA DE PICKING ESPECIAL (ACTUALIZADA)
     if (task.key === 'picking') {
       return (
         <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
@@ -871,53 +870,28 @@ const StoreVisit: React.FC = () => {
                 onChange={() => handleTaskCheckbox(task, index)}
                 className="task-checkbox"
               />
-              
-              <span className="task-label">
-                {task.label}
-              </span>
-              
-              <div className="task-requirements">
-                <span className="requirement-badge">📦</span>
-              </div>
+              <span className="task-label">{task.label}</span>
+              <div className="task-requirements"><span className="requirement-badge">📦</span></div>
             </div>
-            
             {task.completed ? (
               <div className="task-status">
-                <p className="status-success">
-                  ✅ Productos repuestos: {task.additionalData?.totalItems || 0} unidades
-                </p>
-                <p className="status-success">
-                  📦 Tipos diferentes: {task.additionalData?.uniqueProducts || 0}
-                </p>
-                <button 
-                  className="secondary-btn outline"
-                  onClick={() => {
-                    setCurrentTaskIndex(index);
-                    setShowRestockModal(true);
-                  }}
-                >
-                  ✏️ Editar
-                </button>
+                <p className="status-success">✅ Productos repuestos: {task.additionalData?.totalItems || 0} unidades</p>
+                <p className="status-success">📦 Tipos diferentes: {task.additionalData?.uniqueProducts || 0}</p>
+                <button className="secondary-btn outline" onClick={() => { setCurrentTaskIndex(index); setShowRestockModal(true); }}>✏️ Editar</button>
               </div>
             ) : (
               <div className="task-actions">
-                <p className="task-instruction">
-                  Haz clic en el checkbox para registrar productos repuestos
-                </p>
+                <p className="task-instruction">Haz clic en el checkbox para registrar productos repuestos</p>
               </div>
             )}
-            
             {task.timestamp && (
-              <div className="task-timestamp">
-                Completado: {task.timestamp.toLocaleTimeString()}
-              </div>
+              <div className="task-timestamp">Completado: {task.timestamp.toLocaleTimeString()}</div>
             )}
           </div>
         </div>
       );
     }
     
-    // TAREAS NORMALES CON CHECKBOX FUNCIONAL
     return (
       <div key={task.key} className={`task-card ${task.completed ? 'completed' : ''}`}>
         <div className="task-content">
@@ -928,27 +902,20 @@ const StoreVisit: React.FC = () => {
               onChange={() => handleTaskCheckbox(task, index)}
               className="task-checkbox"
             />
-            
             <div className="task-info">
               <div className="task-header">
-                <span className="task-label">
-                  {task.label}
-                </span>
+                <span className="task-label">{task.label}</span>
                 <div className="task-requirements">
                   {task.requiresPhotos && <span className="requirement-badge">📸</span>}
                   {task.requiresBarcode && <span className="requirement-badge">📱</span>}
                   {task.requiresSignature && <span className="requirement-badge">✍️</span>}
                 </div>
               </div>
-              
               {task.timestamp && (
-                <div className="task-timestamp">
-                  Completado: {task.timestamp.toLocaleTimeString()}
-                </div>
+                <div className="task-timestamp">Completado: {task.timestamp.toLocaleTimeString()}</div>
               )}
             </div>
           </div>
-          
           {task.requiresPhotos && (
             <div className="task-photos-section">
               <CameraButton 
@@ -965,102 +932,106 @@ const StoreVisit: React.FC = () => {
     );
   };
 
-  // Efectos optimizados
+  const currentStore = route?.stores?.[currentStoreIndex];
+  const storeInfo = {
+    name: currentStore.storeId?.name || 'Tienda',
+    address: currentStore.storeId?.address || 'Dirección no disponible'
+  };
+
+  const completedTasks = tasks.filter(task => task.completed).length;
+  const totalTasks = tasks.length;
+  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  // Guardar estado automáticamente
+  useEffect(() => {
+    if (visitStatus === 'in-progress' && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
+      const saveInterval = setInterval(() => {
+        offlineStorage.saveVisitState(storeVisitId, {
+          routeStoreId: Number(currentStore.id),
+          storeId: Number(currentStore.storeId.id),
+          storeName: storeInfo.name,
+          startTime: new Date().toISOString(),
+          status: visitStatus,
+          tasks: tasks,
+          timeInStore: timeInStore,
+          damageReports: damageReports,
+          restockItems: restockItems,
+          notes: visitNotes,
+          photos: []
+        });
+        console.log('💾 Estado guardado localmente');
+      }, 5000);
+      
+      return () => clearInterval(saveInterval);
+    }
+  }, [visitStatus, tasks, timeInStore, damageReports, restockItems, visitNotes, storeVisitId, currentStore, storeInfo.name]);
+
+  // Detectar cambios de conexión
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      offlineStorage.syncAll();
+    };
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    loadSavedState();
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [storeVisitId]);
+
+  // Efectos existentes...
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
-    
     const saveState = () => {
       if (tasks.length > 0 && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
-        const stateToSave = {
-          tasks,
-          timeInStore,
-          damageReports,
-          restockItems,
-          visitNotes,
-          storeVisitId,
-          routeId: route?.id,
-          currentStoreIndex,
-          saveTimestamp: new Date().toISOString()
-        };
-        
+        const stateToSave = { tasks, timeInStore, damageReports, restockItems, visitNotes, storeVisitId, routeId: route?.id, currentStoreIndex, saveTimestamp: new Date().toISOString() };
         localStorage.setItem('storeVisitState', JSON.stringify(stateToSave));
       }
     };
-    
     timeoutId = setTimeout(saveState, 2000);
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    return () => { clearTimeout(timeoutId); };
   }, [tasks, timeInStore, damageReports, restockItems, visitNotes, visitStatus, route?.id, currentStoreIndex, storeVisitId]);
 
   useEffect(() => {
     if (hasCheckedStatus && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && tasks.length === 0) {
       const savedState = localStorage.getItem('storeVisitState');
-      
       if (savedState) {
         try {
           const parsedState = JSON.parse(savedState);
-          
           if (parsedState.storeVisitId === storeVisitId) {
-            if (parsedState.tasks && parsedState.tasks.length > 0) {
-              setTasks(parsedState.tasks);
-              setHasInitializedTasks(true);
-            }
-            
-            if (parsedState.timeInStore !== undefined) {
-              setTimeInStore(parsedState.timeInStore);
-            }
-            
-            if (parsedState.damageReports) {
-              setDamageReports(parsedState.damageReports);
-            }
-            
-            if (parsedState.restockItems) {
-              setRestockItems(parsedState.restockItems);
-            }
-            
-            if (parsedState.visitNotes) {
-              setVisitNotes(parsedState.visitNotes);
-            }
-            
+            if (parsedState.tasks && parsedState.tasks.length > 0) { setTasks(parsedState.tasks); setHasInitializedTasks(true); }
+            if (parsedState.timeInStore !== undefined) setTimeInStore(parsedState.timeInStore);
+            if (parsedState.damageReports) setDamageReports(parsedState.damageReports);
+            if (parsedState.restockItems) setRestockItems(parsedState.restockItems);
+            if (parsedState.visitNotes) setVisitNotes(parsedState.visitNotes);
             return;
           }
-        } catch (error) {
-          console.error('Error recuperando estado:', error);
-        }
+        } catch (error) { console.error('Error recuperando estado:', error); }
       }
-      
-      if (!hasInitializedTasks) {
-        initializeTasks();
-      }
+      if (!hasInitializedTasks) initializeTasks();
     }
   }, [hasCheckedStatus, visitStatus, storeVisitId, hasInitializedTasks, tasks.length, initializeTasks]);
 
   useEffect(() => {
-    if (user && !route) {
-      loadCurrentRoute();
-    }
+    if (user && !route) loadCurrentRoute();
   }, [user, route, loadCurrentRoute]);
 
   useEffect(() => {
-    if (route && !hasCheckedStatus) {
-      checkVisitStatus();
-    }
+    if (route && !hasCheckedStatus) checkVisitStatus();
   }, [route, hasCheckedStatus, checkVisitStatus]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
-    
     if (isTimerRunning && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
-      timer = setInterval(() => {
-        setTimeInStore(prev => prev + 1);
-      }, 60000);
+      timer = setInterval(() => { setTimeInStore(prev => prev + 1); }, 60000);
     }
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    return () => { if (timer) clearInterval(timer); };
   }, [isTimerRunning, visitStatus]);
 
   useEffect(() => {
@@ -1071,65 +1042,40 @@ const StoreVisit: React.FC = () => {
         return e.returnValue;
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+    return () => { window.removeEventListener('beforeunload', handleBeforeUnload); };
   }, [visitStatus, tasks]);
-
+  
+  
   if (!route) {
     return (
       <div className="store-visit-container">
-        <div className="visit-status pending">
-          <h3>Cargando ruta...</h3>
-        </div>
+        <div className="visit-status pending"><h3>Cargando ruta...</h3></div>
       </div>
     );
   }
 
-  const currentStore = route.stores?.[currentStoreIndex];
-  
   if (!currentStore) {
     return (
       <div className="store-visit-container">
         <div className="visit-status pending">
           <h3>Error: Tienda no encontrada</h3>
-          <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
-            Volver al Dashboard
-          </button>
+          <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>Volver al Dashboard</button>
         </div>
       </div>
     );
   }
 
-  const storeInfo = {
-    name: currentStore.storeId?.name || 'Tienda',
-    address: currentStore.storeId?.address || 'Dirección no disponible'
-  };
-
-  const completedTasks = tasks.filter(task => task.completed).length;
-  const totalTasks = tasks.length;
-  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-
   const renderVisitContent = () => {
     const normalizedStatus = normalizeStatus(visitStatus);
-    
     switch (normalizedStatus) {
       case 'pending':
         return (
           <div className="visit-pending">
-            <div className="visit-status pending">
-              <h3>🟡 Visita Pendiente</h3>
-              <p>Presiona "Iniciar Visita" para comenzar</p>
-            </div>
-            <button className="primary-action-btn" onClick={handleStartVisit}>
-              🏪 Iniciar Visita
-            </button>
+            <div className="visit-status pending"><h3>🟡 Visita Pendiente</h3><p>Presiona "Iniciar Visita" para comenzar</p></div>
+            <button className="primary-action-btn" onClick={handleStartVisit}>🏪 Iniciar Visita</button>
           </div>
         );
-
       case 'in-progress':
         return (
           <div className="visit-in-progress">
@@ -1138,127 +1084,53 @@ const StoreVisit: React.FC = () => {
               <p>Progreso: {progressPercentage.toFixed(0)}% completado</p>
               <p className="time-elapsed">⏱️ Tiempo: {timeInStore} minutos</p>
             </div>
-
             <div className="tasks-section">
               <h3>📋 Checklist de Tareas:</h3>
-              
-              <div className="tasks-list">
-                {tasks.map((task, index) => renderTask(task, index))}
-              </div>
-
-              {/* Resumen de daños */}
+              <div className="tasks-list">{tasks.map((task, index) => renderTask(task, index))}</div>
               {damageReports.length > 0 && (
-                <div className="damage-reports">
-                  <h4>⚠️ Reportes de Daños ({damageReports.length})</h4>
-                  {damageReports.slice(0, 3).map((report, index) => (
-                    <div key={index} className="damage-item">
-                      <span>{report.product.name}</span>
-                      <span className="damage-severity">{report.severity}</span>
-                    </div>
-                  ))}
-                  {damageReports.length > 3 && (
-                    <p>... y {damageReports.length - 3} más</p>
-                  )}
-                </div>
+                <div className="damage-reports"><h4>⚠️ Reportes de Daños ({damageReports.length})</h4></div>
               )}
-
-              {/* 🆕 Resumen de productos repuestos */}
               {restockItems.length > 0 && (
                 <div className="restock-summary">
                   <h4>📦 Productos Repuestos ({restockItems.length})</h4>
-                  <div className="restock-items-list">
-                    {restockItems.slice(0, 3).map((item, index) => (
-                      <div key={index} className="restock-item">
-                        <span>{item.product_name}</span>
-                        <span className="restock-quantity">x{item.quantity}</span>
-                      </div>
-                    ))}
-                    {restockItems.length > 3 && (
-                      <p className="more-items">... y {restockItems.length - 3} más</p>
-                    )}
-                  </div>
-                  <div className="restock-total">
-                    Total: {restockItems.reduce((sum, item) => sum + item.quantity, 0)} unidades
-                    {restockItems.some(i => i.unit_price) && (
-                      <> | Valor: ${restockItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0).toFixed(2)}</>
-                    )}
-                  </div>
+                  <div className="restock-total">Total: {restockItems.reduce((sum, item) => sum + item.quantity, 0)} unidades</div>
                 </div>
               )}
-
               <div className="visit-notes">
                 <h4>📝 Notas</h4>
-                <textarea 
-                  value={visitNotes}
-                  onChange={(e) => setVisitNotes(e.target.value)}
-                  placeholder="Agregar notas adicionales..."
-                  className="notes-textarea"
-                />
+                <textarea value={visitNotes} onChange={(e) => setVisitNotes(e.target.value)} placeholder="Agregar notas adicionales..." className="notes-textarea" />
               </div>
-
+              {!isOnline && <div className="offline-banner">⚠️ Modo offline - Los datos se guardarán localmente</div>}
               <div className="visit-actions">
-                <button 
-                  className="action-btn complete-btn"
-                  onClick={handleCompleteVisit}
-                  disabled={completedTasks !== totalTasks || loading}
-                >
+                <button className="action-btn complete-btn" onClick={handleCompleteVisit} disabled={completedTasks !== totalTasks || loading}>
                   {loading ? '⏳ Procesando...' : '✅ Finalizar Visita'}
                 </button>
-                
-                <button 
-                  className="action-btn skip-btn"
-                  onClick={() => {
-                    if (window.confirm('¿Estás seguro de que quieres saltar esta tienda?')) {
-                      handleSkipStore('Tienda cerrada');
-                    }
-                  }}
-                >
+                <button className="action-btn skip-btn" onClick={() => { if (window.confirm('¿Estás seguro de que quieres saltar esta tienda?')) handleSkipStore('Tienda cerrada'); }}>
                   ⏭️ Saltar Tienda
                 </button>
               </div>
-
-              {completedTasks === totalTasks && (
-                <div className="completion-message">
-                  ✅ Todas las tareas completadas.
-                </div>
-              )}
+              {completedTasks === totalTasks && <div className="completion-message">✅ Todas las tareas completadas.</div>}
             </div>
           </div>
         );
-
       case 'completed':
         return (
           <div className="visit-completed">
-            <div className="visit-status completed">
-              <h3>✅ Visita Completada</h3>
-              {restockItems.length > 0 && (
-                <p>📦 {restockItems.reduce((sum, item) => sum + item.quantity, 0)} productos repuestos</p>
-              )}
-            </div>
-            <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
-              ➡️ Volver al Dashboard
-            </button>
+            <div className="visit-status completed"><h3>✅ Visita Completada</h3></div>
+            <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>➡️ Volver al Dashboard</button>
           </div>
         );
-
       case 'skipped':
         return (
           <div className="visit-skipped">
-            <div className="visit-status skipped">
-              <h3>⏭️ Visita Saltada</h3>
-            </div>
-            <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>
-              ➡️ Volver al Dashboard
-            </button>
+            <div className="visit-status skipped"><h3>⏭️ Visita Saltada</h3></div>
+            <button className="primary-action-btn" onClick={() => navigate('/dashboard')}>➡️ Volver al Dashboard</button>
           </div>
         );
-
       default:
         return (
           <div className="visit-pending">
-            <div className="visit-status pending">
-              <h3>🔄 Cargando...</h3>
-            </div>
+            <div className="visit-status pending"><h3>🔄 Cargando...</h3></div>
           </div>
         );
     }
@@ -1269,167 +1141,45 @@ const StoreVisit: React.FC = () => {
       <header className="store-visit-header">
         <h2>🏪 {storeInfo.name}</h2>
         <p className="store-address">📍 {storeInfo.address}</p>
-        
-        <button 
-          className="secondary-btn primary"
-          onClick={openInMaps}
-          style={{ marginTop: '10px', marginBottom: '10px' }}
-        >
-          🗺️ Navegar a Tienda
-        </button>
-        
-        <TaskProgress 
-          completed={completedTasks}
-          total={totalTasks}
-          timeElapsed={timeInStore}
-          maxTime={40}
-        />
-        
-        {timeInStore >= 40 && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && (
-          <div className="time-warning">
-            ⚠️ Has excedido el tiempo máximo
-          </div>
-        )}
+        <button className="secondary-btn primary" onClick={openInMaps} style={{ marginTop: '10px', marginBottom: '10px' }}>🗺️ Navegar a Tienda</button>
+        <TaskProgress completed={completedTasks} total={totalTasks} timeElapsed={timeInStore} maxTime={40} />
+        {timeInStore >= 40 && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && <div className="time-warning">⚠️ Has excedido el tiempo máximo</div>}
       </header>
 
       {renderVisitContent()}
 
-      {/* Modal de Reporte de Daños con cámara */}
       {showDamageReport && currentProduct && (
         <div className="damage-modal-overlay">
           <div className="damage-modal">
             <h3>⚠️ Reportar Producto Dañado</h3>
-            
-            <div className="product-info">
-              <h4>Producto: {currentProduct.name}</h4>
-              <p><strong>Código:</strong> {currentBarcode}</p>
-              <p><strong>Marca:</strong> {currentProduct.brand}</p>
-            </div>
-
-            <div className="modal-form-group">
-              <label className="modal-label">📸 Fotos del daño (máx 3):</label>
-              <CameraButton 
-                onCapture={handleDamagePhotosChange}
-                existingPhotos={damagePhotos}
-                maxPhotos={3}
-                disabled={loading}
-                required={true}
-              />
-            </div>
-
-            <div className="modal-form-group">
-              <label className="modal-label">Tipo de Daño:</label>
-              <select 
-                value={damageType}
-                onChange={(e) => setDamageType(e.target.value)}
-                className="modal-select"
-                disabled={loading}
-              >
-                <option value="">Seleccionar tipo</option>
-                <option value="empaque_danado">Empaque dañado</option>
-                <option value="producto_vencido">Producto vencido</option>
-                <option value="producto_abierto">Producto abierto</option>
-                <option value="producto_roto">Producto roto</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-
-            <div className="modal-form-group">
-              <label className="modal-label">Severidad:</label>
-              <select 
-                value={damageSeverity}
-                onChange={(e) => setDamageSeverity(e.target.value as 'low' | 'medium' | 'high')}
-                className="modal-select"
-                disabled={loading}
-              >
-                <option value="low">Baja</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
-              </select>
-            </div>
-
-            <div className="modal-form-group">
-              <label className="modal-label">Descripción:</label>
-              <textarea 
-                value={damageDescription}
-                onChange={(e) => setDamageDescription(e.target.value)}
-                placeholder="Describir el daño encontrado..."
-                className="modal-textarea"
-                disabled={loading}
-                rows={3}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button 
-                className="modal-btn cancel"
-                onClick={handleCloseDamageReport}
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button 
-                className="modal-btn report"
-                onClick={handleAddDamageReport}
-                disabled={!damageType || !damageDescription || damagePhotos.length === 0 || loading}
-              >
-                {loading ? '⏳ Guardando...' : '📝 Guardar'}
-              </button>
-            </div>
+            <div className="product-info"><h4>Producto: {currentProduct.name}</h4><p><strong>Código:</strong> {currentBarcode}</p><p><strong>Marca:</strong> {currentProduct.brand}</p></div>
+            <div className="modal-form-group"><label className="modal-label">📸 Fotos del daño (máx 3):</label><CameraButton onCapture={handleDamagePhotosChange} existingPhotos={damagePhotos} maxPhotos={3} disabled={loading} required={true} /></div>
+            <div className="modal-form-group"><label className="modal-label">Tipo de Daño:</label><select value={damageType} onChange={(e) => setDamageType(e.target.value)} className="modal-select" disabled={loading}><option value="">Seleccionar tipo</option><option value="empaque_danado">Empaque dañado</option><option value="producto_vencido">Producto vencido</option><option value="producto_abierto">Producto abierto</option><option value="producto_roto">Producto roto</option><option value="otro">Otro</option></select></div>
+            <div className="modal-form-group"><label className="modal-label">Severidad:</label><select value={damageSeverity} onChange={(e) => setDamageSeverity(e.target.value as 'low' | 'medium' | 'high')} className="modal-select" disabled={loading}><option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option></select></div>
+            <div className="modal-form-group"><label className="modal-label">Descripción:</label><textarea value={damageDescription} onChange={(e) => setDamageDescription(e.target.value)} placeholder="Describir el daño encontrado..." className="modal-textarea" disabled={loading} rows={3} /></div>
+            <div className="modal-actions"><button className="modal-btn cancel" onClick={handleCloseDamageReport} disabled={loading}>Cancelar</button><button className="modal-btn report" onClick={handleAddDamageReport} disabled={!damageType || !damageDescription || damagePhotos.length === 0 || loading}>{loading ? '⏳ Guardando...' : '📝 Guardar'}</button></div>
           </div>
         </div>
       )}
 
-      {showSignaturePad && (
-        <SignaturePad 
-          onSave={handleSignatureSave}
-          onClose={() => setShowSignaturePad(false)}
-        />
-      )}
+      {showSignaturePad && <SignaturePad onSave={handleSignatureSave} onClose={() => setShowSignaturePad(false)} />}
       
-      {/* Modal de Escaneo de Código de Barras */}
       {showBarcodeScanner && (
         <div className="barcode-modal-overlay">
           <div className="barcode-modal">
-            <div className="barcode-modal-header">
-              <h3>📱 Escanear Código de Barras</h3>
-              <button 
-                onClick={() => setShowBarcodeScanner(false)}
-                className="close-modal-btn"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="barcode-modal-content">
-              <BarcodeScannerButton 
-                onScan={handleBarcodeScanned}
-                disabled={loading}
-              />
-            </div>
-            
-            <div className="barcode-modal-footer">
-              <button 
-                className="modal-btn cancel"
-                onClick={() => setShowBarcodeScanner(false)}
-              >
-                Cancelar
-              </button>
-            </div>
+            <div className="barcode-modal-header"><h3>📱 Escanear Código de Barras</h3><button onClick={() => setShowBarcodeScanner(false)} className="close-modal-btn">×</button></div>
+            <div className="barcode-modal-content"><BarcodeScannerButton onScan={handleBarcodeScanned} disabled={loading} /></div>
+            <div className="barcode-modal-footer"><button className="modal-btn cancel" onClick={() => setShowBarcodeScanner(false)}>Cancelar</button></div>
           </div>
         </div>
       )}
 
-      {/* 🆕 Modal de Registro de Reposiciones */}
       {showRestockModal && route && (
         <RestockModal
           routeStoreId={Number(route.stores[currentStoreIndex].id)}
           storeId={Number(route.stores[currentStoreIndex].storeId.id)}
           reportedBy={Number(user!.id)}
-          onClose={() => {
-            setShowRestockModal(false);
-            setCurrentTaskIndex(null);
-          }}
+          onClose={() => { setShowRestockModal(false); setCurrentTaskIndex(null); }}
           onSave={handleRestockSave}
         />
       )}
