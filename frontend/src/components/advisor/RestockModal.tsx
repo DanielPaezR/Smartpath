@@ -1,6 +1,7 @@
 // frontend/src/components/advisor/RestockModal.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { restockService, IRestockItem } from '../../services/restockService';
+import BarcodeScannerButton from './BarcodeScannerButton';
 import { API_BASE_URL } from '../../services/api';
 import '../../styles/RestockModal.css';
 
@@ -28,18 +29,18 @@ const RestockModal: React.FC<IRestockModalProps> = ({
 }) => {
     const [items, setItems] = useState<IRestockItem[]>([]);
     const [tempItem, setTempItem] = useState<TempItem | null>(null);
-    const [scanning, setScanning] = useState(false);
+    const [showScanner, setShowScanner] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [barcodeInput, setBarcodeInput] = useState('');
     const [manualMode, setManualMode] = useState(false);
+    const [barcodeInput, setBarcodeInput] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Enfocar input automáticamente
+    // Enfocar input cuando se muestra el escáner manual
     useEffect(() => {
-        if (scanning && inputRef.current) {
+        if (showScanner && !tempItem && inputRef.current) {
             inputRef.current.focus();
         }
-    }, [scanning]);
+    }, [showScanner, tempItem]);
 
     // Buscar producto por código de barras
     const searchProduct = async (barcode: string) => {
@@ -57,10 +58,9 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                     quantity: 1,
                     unitPrice: product.price
                 });
-                setScanning(false);
+                setShowScanner(false);
                 setBarcodeInput('');
             } else {
-                // Producto no encontrado - preguntar si ingresar manual
                 if (confirm(`Producto con código ${barcode} no encontrado.\n¿Quieres ingresarlo manualmente?`)) {
                     setTempItem({
                         barcode,
@@ -69,7 +69,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                         unitPrice: undefined
                     });
                     setManualMode(true);
-                    setScanning(false);
+                    setShowScanner(false);
                 }
             }
         } catch (error) {
@@ -80,7 +80,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
     };
 
-    // Manejar escaneo manual (tecla Enter)
+    // Manejar escaneo desde el input manual
     const handleBarcodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (barcodeInput.trim()) {
@@ -89,7 +89,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     };
 
     // Agregar producto actual a la lista
-    const addCurrentItem = async () => {
+    const addCurrentItem = () => {
         if (!tempItem) return;
 
         if (tempItem.quantity < 1) {
@@ -97,7 +97,6 @@ const RestockModal: React.FC<IRestockModalProps> = ({
             return;
         }
 
-        // Crear el item para guardar
         const newItem: IRestockItem = {
             route_store_id: routeStoreId,
             store_id: storeId,
@@ -114,7 +113,8 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         setItems(prev => [...prev, newItem]);
         setTempItem(null);
         setManualMode(false);
-        setScanning(true);
+        setShowScanner(true);
+        setBarcodeInput('');
         
         // Enfocar input para siguiente escaneo
         setTimeout(() => {
@@ -124,7 +124,13 @@ const RestockModal: React.FC<IRestockModalProps> = ({
 
     // Finalizar y guardar todos los productos
     const handleFinish = async () => {
-        if (items.length === 0 && !tempItem) {
+        // Si hay un producto pendiente, pedir que lo agregue primero
+        if (tempItem) {
+            alert('Por favor, agrega el producto actual antes de finalizar');
+            return;
+        }
+
+        if (items.length === 0) {
             if (!confirm('No has registrado ningún producto. ¿Continuar sin registrar?')) {
                 return;
             }
@@ -133,14 +139,9 @@ const RestockModal: React.FC<IRestockModalProps> = ({
             return;
         }
 
-        // Si hay un producto pendiente, agregarlo primero
-        if (tempItem) {
-            await addCurrentItem();
-        }
-
         setLoading(true);
         try {
-            // Guardar todos los productos uno por uno
+            // Guardar todos los productos
             const savedItems: IRestockItem[] = [];
             for (const item of items) {
                 const saved = await restockService.addRestockItem(item);
@@ -175,6 +176,10 @@ const RestockModal: React.FC<IRestockModalProps> = ({
             currency: 'COP',
             minimumFractionDigits: 0
         }).format(price);
+    };
+
+    const handleScannerScan = (barcode: string) => {
+        searchProduct(barcode);
     };
 
     return (
@@ -216,14 +221,25 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                         </div>
                     )}
 
-                    {/* Área de escaneo */}
-                    {!tempItem ? (
+                    {/* Área de escaneo con cámara */}
+                    {showScanner && !tempItem && (
                         <div className="scan-area">
                             <p className="scan-instruction">
                                 {items.length === 0 
-                                    ? '🔍 Escanea el código de barras del primer producto repuesto'
+                                    ? '🔍 Escanea el código de barras del producto repuesto'
                                     : '➕ Escanea otro producto o finaliza'}
                             </p>
+                            
+                            {/* 🎯 BOTÓN DE CÁMARA - PRIORIDAD */}
+                            <BarcodeScannerButton 
+                                onScan={handleScannerScan}
+                                disabled={loading}
+                            />
+
+                            {/* Opción de ingreso manual secundaria */}
+                            <div className="manual-divider">
+                                <span>o</span>
+                            </div>
                             
                             <form onSubmit={handleBarcodeSubmit} className="barcode-form">
                                 <input
@@ -231,36 +247,23 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     type="text"
                                     value={barcodeInput}
                                     onChange={(e) => setBarcodeInput(e.target.value)}
-                                    placeholder="Código de barras"
+                                    placeholder="Ingresa código manualmente"
                                     className="barcode-input"
-                                    autoFocus
                                     disabled={loading}
                                 />
                                 <button 
                                     type="submit" 
-                                    className="scan-btn"
+                                    className="scan-btn secondary"
                                     disabled={loading || !barcodeInput.trim()}
                                 >
-                                    {loading ? '⏳' : '🔍 Escanear'}
+                                    Ingresar
                                 </button>
                             </form>
-
-                            <button 
-                                className="manual-mode-btn"
-                                onClick={() => {
-                                    setTempItem({
-                                        barcode: '',
-                                        product: { name: '', brand: '', category: '' },
-                                        quantity: 1,
-                                        unitPrice: undefined
-                                    });
-                                    setManualMode(true);
-                                }}
-                            >
-                                ⌨️ Ingresar manualmente
-                            </button>
                         </div>
-                    ) : (
+                    )}
+
+                    {/* Área de confirmación de producto */}
+                    {tempItem && (
                         <div className="product-confirmation-area">
                             <h4>📦 Producto encontrado</h4>
                             
@@ -392,7 +395,8 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     onClick={() => {
                                         setTempItem(null);
                                         setManualMode(false);
-                                        setScanning(true);
+                                        setShowScanner(true);
+                                        setBarcodeInput('');
                                         setTimeout(() => inputRef.current?.focus(), 100);
                                     }}
                                 >
@@ -414,13 +418,29 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                     <button className="btn-secondary" onClick={onClose}>
                         Cancelar
                     </button>
-                    <button 
-                        className="btn-primary"
-                        onClick={handleFinish}
-                        disabled={loading}
-                    >
-                        {loading ? '⏳ Guardando...' : (items.length > 0 ? `✅ Finalizar (${items.length})` : '⏭️ Continuar sin productos')}
-                    </button>
+                    {items.length > 0 ? (
+                        <button 
+                            className="btn-primary"
+                            onClick={handleFinish}
+                            disabled={loading}
+                        >
+                            {loading ? '⏳ Guardando...' : `✅ Finalizar (${items.length} productos)`}
+                        </button>
+                    ) : (
+                        !tempItem && (
+                            <button 
+                                className="btn-primary outline"
+                                onClick={() => {
+                                    if (confirm('No has registrado ningún producto. ¿Continuar sin registrar?')) {
+                                        onSave([]);
+                                        onClose();
+                                    }
+                                }}
+                            >
+                                ⏭️ Continuar sin productos
+                            </button>
+                        )
+                    )}
                 </div>
 
                 {items.length > 0 && (
