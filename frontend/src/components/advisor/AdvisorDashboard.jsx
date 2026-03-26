@@ -6,6 +6,7 @@ import RouteMap from './RouteMap';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/AdvisorDashboard.css';
 import { API_BASE_URL } from '../../services/api';
+import { Link } from 'react-router-dom';
 
 const AdvisorDashboard = () => {
   const [currentRoute, setCurrentRoute] = useState(null);
@@ -449,9 +450,15 @@ const AdvisorDashboard = () => {
               <span className="stat-label">Duración</span>
             </div>
           </div>
-          <Link to="/advisor/metrics" className="metrics-link">
-            📊 Mis Estadísticas
-          </Link>
+          <div className="stat-item">
+            <Link to="/advisor/metrics" className="stat-link">
+              <span className="stat-icon">📊</span>
+              <div className="stat-info">
+                <span className="stat-value">Mis Stats</span>
+                <span className="stat-label">Ver estadísticas</span>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
 
