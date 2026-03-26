@@ -932,15 +932,15 @@ const StoreVisit: React.FC = () => {
     );
   };
 
-  const currentStore = route?.stores?.[currentStoreIndex];
-  const storeInfo = {
-    name: currentStore.storeId?.name || 'Tienda',
-    address: currentStore.storeId?.address || 'Dirección no disponible'
-  };
-
-  const completedTasks = tasks.filter(task => task.completed).length;
-  const totalTasks = tasks.length;
-  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+// ========== DECLARAR currentStore Y storeInfo ANTES DE LOS useEffect ==========
+const currentStore = route?.stores?.[currentStoreIndex];
+const storeInfo = {
+  name: currentStore?.storeId?.name || 'Tienda sin nombre',
+  address: currentStore?.storeId?.address || 'Dirección no disponible'
+};
+const completedTasks = tasks.filter(task => task.completed).length;
+const totalTasks = tasks.length;
+const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   // Guardar estado automáticamente
   useEffect(() => {
