@@ -278,3 +278,16 @@
     font-style: italic;
     margin: 0.25rem 0 0 0;
 }
+
+/* En RestockModal.css */
+.input-error {
+    border-color: #e74c3c !important;
+    background-color: #fff5f5;
+}
+
+.error-message {
+    display: block;
+    color: #e74c3c;
+    font-size: 0.75rem;
+    margin-top: 4px;
+}

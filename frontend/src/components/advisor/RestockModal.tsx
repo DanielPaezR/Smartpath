@@ -225,10 +225,28 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     <input 
                                         type="number"
                                         min="1"
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                                        className="form-input"
+                                        value={quantity === 0 ? '' : quantity}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === '') {
+                                                setQuantity(0);
+                                            } else {
+                                                const num = parseInt(val, 10);
+                                                if (!isNaN(num) && num >= 0) {
+                                                    setQuantity(num);
+                                                }
+                                            }
+                                        }}
+                                        onBlur={() => {
+                                            if (quantity === 0 || isNaN(quantity) || quantity < 1) {
+                                                setQuantity(1);
+                                            }
+                                        }}
+                                        className={`form-input ${quantity < 1 ? 'input-error' : ''}`}
                                     />
+                                    {quantity < 1 && (
+                                        <span className="error-message">La cantidad debe ser mayor a 0</span>
+                                    )}
                                 </div>
 
                                 <div className="form-group half">
