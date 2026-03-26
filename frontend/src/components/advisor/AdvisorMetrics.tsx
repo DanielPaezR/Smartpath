@@ -45,7 +45,7 @@ const AdvisorMetrics: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/advisor/metrics?period=${period}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/advisor/metrics?period=${period}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
