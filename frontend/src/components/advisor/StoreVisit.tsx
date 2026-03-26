@@ -148,7 +148,7 @@ const CameraButton: React.FC<{
 const productService = {
   getProductByBarcode: async (barcode: string): Promise<IProduct | null> => {
     try {
-      const response = await fetch(`/api/routes/products/barcode/${barcode}`, {
+      const response = await fetch(`/api/products/barcode/${barcode}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

@@ -33,7 +33,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         setLoading(true);
         try {
             // Buscar producto por código de barras
-            const response = await fetch(`/api/routes/products/barcode/${barcode}`, {
+            const response = await fetch(`/api/products/barcode/${barcode}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
