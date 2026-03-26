@@ -232,30 +232,6 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                 onScan={handleScannerScan}
                                 disabled={loading}
                             />
-
-                            {/* Input manual - Única opción secundaria */}
-                            <div className="manual-divider">
-                                <span>o ingresa el código manualmente</span>
-                            </div>
-                            
-                            <form onSubmit={handleBarcodeSubmit} className="barcode-form">
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={barcodeInput}
-                                    onChange={(e) => setBarcodeInput(e.target.value)}
-                                    placeholder="Código de barras"
-                                    className="barcode-input"
-                                    disabled={loading}
-                                />
-                                <button 
-                                    type="submit" 
-                                    className="scan-btn secondary"
-                                    disabled={loading || !barcodeInput.trim()}
-                                >
-                                    Ingresar
-                                </button>
-                            </form>
                         </div>
                     )}
 
