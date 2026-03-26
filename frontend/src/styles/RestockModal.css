@@ -522,3 +522,42 @@
         justify-content: flex-end;
     }
 }
+
+/* Divisor entre cámara e input manual */
+.manual-divider {
+    text-align: center;
+    margin: 16px 0 12px 0;
+    position: relative;
+}
+
+.manual-divider span {
+    background: white;
+    padding: 0 12px;
+    color: #95a5a6;
+    font-size: 0.8rem;
+}
+
+.manual-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e9ecef;
+    z-index: 0;
+}
+
+.manual-divider span {
+    position: relative;
+    z-index: 1;
+}
+
+/* Botón secundario para input manual */
+.scan-btn.secondary {
+    background: #7f8c8d;
+}
+
+.scan-btn.secondary:hover:not(:disabled) {
+    background: #6c7a7b;
+}

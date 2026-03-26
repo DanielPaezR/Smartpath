@@ -35,7 +35,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     const [barcodeInput, setBarcodeInput] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Enfocar input cuando se muestra el escáner manual
+    // Enfocar input cuando se muestra el área de escaneo
     useEffect(() => {
         if (showScanner && !tempItem && inputRef.current) {
             inputRef.current.focus();
@@ -116,7 +116,6 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         setShowScanner(true);
         setBarcodeInput('');
         
-        // Enfocar input para siguiente escaneo
         setTimeout(() => {
             if (inputRef.current) inputRef.current.focus();
         }, 100);
@@ -124,7 +123,6 @@ const RestockModal: React.FC<IRestockModalProps> = ({
 
     // Finalizar y guardar todos los productos
     const handleFinish = async () => {
-        // Si hay un producto pendiente, pedir que lo agregue primero
         if (tempItem) {
             alert('Por favor, agrega el producto actual antes de finalizar');
             return;
@@ -141,7 +139,6 @@ const RestockModal: React.FC<IRestockModalProps> = ({
 
         setLoading(true);
         try {
-            // Guardar todos los productos
             const savedItems: IRestockItem[] = [];
             for (const item of items) {
                 const saved = await restockService.addRestockItem(item);
@@ -221,7 +218,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                         </div>
                     )}
 
-                    {/* Área de escaneo con cámara */}
+                    {/* Área de escaneo con cámara y input manual */}
                     {showScanner && !tempItem && (
                         <div className="scan-area">
                             <p className="scan-instruction">
@@ -230,15 +227,15 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     : '➕ Escanea otro producto o finaliza'}
                             </p>
                             
-                            {/* 🎯 BOTÓN DE CÁMARA - PRIORIDAD */}
+                            {/* Botón de cámara */}
                             <BarcodeScannerButton 
                                 onScan={handleScannerScan}
                                 disabled={loading}
                             />
 
-                            {/* Opción de ingreso manual secundaria */}
+                            {/* Input manual - Única opción secundaria */}
                             <div className="manual-divider">
-                                <span>o</span>
+                                <span>o ingresa el código manualmente</span>
                             </div>
                             
                             <form onSubmit={handleBarcodeSubmit} className="barcode-form">
@@ -247,7 +244,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     type="text"
                                     value={barcodeInput}
                                     onChange={(e) => setBarcodeInput(e.target.value)}
-                                    placeholder="Ingresa código manualmente"
+                                    placeholder="Código de barras"
                                     className="barcode-input"
                                     disabled={loading}
                                 />
