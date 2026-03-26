@@ -1515,3 +1515,79 @@
     min-height: 52px;
   }
 }
+
+/* Barra de progreso de tiempo */
+.time-progress-container {
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.time-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.time-progress-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.time-progress-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.time-max {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: #7f8c8d;
+}
+
+.time-progress-bar-bg {
+  background: #e9ecef;
+  border-radius: 20px;
+  height: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.time-progress-bar-fill {
+  height: 100%;
+  border-radius: 20px;
+  transition: width 0.5s ease, background-color 0.3s ease;
+}
+
+.time-warning-soft {
+  font-size: 0.75rem;
+  color: #f39c12;
+  text-align: center;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #fff3e0;
+  border-radius: 8px;
+}
+
+.time-warning-hard {
+  font-size: 0.75rem;
+  color: #e74c3c;
+  text-align: center;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #fee2e2;
+  border-radius: 8px;
+  font-weight: 500;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}

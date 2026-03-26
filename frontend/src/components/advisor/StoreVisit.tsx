@@ -250,6 +250,7 @@ const StoreVisit: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
+  const [maxTimePerStore, setMaxTimePerStore] = useState(40); // Tiempo máximo por tienda
 
   // Estados de visita
   const [visitStatus, setVisitStatus] = useState<'pending' | 'in-progress' | 'in_progress' | 'completed' | 'skipped'>('pending');
@@ -638,6 +639,7 @@ const StoreVisit: React.FC = () => {
       alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
     } else {
       const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
     }
   };
 
@@ -931,15 +933,24 @@ const StoreVisit: React.FC = () => {
     );
   };
 
-// ========== DECLARAR currentStore Y storeInfo ANTES DE LOS useEffect ==========
-const currentStore = route?.stores?.[currentStoreIndex];
-const storeInfo = {
-  name: currentStore?.storeId?.name || 'Tienda sin nombre',
-  address: currentStore?.storeId?.address || 'Dirección no disponible'
-};
-const completedTasks = tasks.filter(task => task.completed).length;
-const totalTasks = tasks.length;
-const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  // ========== DECLARAR currentStore Y storeInfo ANTES DE LOS useEffect ==========
+  const currentStore = route?.stores?.[currentStoreIndex];
+  const storeInfo = {
+    name: currentStore?.storeId?.name || 'Tienda sin nombre',
+    address: currentStore?.storeId?.address || 'Dirección no disponible'
+  };
+  const completedTasks = tasks.filter(task => task.completed).length;
+  const totalTasks = tasks.length;
+  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  // Función para obtener el color según el tiempo
+  const getTimeColor = (time: number, maxTime: number = 40) => {
+    const percentage = (time / maxTime) * 100;
+    if (percentage >= 100) return '#e74c3c';
+    if (percentage >= 80) return '#f39c12';
+    if (percentage >= 50) return '#3498db';
+    return '#27ae60';
+  };
 
   // Guardar estado automáticamente
   useEffect(() => {
@@ -1140,9 +1151,57 @@ const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 
       <header className="store-visit-header">
         <h2>🏪 {storeInfo.name}</h2>
         <p className="store-address">📍 {storeInfo.address}</p>
-        <button className="secondary-btn primary" onClick={openInMaps} style={{ marginTop: '10px', marginBottom: '10px' }}>🗺️ Navegar a Tienda</button>
-        <TaskProgress completed={completedTasks} total={totalTasks} timeElapsed={timeInStore} maxTime={40} />
-        {timeInStore >= 40 && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && <div className="time-warning">⚠️ Has excedido el tiempo máximo</div>}
+        
+        <button 
+          className="secondary-btn primary"
+          onClick={openInMaps}
+          style={{ marginTop: '10px', marginBottom: '10px' }}
+        >
+          🗺️ Navegar a Tienda
+        </button>
+        
+        {/* Barra de progreso de tiempo */}
+        <div className="time-progress-container">
+          <div className="time-progress-header">
+            <span className="time-progress-label">⏱️ Tiempo en visita</span>
+            <span className="time-progress-value">
+              {Math.floor(timeInStore / 60)}:{String(timeInStore % 60).length === 1 ? '0' + String(timeInStore % 60) : String(timeInStore % 60)}
+              <span className="time-max"> / {maxTimePerStore} min</span>
+            </span>
+          </div>
+          <div className="time-progress-bar-bg">
+            <div 
+              className="time-progress-bar-fill"
+              style={{ 
+                width: `${Math.min(100, (timeInStore / maxTimePerStore) * 100)}%`,
+                backgroundColor: getTimeColor(timeInStore, maxTimePerStore)
+              }}
+            />
+          </div>
+          {timeInStore >= maxTimePerStore - 5 && timeInStore < maxTimePerStore && (
+            <div className="time-warning-soft">
+              ⚠️ Quedan {maxTimePerStore - timeInStore} minutos para completar la visita
+            </div>
+          )}
+          {timeInStore >= maxTimePerStore && (
+            <div className="time-warning-hard">
+              ⏰ Has excedido el tiempo recomendado de {maxTimePerStore} minutos
+            </div>
+          )}
+        </div>
+        
+        <TaskProgress 
+          completed={completedTasks}
+          total={totalTasks}
+          timeElapsed={timeInStore}
+          maxTime={maxTimePerStore}
+        />
+        
+        {timeInStore >= maxTimePerStore && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && (
+          <div className="time-warning">
+            ⚠️ Has excedido el tiempo máximo
+          </div>
+        )}
       </header>
 
       {renderVisitContent()}
