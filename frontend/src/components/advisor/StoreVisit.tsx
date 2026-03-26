@@ -10,6 +10,7 @@ import RestockModal from './RestockModal';
 import TaskProgress from '../common/TaskProgress';
 import { restockService, IRestockItem } from '../../services/restockService';
 import '../../styles/StoreVisit.css';
+import { API_BASE_URL } from '../../services/api';
 
 // Interfaces mejoradas
 interface ITask {
@@ -148,7 +149,7 @@ const CameraButton: React.FC<{
 const productService = {
   getProductByBarcode: async (barcode: string): Promise<IProduct | null> => {
     try {
-      const response = await fetch(`/~daniel.paez/smartpath/api/products/barcode/${barcode}`, {
+      const response = await fetch(`${API_BASE_URL}/products/barcode/${barcode}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

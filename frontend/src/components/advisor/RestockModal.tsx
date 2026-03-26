@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { restockService, IRestockItem } from '../../services/restockService';
 import BarcodeScannerButton from './BarcodeScannerButton';
 import '../../styles/RestockModal.css';
+import { API_BASE_URL } from '../../services/api';
 
 interface IRestockModalProps {
     routeStoreId: number;
@@ -32,8 +33,8 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     const handleBarcodeScanned = async (barcode: string) => {
         setLoading(true);
         try {
-            // Buscar producto por código de barras
-            const response = await fetch(`/~daniel.paez/smartpath/api/products/barcode/${barcode}`, {
+            // Buscar producto por código de barras - USANDO API_BASE_URL
+            const response = await fetch(`${API_BASE_URL}/products/barcode/${barcode}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
