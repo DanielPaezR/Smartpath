@@ -460,14 +460,13 @@ class AdminController {
         LIMIT 5
       `);
 
-      // 4. Performance de asesores
+      // 4. Performance de asesores (sin reposiciones)
       const [advisorPerformance] = await connection.execute(`
         SELECT 
           u.name as advisorName,
           COUNT(DISTINCT rs.id) as completedVisits,
           COALESCE(AVG(rs.actual_duration), 0) as averageTimePerStore,
           COUNT(DISTINCT dr.id) as damageReports,
-          COALESCE(SUM(ri.quantity), 0) as totalRestocks,
           COALESCE(
             (COUNT(DISTINCT CASE WHEN rs.actual_duration <= 40 THEN rs.id END) * 100.0) / 
             NULLIF(COUNT(DISTINCT rs.id), 0), 0
@@ -479,13 +478,40 @@ class AdminController {
           ${timeCondition}
         LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id 
           AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-          ${restockTimeCondition}
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
         ORDER BY efficiencyScore DESC
       `);
+
+      // 5. Reposiciones por asesor (consulta separada)
+      const [restockByAdvisor] = await connection.execute(`
+        SELECT 
+          u.name as advisorName,
+          COALESCE(SUM(ri.quantity), 0) as totalRestocks
+        FROM users u
+        LEFT JOIN routes r ON u.id = r.advisor_id
+        LEFT JOIN route_stores rs ON r.id = rs.route_id 
+          AND rs.status = 'completed' 
+          ${timeCondition}
+        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
+          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        WHERE u.role = 'advisor'
+        GROUP BY u.id, u.name
+      `);
+
+      // Combinar resultados
+      const advisorPerformanceWithRestocks = advisorPerformance.map(advisor => {
+        const restockData = restockByAdvisor.find(r => r.advisorName === advisor.advisorName);
+        return {
+          advisorName: advisor.advisorName,
+          completedVisits: parseInt(advisor.completedVisits),
+          averageTimePerStore: Math.round(advisor.averageTimePerStore),
+          efficiencyScore: Math.round(advisor.efficiencyScore),
+          damageReports: parseInt(advisor.damageReports || 0),
+          totalRestocks: restockData ? parseInt(restockData.totalRestocks) : 0
+        };
+      });
 
       // Calcular eficiencia promedio
       let averageEfficiency = 85;
@@ -578,13 +604,13 @@ class AdminController {
             damageCount: parseInt(s.damageCount)
           }))
         },
-        advisorPerformance: advisorPerformance.map(a => ({
+        advisorPerformance: advisorPerformanceWithRestocks.map(a => ({
           advisorName: a.advisorName,
-          completedVisits: parseInt(a.completedVisits),
-          averageTimePerStore: Math.round(a.averageTimePerStore),
-          efficiencyScore: Math.round(a.efficiencyScore),
-          damageReports: parseInt(a.damageReports || 0),
-          totalRestocks: parseInt(a.totalRestocks || 0)
+          completedVisits: a.completedVisits,
+          averageTimePerStore: a.averageTimePerStore,
+          efficiencyScore: a.efficiencyScore,
+          damageReports: a.damageReports,
+          totalRestocks: a.totalRestocks
         })),
         restockMetrics: restockMetrics
       };
