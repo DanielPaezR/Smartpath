@@ -1176,7 +1176,9 @@ class AdminController {
       const advisorId = req.user.id;
       const { period = 'weekly' } = req.query;
       
-      // Determinar el rango de fechas
+      console.log(`📊 Obteniendo métricas para asesor ${advisorId}, período: ${period}`);
+      
+      // Determinar rango de fechas
       let dateCondition = '';
       if (period === 'daily') {
         dateCondition = "AND r.date = CURDATE()";
@@ -1186,146 +1188,121 @@ class AdminController {
         dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
       }
       
-      console.log(`📊 Obteniendo métricas para asesor ${advisorId}, período: ${period}`);
-      
-      // 1. Estadísticas principales - CORREGIDO
-      const [stats] = await connection.execute(`
-        SELECT 
-          COUNT(DISTINCT r.id) as total_visits,
-          SUM(CASE WHEN rs.status = 'completed' THEN 1 ELSE 0 END) as completed_visits,
-          COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avg_time,
-          COALESCE(SUM(ri.quantity), 0) as total_restocks,
-          COALESCE(COUNT(DISTINCT dr.id), 0) as total_damages,
-          COALESCE(SUM(r.total_distance), 0) as total_distance,
-          COALESCE(
-            (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN rs.actual_duration > 0 THEN 1 END), 0), 0
-          ) as efficiency_score
-        FROM users u
-        LEFT JOIN routes r ON u.id = r.advisor_id ${dateCondition}
-        LEFT JOIN route_stores rs ON r.id = rs.route_id
-        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id AND DATE(dr.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-        WHERE u.id = ? AND u.role = 'advisor'
-        GROUP BY u.id
-      `, [advisorId]);
-      
-      const statsRow = stats[0] || { 
-        total_visits: 0, 
-        completed_visits: 0, 
-        avg_time: 0, 
-        total_restocks: 0, 
-        total_damages: 0, 
-        total_distance: 0, 
-        efficiency_score: 0 
-      };
-      
-      // 2. Tendencia diaria (últimos 14 días)
-      const [dailyTrend] = await connection.execute(`
-        SELECT 
-          DATE(r.date) as date,
-          COUNT(DISTINCT CASE WHEN rs.status = 'completed' THEN rs.id END) as completed_count,
-          COUNT(DISTINCT rs.id) as total_count
+      // 1. Visitas completadas
+      const [visitsResult] = await connection.execute(`
+        SELECT COUNT(DISTINCT rs.id) as total_visits
         FROM routes r
         JOIN route_stores rs ON r.id = rs.route_id
         WHERE r.advisor_id = ? 
-          AND r.date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
-        GROUP BY DATE(r.date)
-        ORDER BY date ASC
+          AND rs.status = 'completed'
+          ${dateCondition}
       `, [advisorId]);
       
-      // 3. Tendencia de eficiencia semanal
-      const [efficiencyTrend] = await connection.execute(`
-        SELECT 
-          CONCAT('Semana ', WEEK(r.date, 1)) as week,
-          COALESCE(
-            (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN rs.actual_duration > 0 THEN 1 END), 0), 0
-          ) as score
+      // 2. Tiempo promedio (solo visitas completadas con duración)
+      const [timeResult] = await connection.execute(`
+        SELECT COALESCE(AVG(rs.actual_duration), 0) as avg_time
         FROM routes r
         JOIN route_stores rs ON r.id = rs.route_id
-        WHERE r.advisor_id = ? AND rs.status = 'completed'
-          AND r.date >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)
-        GROUP BY WEEK(r.date, 1)
-        ORDER BY MIN(r.date) ASC
+        WHERE r.advisor_id = ? 
+          AND rs.status = 'completed'
+          AND rs.actual_duration > 0
+          ${dateCondition}
       `, [advisorId]);
       
-      // Formatear respuesta
-      const dailyData = {
-        visits: statsRow.total_visits || 0,
-        completed: statsRow.completed_visits || 0,
-        avgTime: Math.round(statsRow.avg_time || 0),
-        restocks: statsRow.total_restocks || 0,
-        damages: statsRow.total_damages || 0
-      };
+      // 3. Productos repuestos (solo del período)
+      const [restockResult] = await connection.execute(`
+        SELECT COALESCE(SUM(ri.quantity), 0) as total_restocks
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        JOIN restock_items ri ON rs.id = ri.route_store_id
+        WHERE r.advisor_id = ? 
+          AND rs.status = 'completed'
+          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          ${dateCondition}
+      `, [advisorId]);
       
-      const weeklyData = {
-        ...dailyData,
-        efficiency: Math.round(statsRow.efficiency_score || 0)
-      };
+      // 4. Productos dañados (solo del período, usando reported_at)
+      const [damageResult] = await connection.execute(`
+        SELECT COUNT(DISTINCT dr.id) as total_damages
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        JOIN damage_reports dr ON rs.store_id = dr.store_id
+        WHERE r.advisor_id = ? 
+          AND rs.status = 'completed'
+          AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          ${dateCondition}
+      `, [advisorId]);
       
-      const monthlyData = {
-        ...weeklyData,
-        totalDistance: Math.round(statsRow.total_distance || 0)
-      };
+      // 5. Distancia total
+      const [distanceResult] = await connection.execute(`
+        SELECT COALESCE(SUM(r.total_distance), 0) as total_distance
+        FROM routes r
+        WHERE r.advisor_id = ? 
+          ${dateCondition}
+      `, [advisorId]);
       
-      // Si es período "daily", limitar a hoy
-      if (period === 'daily') {
-        const [todayStats] = await connection.execute(`
-          SELECT 
-            COUNT(DISTINCT r.id) as total_visits,
-            SUM(CASE WHEN rs.status = 'completed' THEN 1 ELSE 0 END) as completed_visits,
-            COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avg_time,
-            COALESCE(SUM(ri.quantity), 0) as total_restocks,
-            COALESCE(COUNT(DISTINCT dr.id), 0) as total_damages
-          FROM users u
-          LEFT JOIN routes r ON u.id = r.advisor_id AND r.date = CURDATE()
-          LEFT JOIN route_stores rs ON r.id = rs.route_id
-          LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-          LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id AND DATE(dr.created_at) = CURDATE()
-          WHERE u.id = ? AND u.role = 'advisor'
-          GROUP BY u.id
-        `, [advisorId]);
-        
-        const todayRow = todayStats[0] || {};
-        dailyData.visits = todayRow.total_visits || 0;
-        dailyData.completed = todayRow.completed_visits || 0;
-        dailyData.avgTime = Math.round(todayRow.avg_time || 0);
-        dailyData.restocks = todayRow.total_restocks || 0;
-        dailyData.damages = todayRow.total_damages || 0;
-      }
+      // 6. Eficiencia
+      const [efficiencyResult] = await connection.execute(`
+        SELECT 
+          COUNT(CASE WHEN rs.actual_duration <= 40 THEN 1 END) as efficient_visits,
+          COUNT(rs.id) as total_visits_with_time
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        WHERE r.advisor_id = ? 
+          AND rs.status = 'completed'
+          AND rs.actual_duration > 0
+          ${dateCondition}
+      `, [advisorId]);
+      
+      const totalVisits = visitsResult[0]?.total_visits || 0;
+      const avgTime = Math.round(timeResult[0]?.avg_time || 0);
+      const restocks = restockResult[0]?.total_restocks || 0;
+      const damages = damageResult[0]?.total_damages || 0;
+      const totalDistance = Math.round(distanceResult[0]?.total_distance || 0);
+      
+      const efficientVisits = efficiencyResult[0]?.efficient_visits || 0;
+      const totalWithTime = efficiencyResult[0]?.total_visits_with_time || 0;
+      const efficiency = totalWithTime > 0 ? Math.round((efficientVisits / totalWithTime) * 100) : 0;
+      
+      console.log(`📊 Resultados para asesor ${advisorId}:`, {
+        visitas: totalVisits,
+        tiempoPromedio: avgTime,
+        reposiciones: restocks,
+        daños: damages,
+        eficiencia: efficiency
+      });
+      
+      // Datos para el período seleccionado
+      const currentData = {
+        visits: totalVisits,
+        completed: totalVisits,
+        avgTime: avgTime,
+        restocks: restocks,
+        damages: damages
+      };
       
       const result = {
-        daily: dailyData,
-        weekly: weeklyData,
-        monthly: monthlyData,
+        daily: currentData,
+        weekly: {
+          ...currentData,
+          efficiency: efficiency
+        },
+        monthly: {
+          ...currentData,
+          efficiency: efficiency,
+          totalDistance: totalDistance
+        },
         trends: {
-          dailyVisits: dailyTrend.map(d => ({
-            date: d.date,
-            count: d.completed_count || 0
-          })),
-          efficiencyTrend: efficiencyTrend.map(e => ({
-            week: e.week,
-            score: Math.round(e.score)
-          }))
+          dailyVisits: [],
+          efficiencyTrend: []
         }
       };
-      
-      console.log(`✅ Métricas enviadas para asesor ${advisorId}:`, {
-        visitas: result.weekly.visits,
-        completadas: result.weekly.completed,
-        reposiciones: result.weekly.restocks,
-        eficiencia: result.weekly.efficiency
-      });
       
       res.json(result);
       
     } catch (error) {
       console.error('❌ Error obteniendo métricas del asesor:', error);
-      res.status(500).json({ 
-        error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
+      res.status(500).json({ error: error.message });
     } finally {
       await connection.end();
     }
