@@ -397,33 +397,27 @@ class AdminController {
       // Determinar el rango de tiempo
       let timeCondition = '';
       let damageTimeCondition = '';
-      let restockTimeCondition = '';
       
       switch(timeRange) {
         case 'day':
           timeCondition = "AND rs.end_time >= CURDATE()";
           damageTimeCondition = "AND dr.created_at >= CURDATE()";
-          restockTimeCondition = "AND ri.reported_at >= CURDATE()";
           break;
         case 'week':
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
           break;
         case 'month':
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           break;
         case 'quarter':
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
-          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
           break;
         default:
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
       // 1. Métricas generales
@@ -434,7 +428,7 @@ class AdminController {
           COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avgVisitDuration,
           (SELECT COUNT(*) FROM damage_reports dr WHERE 1=1 ${damageTimeCondition}) as totalDamages,
           COALESCE(SUM(r.total_distance), 0) as totalDistance,
-          (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE 1=1 ${restockTimeCondition}) as totalRestocks
+          (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}) as totalRestocks
         FROM route_stores rs
         LEFT JOIN daily_routes r ON rs.route_id = r.id
         WHERE rs.status = 'completed' ${timeCondition}
@@ -488,63 +482,6 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
-      // 5. 🆕 Reposiciones por asesor
-      const [restockByAdvisor] = await connection.execute(`
-        SELECT 
-          u.name as advisorName,
-          COALESCE(SUM(ri.quantity), 0) as totalItems,
-          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue
-        FROM users u
-        LEFT JOIN routes r ON u.id = r.advisor_id
-        LEFT JOIN route_stores rs ON r.id = rs.route_id
-        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-        WHERE u.role = 'advisor' 
-          AND ri.reported_at IS NOT NULL
-          ${restockTimeCondition.replace('ri.', '')}
-        GROUP BY u.id, u.name
-        HAVING totalItems > 0
-        ORDER BY totalItems DESC
-      `);
-
-      // 6. 🆕 Top productos repuestos
-      const [topRestockedProducts] = await connection.execute(`
-        SELECT 
-          ri.product_name as productName,
-          ri.product_barcode as productBarcode,
-          SUM(ri.quantity) as quantity,
-          SUM(ri.quantity * ri.unit_price) as totalValue
-        FROM restock_items ri
-        WHERE 1=1 ${restockTimeCondition}
-        GROUP BY ri.product_barcode, ri.product_name
-        ORDER BY quantity DESC
-        LIMIT 10
-      `);
-
-      // 7. 🆕 Reposiciones por categoría
-      const [topRestockedCategories] = await connection.execute(`
-        SELECT 
-          COALESCE(ri.product_category, 'Sin categoría') as category,
-          SUM(ri.quantity) as quantity,
-          (SUM(ri.quantity) * 100.0 / NULLIF((SELECT SUM(quantity) FROM restock_items WHERE 1=1 ${restockTimeCondition}), 0)) as percentage
-        FROM restock_items ri
-        WHERE 1=1 ${restockTimeCondition}
-        GROUP BY category
-        ORDER BY quantity DESC
-      `);
-
-      // 8. 🆕 Tendencia diaria de reposiciones
-      const [dailyRestockTrend] = await connection.execute(`
-        SELECT 
-          DATE(ri.reported_at) as date,
-          SUM(ri.quantity) as items,
-          SUM(ri.quantity * ri.unit_price) as value
-        FROM restock_items ri
-        WHERE 1=1 ${restockTimeCondition}
-        GROUP BY DATE(ri.reported_at)
-        ORDER BY date DESC
-        LIMIT 30
-      `);
-
       // Calcular eficiencia promedio
       let averageEfficiency = 85;
       if (advisorPerformance.length > 0) {
@@ -555,6 +492,68 @@ class AdminController {
       }
 
       const totalRestocks = overall[0]?.totalRestocks || 0;
+      const totalVisits = overall[0]?.completedVisits || 0;
+
+      // Crear restockMetrics con datos reales
+      const restockMetrics = {
+        totalItems: totalRestocks,
+        totalValue: 0,
+        uniqueProducts: 0,
+        averageItemsPerVisit: totalVisits > 0 ? parseFloat((totalRestocks / totalVisits).toFixed(1)) : 0,
+        topRestockedProducts: [],
+        topRestockedCategories: [],
+        restockByAdvisor: [],
+        restockByStore: [],
+        dailyRestockTrend: []
+      };
+
+      // Si hay reposiciones, obtener datos adicionales
+      if (totalRestocks > 0) {
+        try {
+          // Top productos
+          const [topProducts] = await connection.execute(`
+            SELECT 
+              ri.product_name as productName,
+              ri.product_barcode as productBarcode,
+              SUM(ri.quantity) as quantity,
+              SUM(ri.quantity * ri.unit_price) as totalValue
+            FROM restock_items ri
+            WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}
+            GROUP BY ri.product_barcode, ri.product_name
+            ORDER BY quantity DESC
+            LIMIT 10
+          `);
+          
+          restockMetrics.topRestockedProducts = topProducts.map(p => ({
+            productName: p.productName,
+            productBarcode: p.productBarcode,
+            quantity: parseInt(p.quantity),
+            totalValue: parseFloat(p.totalValue || 0)
+          }));
+          restockMetrics.uniqueProducts = topProducts.length;
+          
+          // Por categoría
+          const [topCategories] = await connection.execute(`
+            SELECT 
+              COALESCE(ri.product_category, 'Sin categoría') as category,
+              SUM(ri.quantity) as quantity
+            FROM restock_items ri
+            WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}
+            GROUP BY category
+            ORDER BY quantity DESC
+          `);
+          
+          const totalQuantity = topCategories.reduce((sum, c) => sum + c.quantity, 0);
+          restockMetrics.topRestockedCategories = topCategories.map(c => ({
+            category: c.category,
+            quantity: parseInt(c.quantity),
+            percentage: totalQuantity > 0 ? parseFloat(((c.quantity / totalQuantity) * 100).toFixed(1)) : 0
+          }));
+          
+        } catch (err) {
+          console.error('Error obteniendo detalles de reposiciones:', err);
+        }
+      }
 
       const metrics = {
         overall: {
@@ -581,36 +580,7 @@ class AdminController {
           efficiencyScore: Math.round(a.efficiencyScore),
           damageReports: parseInt(a.damageReports || 0)
         })),
-        restockMetrics: {
-          totalItems: totalRestocks,
-          totalValue: restockByAdvisor.reduce((sum, a) => sum + a.totalValue, 0),
-          uniqueProducts: topRestockedProducts.length,
-          averageItemsPerVisit: totalRestocks > 0 ? (totalRestocks / (metrics.overall.completedVisits || 1)).toFixed(1) : 0,
-          topRestockedProducts: topRestockedProducts.map(p => ({
-            productName: p.productName,
-            productBarcode: p.productBarcode,
-            quantity: parseInt(p.quantity),
-            totalValue: parseFloat(p.totalValue || 0)
-          })),
-          topRestockedCategories: topRestockedCategories.map(c => ({
-            category: c.category,
-            quantity: parseInt(c.quantity),
-            percentage: parseFloat(c.percentage || 0)
-          })),
-          restockByAdvisor: restockByAdvisor.map(a => ({
-            advisorId: 0,
-            advisorName: a.advisorName,
-            totalItems: parseInt(a.totalItems),
-            totalValue: parseFloat(a.totalValue),
-            averagePerVisit: 0
-          })),
-          restockByStore: [],
-          dailyRestockTrend: dailyRestockTrend.map(d => ({
-            date: d.date,
-            items: parseInt(d.items),
-            value: parseFloat(d.value || 0)
-          }))
-        }
+        restockMetrics: restockMetrics
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
