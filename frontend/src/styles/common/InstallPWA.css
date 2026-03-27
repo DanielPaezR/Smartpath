@@ -179,3 +179,64 @@
         font-size: 0.8rem;
     }
 }
+
+/* frontend/src/components/common/InstallPWA.css */
+.install-pwa-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #2e7d32;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: slideIn 0.3s ease-out;
+}
+
+.install-pwa-button:hover {
+  background: #1b5e20;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.install-pwa-button:active {
+  transform: translateY(0);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Para móviles */
+@media (max-width: 768px) {
+  .install-pwa-button {
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    width: calc(100% - 40px);
+    text-align: center;
+  }
+}
+
+.login-container .install-pwa-button {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  margin-top: 20px;
+  width: 100%;
+  display: block;
+}
