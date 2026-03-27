@@ -47,37 +47,48 @@ export const routeGenerator = {
           continue;
         }
         
-        // Verificar si ya existe una ruta para esta fecha en daily_routes
+        // ✅ USAR DAILY_ROUTES (no routes)
         const [existingRoute] = await connection.execute(
-          'SELECT id FROM daily_routes WHERE user_id = ? AND DATE(route_date) = ?',
+          'SELECT id FROM daily_routes WHERE user_id = ? AND route_date = ?',
           [advisor.id, targetDate]
         );
         
         let routeId;
         
         if (existingRoute.length > 0) {
+          // Actualizar ruta existente
           routeId = existingRoute[0].id;
+          await connection.execute(
+            `UPDATE daily_routes 
+             SET total_stores = ?, status = 'pending', updated_at = NOW()
+             WHERE id = ?`,
+            [stores.length, routeId]
+          );
+          
           // Eliminar tiendas anteriores
           await connection.execute('DELETE FROM route_stores WHERE route_id = ?', [routeId]);
           updatedCount++;
-          console.log(`🔄 Actualizando ruta para ${advisor.name}`);
+          console.log(`🔄 Actualizando ruta existente para ${advisor.name} (ID: ${routeId})`);
         } else {
+          // Crear nueva ruta en daily_routes
           const [result] = await connection.execute(
-            `INSERT INTO daily_routes (user_id, route_date, status, total_stores)
-             VALUES (?, ?, 'pending', ?)`,
+            `INSERT INTO daily_routes (user_id, route_date, total_stores, status, created_at, updated_at)
+             VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
             [advisor.id, targetDate, stores.length]
           );
           routeId = result.insertId;
           createdCount++;
-          console.log(`✅ Creando nueva ruta para ${advisor.name} con ${stores.length} tiendas`);
+          console.log(`✅ Creando nueva ruta para ${advisor.name} (ID: ${routeId}) con ${stores.length} tiendas`);
         }
         
-        // Insertar las tiendas
-        for (const store of stores) {
+        // Insertar las tiendas en route_stores
+        for (let i = 0; i < stores.length; i++) {
+          const store = stores[i];
           await connection.execute(
-            `INSERT INTO route_stores (route_id, store_id, visit_order, status)
-             VALUES (?, ?, ?, 'pending')`,
-            [routeId, store.store_id, store.visit_order]
+            `INSERT INTO route_stores 
+             (route_id, store_id, visit_order, status, created_at, updated_at)
+             VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
+            [routeId, store.store_id, i + 1]
           );
         }
         
@@ -85,7 +96,12 @@ export const routeGenerator = {
       }
       
       console.log(`📊 Resumen: ${createdCount} rutas creadas, ${updatedCount} actualizadas`);
-      return { success: true, created: createdCount, updated: updatedCount };
+      return { 
+        success: true, 
+        message: `Rutas generadas para ${targetDate}`,
+        created: createdCount,
+        updated: updatedCount
+      };
       
     } catch (error) {
       console.error('❌ Error generando rutas:', error);
@@ -93,5 +109,23 @@ export const routeGenerator = {
     } finally {
       await connection.end();
     }
+  },
+  
+  // Generar rutas para toda la semana
+  async generateWeekRoutes() {
+    const results = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      console.log(`📅 Generando para ${dateStr}...`);
+      const result = await this.generateDailyRoutes(dateStr);
+      results.push({ date: dateStr, ...result });
+    }
+    
+    return results;
   }
 };
