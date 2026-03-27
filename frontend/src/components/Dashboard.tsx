@@ -1,14 +1,16 @@
 // frontend/src/components/common/Dashboard.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import AdvisorDashboard from '../components/advisor/AdvisorDashboard';
-import '../styles/common/Dashboard.css'; // Vamos a crear este CSS
+import ChangePassword from '../components/common/ChangePassword';
+import '../styles/common/Dashboard.css';
 
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -27,15 +29,26 @@ const Dashboard: React.FC = () => {
             src="https://media.licdn.com/dms/image/v2/D4E0BAQF5nYIzwOYBtA/company-logo_200_200/company-logo_200_200/0/1681181862974/vitamarket_logo?e=2147483647&v=beta&t=qxAn5rp-7MC1FvaZS09zvc9L3_o16RdPaMpxjGDdpLw" 
             alt="Vitamarket" 
             className="brand-logo"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
           <div className="brand-text">
             <h1>SmartPath</h1>
             <p className="user-welcome">Bienvenido, {user.name} ({user.role})</p>
           </div>
         </div>
-        <button className="logout-btn" onClick={handleLogout}>
-          Cerrar Sesión
-        </button>
+        <div className="header-actions">
+          <button 
+            onClick={() => setShowChangePassword(true)} 
+            className="change-password-btn"
+          >
+            🔐 Cambiar Contraseña
+          </button>
+          <button className="logout-btn" onClick={handleLogout}>
+            Cerrar Sesión
+          </button>
+        </div>
       </header>
 
       <main className="dashboard-main">
@@ -45,6 +58,11 @@ const Dashboard: React.FC = () => {
           <AdvisorDashboard />
         )}
       </main>
+
+      {/* Modal de cambio de contraseña - aquí va */}
+      {showChangePassword && (
+        <ChangePassword onClose={() => setShowChangePassword(false)} />
+      )}
     </div>
   );
 };

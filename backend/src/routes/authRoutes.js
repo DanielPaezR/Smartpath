@@ -7,6 +7,8 @@ const router = express.Router();
 // Ruta de login (pública)
 router.post('/login', login);
 
+router.post('/change-password', authenticateToken, authController.changePassword);
+
 // Ruta para obtener perfil (protegida)
 router.get('/profile', authenticateToken, getProfile);
 
