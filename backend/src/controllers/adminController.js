@@ -1417,7 +1417,6 @@ class AdminController {
     }
   }
 
-  // 🆕 Dashboard de Machine Learning
   async getMLMetrics(req, res) {
     const connection = await createConnection();
     try {
@@ -1428,11 +1427,11 @@ class AdminController {
       // Determinar condición de fecha
       let dateCondition = '';
       if (period === 'week') {
-        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
       } else if (period === 'month') {
-        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       } else {
-        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)";
+        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
       }
       
       // 1. Resumen general
@@ -1440,35 +1439,32 @@ class AdminController {
         SELECT 
           COUNT(DISTINCT rs.id) as totalVisits,
           COALESCE(AVG(rs.actual_duration), 0) as avgDuration,
-          COALESCE(SUM(ri.quantity), 0) as totalRestocks,
-          COALESCE(COUNT(DISTINCT dr.id), 0) as totalDamages,
+          (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as totalRestocks,
+          (SELECT COUNT(*) FROM damage_reports dr WHERE dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as totalDamages,
           COALESCE(
             (SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / 
             NULLIF(COUNT(rs.id), 0), 0
           ) as efficiencyScore,
-          COUNT(DISTINCT r.id) as routesOptimized
+          (SELECT COUNT(*) FROM routes) as routesOptimized
         FROM route_stores rs
-        LEFT JOIN routes r ON rs.route_id = r.id
-        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id
         WHERE rs.status = 'completed' ${dateCondition}
       `);
       
-      // 2. Datos de visitas para entrenamiento
+      // 2. Datos de visitas (sin estimated_duration)
       const [visitsData] = await connection.execute(`
         SELECT 
           rs.id,
           s.name as storeName,
           rs.visit_order as visitOrder,
-          rs.actual_duration as actualDuration,
-          COALESCE(rs.estimated_duration, 40) as estimatedDuration,
-          (rs.actual_duration - COALESCE(rs.estimated_duration, 40)) as timeDifference,
+          COALESCE(rs.actual_duration, 0) as actualDuration,
+          40 as estimatedDuration,
+          0 as timeDifference,
           rs.end_time as date
         FROM route_stores rs
         JOIN stores s ON rs.store_id = s.id
         WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
         ORDER BY rs.end_time DESC
-        LIMIT 100
+        LIMIT 50
       `);
       
       // 3. Tiendas más lentas
@@ -1496,7 +1492,7 @@ class AdminController {
           ) as efficiency
         FROM routes r
         JOIN route_stores rs ON r.id = rs.route_id
-        WHERE rs.status = 'completed' ${dateCondition}
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
         GROUP BY r.id
         HAVING stores >= 2
         ORDER BY efficiency DESC
@@ -1508,9 +1504,9 @@ class AdminController {
         SELECT 
           COALESCE(dr.product_category, 'Otros') as category,
           COUNT(*) as count,
-          (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM damage_reports WHERE 1=1 ${dateCondition.replace('r.date', 'created_at')})) as percentage
+          (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM damage_reports WHERE 1=1 ${dateCondition.replace('rs.end_time', 'dr.created_at')})) as percentage
         FROM damage_reports dr
-        WHERE 1=1 ${dateCondition.replace('r.date', 'dr.created_at')}
+        WHERE 1=1 ${dateCondition.replace('rs.end_time', 'dr.created_at')}
         GROUP BY category
         ORDER BY count DESC
         LIMIT 5
@@ -1519,11 +1515,14 @@ class AdminController {
       // 6. Recomendaciones
       const recommendations = [];
       const summaryData = summary[0] || {};
+      const avgDuration = parseFloat(summaryData.avgDuration) || 0;
+      const totalRestocks = parseInt(summaryData.totalRestocks) || 0;
+      const totalDamages = parseInt(summaryData.totalDamages) || 0;
       
-      if (summaryData.avgDuration > 40) {
-        recommendations.push('⏱️ El tiempo promedio por tienda es superior a 40 minutos. Se recomienda optimizar las rutas para reducir tiempos.');
+      if (avgDuration > 40) {
+        recommendations.push('⏱️ El tiempo promedio por tienda es superior a 40 minutos. Se recomienda optimizar las rutas.');
       }
-      if (summaryData.totalDamages > summaryData.totalRestocks * 0.1) {
+      if (totalDamages > totalRestocks * 0.1 && totalRestocks > 0) {
         recommendations.push('⚠️ Los productos dañados representan más del 10% de las reposiciones. Revisar manejo de inventario.');
       }
       if (slowestStores.length > 0 && slowestStores[0].avgTime > 60) {
@@ -1536,12 +1535,17 @@ class AdminController {
         recommendations.push('✅ Los datos actuales son buenos. Continúa recolectando más información para mejorar el modelo.');
       }
       
+      // Manejar damagePatterns cuando no hay datos
+      const processedDamagePatterns = damagePatterns.length > 0 ? damagePatterns : [
+        { category: 'Sin datos', count: 0, percentage: 0 }
+      ];
+      
       const result = {
         summary: {
           totalVisits: parseInt(summaryData.totalVisits || 0),
-          avgDuration: Math.round(summaryData.avgDuration || 0),
-          totalRestocks: parseInt(summaryData.totalRestocks || 0),
-          totalDamages: parseInt(summaryData.totalDamages || 0),
+          avgDuration: Math.round(avgDuration),
+          totalRestocks: totalRestocks,
+          totalDamages: totalDamages,
           efficiencyScore: Math.round(summaryData.efficiencyScore || 0),
           routesOptimized: parseInt(summaryData.routesOptimized || 0)
         },
@@ -1566,10 +1570,10 @@ class AdminController {
             efficiency: Math.round(r.efficiency),
             stores: r.stores
           })),
-          damagePatterns: damagePatterns.map(d => ({
+          damagePatterns: processedDamagePatterns.map(d => ({
             category: d.category,
             count: d.count,
-            percentage: parseFloat(d.percentage)
+            percentage: parseFloat(d.percentage) || 0
           }))
         },
         recommendations: recommendations
