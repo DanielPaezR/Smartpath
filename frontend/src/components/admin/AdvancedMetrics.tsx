@@ -5,7 +5,7 @@ import '../../styles/AdvancedMetrics.css';
 
 const AdvancedMetrics: React.FC = () => {
   const [metrics, setMetrics] = useState<AdvancedMetrics | null>(null);
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month');
+  const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'damage' | 'restock' | 'advisors'>('general');
@@ -93,6 +93,13 @@ const AdvancedMetrics: React.FC = () => {
       <div className="metrics-header">
         <h1>📊 Métricas Avanzadas</h1>
         <div className="time-range-selector">
+          <button 
+            className={timeRange === 'day' ? 'active' : ''}
+            onClick={() => setTimeRange('day')}
+            title="Visitas y datos de hoy"
+          >
+            📅 Hoy
+          </button>
           <button 
             className={timeRange === 'week' ? 'active' : ''}
             onClick={() => setTimeRange('week')}

@@ -386,7 +386,6 @@ class AdminController {
     }
   }
 
-  // FUNCIÓN: Obtener métricas avanzadas
   async getAdvancedMetrics(req, res) {
     const connection = await createConnection();
     
@@ -395,36 +394,33 @@ class AdminController {
       
       console.log(`📡 Obteniendo métricas avanzadas para: ${timeRange}`);
       
+      // Determinar el rango de tiempo
       let timeCondition = '';
+      let damageTimeCondition = '';
+
       switch(timeRange) {
+        case 'day':
+          timeCondition = "AND rs.end_time >= CURDATE()";
+          damageTimeCondition = "AND dr.created_at >= CURDATE()";
+          break;
         case 'week':
           timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-          break;
-        case 'month':
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-          break;
-        case 'quarter':
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
-          break;
-        default:
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-      }
-
-      let damageTimeCondition = '';
-      switch(timeRange) {
-        case 'week':
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
           break;
         case 'month':
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           break;
         case 'quarter':
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
           break;
         default:
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
+      // 1. Métricas generales
       const [overall] = await connection.execute(`
         SELECT 
           (SELECT COUNT(*) FROM stores) as totalStores,
@@ -437,6 +433,7 @@ class AdminController {
         WHERE rs.status = 'completed' ${timeCondition}
       `);
 
+      // 2. Daños por categoría (CORREGIDO)
       const [damageByCategory] = await connection.execute(`
         SELECT 
           COALESCE(dr.product_category, 'Sin categoría') as category,
@@ -447,6 +444,7 @@ class AdminController {
         ORDER BY count DESC
       `);
 
+      // 3. Tiendas con más daños (CORREGIDO)
       const [topStoresWithDamage] = await connection.execute(`
         SELECT 
           s.name as storeName,
@@ -459,6 +457,7 @@ class AdminController {
         LIMIT 5
       `);
 
+      // 4. Performance de asesores (CORREGIDO)
       const [advisorPerformance] = await connection.execute(`
         SELECT 
           u.name as advisorName,
@@ -471,26 +470,18 @@ class AdminController {
           ) as efficiencyScore
         FROM users u
         LEFT JOIN daily_routes r ON u.id = r.user_id
-        LEFT JOIN route_stores rs ON r.id = rs.route_id AND rs.status = 'completed' ${timeCondition}
-        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id AND 1=1 ${damageTimeCondition}
+        LEFT JOIN route_stores rs ON r.id = rs.route_id 
+          AND rs.status = 'completed' 
+          ${timeCondition}
+        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id 
+          AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
         ORDER BY efficiencyScore DESC
       `);
 
-      const restockMetrics = {
-        totalItems: 0,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
-
+      // 5. Calcular eficiencia promedio
       let averageEfficiency = 85;
       if (advisorPerformance.length > 0) {
         const totalEfficiency = advisorPerformance.reduce((sum, a) => sum + a.efficiencyScore, 0);
@@ -524,10 +515,23 @@ class AdminController {
           efficiencyScore: Math.round(a.efficiencyScore),
           damageReports: parseInt(a.damageReports || 0)
         })),
-        restockMetrics: restockMetrics
+        restockMetrics: {
+          totalItems: 0,
+          totalValue: 0,
+          uniqueProducts: 0,
+          averageItemsPerVisit: 0,
+          topRestockedProducts: [],
+          topRestockedCategories: [],
+          restockByAdvisor: [],
+          restockByStore: [],
+          dailyRestockTrend: []
+        }
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
+      console.log('📊 Daños totales:', metrics.damageAnalytics.totalDamagedProducts);
+      console.log('👥 Asesores con datos:', metrics.advisorPerformance.length);
+      
       res.json(metrics);
 
     } catch (error) {

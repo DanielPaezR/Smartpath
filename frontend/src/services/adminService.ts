@@ -119,7 +119,7 @@ export const adminService = {
     }
   },
 
-  async getAdvancedMetrics(timeRange: 'week' | 'month' | 'quarter' = 'month'): Promise<AdvancedMetrics> {
+  async getAdvancedMetrics(timeRange: 'day' | 'week' | 'month' | 'quarter' = 'month'): Promise<AdvancedMetrics> {
     try {
       console.log(`🔄 [adminService] Solicitando métricas avanzadas (${timeRange})...`);
       const response = await api.get(`/admin/metrics/advanced?timeRange=${timeRange}`);
