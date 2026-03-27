@@ -92,7 +92,7 @@ export interface AdvancedMetrics {
     averageTimePerStore: number;
     efficiencyScore: number;
     damageReports: number;
-     totalRestocks?: number;
+    totalRestocks?: number;
   }[];
   restockMetrics: RestockMetrics;
 }

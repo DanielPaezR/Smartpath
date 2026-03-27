@@ -531,7 +531,7 @@ const AdvancedMetrics: React.FC = () => {
                           </td>
                           <td className="restock-cell">
                             <span className="restock-badge">
-                              {advisorRestock?.totalItems || 0} und
+                              {advisor.totalRestocks || 0} und
                             </span>
                           </td>
                         </tr>
