@@ -459,10 +459,6 @@ class AdminController {
           u.name as advisorName,
           COUNT(DISTINCT rs.id) as completedVisits,
           COALESCE(AVG(rs.actual_duration), 0) as averageTimePerStore,
-          COUNT(DISTINCT CASE 
-            WHEN dr.id IS NOT NULL ${damageTimeCondition} 
-            THEN dr.id 
-          END) as damageReports,
           COALESCE(
             (COUNT(DISTINCT CASE WHEN rs.actual_duration <= 40 THEN rs.id END) * 100.0) / 
             NULLIF(COUNT(DISTINCT rs.id), 0), 0
@@ -472,12 +468,23 @@ class AdminController {
         LEFT JOIN route_stores rs ON r.id = rs.route_id 
           AND rs.status = 'completed' 
           ${timeCondition}
-        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id 
-          ${damageTimeCondition}
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
         ORDER BY efficiencyScore DESC
+      `);
+
+      const [damageByAdvisor] = await connection.execute(`
+        SELECT 
+          u.name as advisorName,
+          COUNT(DISTINCT dr.id) as totalDamages
+        FROM damage_reports dr
+        JOIN route_stores rs ON dr.store_id = rs.store_id
+        JOIN routes r ON rs.route_id = r.id
+        JOIN users u ON r.advisor_id = u.id
+        WHERE u.role = 'advisor'
+          ${damageTimeCondition}
+        GROUP BY u.id, u.name
       `);
 
       // 5. Reposiciones por asesor (consulta separada)
@@ -497,15 +504,20 @@ class AdminController {
       console.log('📊 Reposiciones por asesor:', restockByAdvisor);
 
       // Combinar resultados
-      const advisorPerformanceWithRestocks = advisorPerformance.map(advisor => {
+      const advisorPerformanceComplete = advisorPerformance.map(advisor => {
+        const damageData = damageByAdvisor.find(d => d.advisorName === advisor.advisorName);
         const restockData = restockByAdvisor.find(r => r.advisorName === advisor.advisorName);
-        console.log(`📊 Asesor: ${advisor.advisorName}, Reposiciones: ${restockData?.totalRestocks || 0}`);
+        
+        console.log(`📊 Asesor: ${advisor.advisorName}`);
+        console.log(`   Daños: ${damageData?.totalDamages || 0}`);
+        console.log(`   Reposiciones: ${restockData?.totalRestocks || 0}`);
+        
         return {
           advisorName: advisor.advisorName,
           completedVisits: parseInt(advisor.completedVisits),
           averageTimePerStore: Math.round(advisor.averageTimePerStore),
           efficiencyScore: Math.round(advisor.efficiencyScore),
-          damageReports: parseInt(advisor.damageReports || 0),
+          damageReports: damageData ? parseInt(damageData.totalDamages) : 0,
           totalRestocks: restockData ? parseInt(restockData.totalRestocks) : 0
         };
       });
@@ -601,7 +613,7 @@ class AdminController {
             damageCount: parseInt(s.damageCount)
           }))
         },
-        advisorPerformance: advisorPerformanceWithRestocks.map(a => ({
+        advisorPerformance: advisorPerformanceComplete.map(a => ({
           advisorName: a.advisorName,
           completedVisits: a.completedVisits,
           averageTimePerStore: a.averageTimePerStore,
