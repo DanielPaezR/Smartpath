@@ -1,6 +1,4 @@
 // frontend/src/components/admin/AdminDashboard.tsx
-// Elimina TODO el header y deja solo el contenido
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,7 +35,7 @@ const DashboardCard: React.FC<{
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth(); // ya no necesitas logout aquí
+  const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +105,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="admin-dashboard">
-      {/* ELIMINAR TODO EL HEADER - YA ESTÁ EN DASHBOARD.TSX */}
+      {/* 👈 NO HAY HEADER AQUÍ - YA ESTÁ EN DASHBOARD.TSX */}
 
       <main className="dashboard-content">
         {/* Grid de Tarjetas */}
