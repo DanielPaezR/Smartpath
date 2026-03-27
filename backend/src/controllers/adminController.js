@@ -302,18 +302,15 @@ class AdminController {
 
       const [restockByAdvisor] = await connection.execute(`
         SELECT 
-          u.id as advisorId,
           u.name as advisorName,
-          COALESCE(SUM(ri.quantity), 0) as totalItems,
-          COALESCE(SUM(ri.quantity * ri.unit_price), 0) as totalValue,
-          COUNT(DISTINCT ri.route_store_id) as visits,
-          COALESCE(SUM(ri.quantity) / NULLIF(COUNT(DISTINCT ri.route_store_id), 0), 0) as averagePerVisit
-        FROM users u
-        LEFT JOIN restock_items ri ON u.id = ri.reported_by ${timeCondition.replace('ri.', '')}
+          COALESCE(SUM(ri.quantity), 0) as totalRestocks
+        FROM restock_items ri
+        JOIN route_stores rs ON ri.route_store_id = rs.id
+        JOIN routes r ON rs.route_id = r.id
+        JOIN users u ON r.advisor_id = u.id
         WHERE u.role = 'advisor'
+          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         GROUP BY u.id, u.name
-        HAVING totalItems > 0
-        ORDER BY totalItems DESC
       `);
 
       const [restockByStore] = await connection.execute(`
@@ -397,27 +394,23 @@ class AdminController {
       // Determinar el rango de tiempo
       let timeCondition = '';
       let damageTimeCondition = '';
-      
+      let restockDateCondition = '';
+
       switch(timeRange) {
         case 'day':
-          timeCondition = "AND rs.end_time >= CURDATE()";
-          damageTimeCondition = "AND dr.created_at >= CURDATE()";
+          restockDateCondition = "AND ri.reported_at >= CURDATE()";
           break;
         case 'week':
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
           break;
         case 'month':
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           break;
         case 'quarter':
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
-          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
           break;
         default:
-          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
       // 1. Métricas generales
@@ -489,20 +482,21 @@ class AdminController {
         SELECT 
           u.name as advisorName,
           COALESCE(SUM(ri.quantity), 0) as totalRestocks
-        FROM users u
-        LEFT JOIN routes r ON u.id = r.advisor_id
-        LEFT JOIN route_stores rs ON r.id = rs.route_id 
-          AND rs.status = 'completed' 
-          ${timeCondition}
-        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        FROM restock_items ri
+        JOIN route_stores rs ON ri.route_store_id = rs.id
+        JOIN routes r ON rs.route_id = r.id
+        JOIN users u ON r.advisor_id = u.id
         WHERE u.role = 'advisor'
+          ${restockDateCondition}
         GROUP BY u.id, u.name
       `);
+
+      console.log('📊 Reposiciones por asesor:', restockByAdvisor);
 
       // Combinar resultados
       const advisorPerformanceWithRestocks = advisorPerformance.map(advisor => {
         const restockData = restockByAdvisor.find(r => r.advisorName === advisor.advisorName);
+        console.log(`📊 Asesor: ${advisor.advisorName}, Reposiciones: ${restockData?.totalRestocks || 0}`);
         return {
           advisorName: advisor.advisorName,
           completedVisits: parseInt(advisor.completedVisits),
