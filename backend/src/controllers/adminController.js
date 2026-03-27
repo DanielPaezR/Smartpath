@@ -1203,7 +1203,7 @@ class AdminController {
         LEFT JOIN routes r ON u.id = r.advisor_id ${dateCondition}
         LEFT JOIN route_stores rs ON r.id = rs.route_id
         LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id
         WHERE u.id = ?
         GROUP BY u.id
       `, [advisorId]);
