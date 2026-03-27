@@ -3,7 +3,6 @@ import { createConnection } from '../config/database.js';
 
 export const routeGenerator = {
   
-  // Generar rutas para un día específico (por defecto hoy)
   async generateDailyRoutes(date = null) {
     const connection = await createConnection();
     try {
@@ -12,7 +11,9 @@ export const routeGenerator = {
       
       console.log(`📅 Generando rutas para ${targetDate} (${dayOfWeek})`);
       
-      // Obtener todos los asesores activos
+      // 🆕 LOG PARA DEPURAR
+      console.log(`🔍 Fecha: ${targetDate}, Día de la semana calculado: "${dayOfWeek}"`);
+      
       const [advisors] = await connection.execute(
         'SELECT id, name FROM users WHERE role = "advisor" AND is_active = 1'
       );
@@ -21,19 +22,22 @@ export const routeGenerator = {
       let updatedCount = 0;
       
       for (const advisor of advisors) {
-        // Obtener la plantilla del asesor para este día
+        // 🆕 LOG: qué plantilla estamos buscando
+        console.log(`🔍 Buscando plantilla para ${advisor.name}: advisor_id=${advisor.id}, day_of_week="${dayOfWeek}"`);
+        
         const [template] = await connection.execute(
-          `SELECT id FROM route_templates 
+          `SELECT id, day_of_week FROM route_templates 
            WHERE advisor_id = ? AND day_of_week = ? AND is_active = 1`,
           [advisor.id, dayOfWeek]
         );
+        
+        console.log(`📋 Resultado plantilla: ${template.length > 0 ? `ID ${template[0].id} (${template[0].day_of_week})` : 'NO ENCONTRADA'}`);
         
         if (template.length === 0) {
           console.log(`⚠️ Asesor ${advisor.name} no tiene plantilla para ${dayOfWeek}`);
           continue;
         }
         
-        // Obtener las tiendas de la plantilla
         const [stores] = await connection.execute(`
           SELECT rts.store_id, rts.visit_order, s.name
           FROM route_template_stores rts
@@ -42,12 +46,16 @@ export const routeGenerator = {
           ORDER BY rts.visit_order
         `, [template[0].id]);
         
+        console.log(`🏪 ${advisor.name}: ${stores.length} tiendas encontradas en plantilla`);
+        
         if (stores.length === 0) {
           console.log(`⚠️ Asesor ${advisor.name} tiene plantilla vacía para ${dayOfWeek}`);
           continue;
         }
         
-        // ✅ USAR ROUTES (porque route_stores tiene FK a routes.id)
+        // 🆕 Mostrar primeras tiendas para verificar
+        console.log(`   Primeras tiendas: ${stores.slice(0, 3).map(s => s.name).join(', ')}...`);
+        
         const [existingRoute] = await connection.execute(
           'SELECT id FROM routes WHERE advisor_id = ? AND date = ?',
           [advisor.id, targetDate]
@@ -56,7 +64,6 @@ export const routeGenerator = {
         let routeId;
         
         if (existingRoute.length > 0) {
-          // Actualizar ruta existente
           routeId = existingRoute[0].id;
           await connection.execute(
             `UPDATE routes 
@@ -64,13 +71,10 @@ export const routeGenerator = {
              WHERE id = ?`,
             [stores.length, routeId]
           );
-          
-          // Eliminar tiendas anteriores
           await connection.execute('DELETE FROM route_stores WHERE route_id = ?', [routeId]);
           updatedCount++;
           console.log(`🔄 Actualizando ruta existente para ${advisor.name} (ID: ${routeId})`);
         } else {
-          // Crear nueva ruta en routes
           const [result] = await connection.execute(
             `INSERT INTO routes (advisor_id, date, total_stores, status, created_at, updated_at)
              VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
@@ -81,7 +85,6 @@ export const routeGenerator = {
           console.log(`✅ Creando nueva ruta para ${advisor.name} (ID: ${routeId}) con ${stores.length} tiendas`);
         }
         
-        // Insertar las tiendas en route_stores
         for (let i = 0; i < stores.length; i++) {
           const store = stores[i];
           await connection.execute(
@@ -111,7 +114,6 @@ export const routeGenerator = {
     }
   },
   
-  // Generar rutas para toda la semana
   async generateWeekRoutes() {
     const results = [];
     const today = new Date();
