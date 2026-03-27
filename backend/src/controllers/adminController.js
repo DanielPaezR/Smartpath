@@ -1417,21 +1417,25 @@ class AdminController {
     }
   }
 
+  // 🆕 Dashboard de Machine Learning
   async getMLMetrics(req, res) {
     const connection = await createConnection();
     try {
       const { period = 'month' } = req.query;
       
+      console.log(`🤖 Obteniendo métricas ML para período: ${period}`);
+      
+      // Determinar condición de fecha
       let dateCondition = '';
       if (period === 'week') {
-        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
       } else if (period === 'month') {
-        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
       } else {
-        dateCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)";
       }
       
-      // Resumen general
+      // 1. Resumen general
       const [summary] = await connection.execute(`
         SELECT 
           COUNT(DISTINCT rs.id) as totalVisits,
@@ -1446,19 +1450,19 @@ class AdminController {
         FROM route_stores rs
         LEFT JOIN routes r ON rs.route_id = r.id
         LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-        LEFT JOIN damage_reports dr ON rs.id = dr.route_store_id
+        LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id
         WHERE rs.status = 'completed' ${dateCondition}
       `);
       
-      // Datos de visitas
+      // 2. Datos de visitas para entrenamiento
       const [visitsData] = await connection.execute(`
         SELECT 
           rs.id,
           s.name as storeName,
           rs.visit_order as visitOrder,
           rs.actual_duration as actualDuration,
-          rs.estimated_duration as estimatedDuration,
-          (rs.actual_duration - rs.estimated_duration) as timeDifference,
+          COALESCE(rs.estimated_duration, 40) as estimatedDuration,
+          (rs.actual_duration - COALESCE(rs.estimated_duration, 40)) as timeDifference,
           rs.end_time as date
         FROM route_stores rs
         JOIN stores s ON rs.store_id = s.id
@@ -1467,19 +1471,7 @@ class AdminController {
         LIMIT 100
       `);
       
-      // Distancias entre tiendas
-      const [distancesData] = await connection.execute(`
-        SELECT 
-          s.id as storeId,
-          s.name as storeName,
-          'Anterior' as fromStore,
-          0 as distanceKm,
-          0 as travelTime
-        FROM stores s
-        LIMIT 10
-      `);
-      
-      // Tiendas más lentas
+      // 3. Tiendas más lentas
       const [slowestStores] = await connection.execute(`
         SELECT 
           s.name,
@@ -1493,7 +1485,7 @@ class AdminController {
         LIMIT 5
       `);
       
-      // Mejores rutas
+      // 4. Mejores rutas
       const [bestRoutes] = await connection.execute(`
         SELECT 
           r.id as routeId,
@@ -1506,30 +1498,32 @@ class AdminController {
         JOIN route_stores rs ON r.id = rs.route_id
         WHERE rs.status = 'completed' ${dateCondition}
         GROUP BY r.id
-        HAVING stores >= 3
+        HAVING stores >= 2
         ORDER BY efficiency DESC
         LIMIT 5
       `);
       
-      // Patrones de daños
+      // 5. Patrones de daños
       const [damagePatterns] = await connection.execute(`
         SELECT 
-          COALESCE(product_category, 'Otros') as category,
+          COALESCE(dr.product_category, 'Otros') as category,
           COUNT(*) as count,
-          (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM damage_reports WHERE 1=1 ${dateCondition})) as percentage
-        FROM damage_reports
-        WHERE 1=1 ${dateCondition}
+          (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM damage_reports WHERE 1=1 ${dateCondition.replace('r.date', 'created_at')})) as percentage
+        FROM damage_reports dr
+        WHERE 1=1 ${dateCondition.replace('r.date', 'dr.created_at')}
         GROUP BY category
         ORDER BY count DESC
         LIMIT 5
       `);
       
-      // Recomendaciones basadas en datos
+      // 6. Recomendaciones
       const recommendations = [];
-      if (summary[0].avgDuration > 40) {
+      const summaryData = summary[0] || {};
+      
+      if (summaryData.avgDuration > 40) {
         recommendations.push('⏱️ El tiempo promedio por tienda es superior a 40 minutos. Se recomienda optimizar las rutas para reducir tiempos.');
       }
-      if (summary[0].totalDamages > summary[0].totalRestocks * 0.1) {
+      if (summaryData.totalDamages > summaryData.totalRestocks * 0.1) {
         recommendations.push('⚠️ Los productos dañados representan más del 10% de las reposiciones. Revisar manejo de inventario.');
       }
       if (slowestStores.length > 0 && slowestStores[0].avgTime > 60) {
@@ -1542,22 +1536,25 @@ class AdminController {
         recommendations.push('✅ Los datos actuales son buenos. Continúa recolectando más información para mejorar el modelo.');
       }
       
-      res.json({
+      const result = {
         summary: {
-          totalVisits: summary[0]?.totalVisits || 0,
-          avgDuration: Math.round(summary[0]?.avgDuration || 0),
-          totalRestocks: summary[0]?.totalRestocks || 0,
-          totalDamages: summary[0]?.totalDamages || 0,
-          efficiencyScore: Math.round(summary[0]?.efficiencyScore || 0),
-          routesOptimized: summary[0]?.routesOptimized || 0
+          totalVisits: parseInt(summaryData.totalVisits || 0),
+          avgDuration: Math.round(summaryData.avgDuration || 0),
+          totalRestocks: parseInt(summaryData.totalRestocks || 0),
+          totalDamages: parseInt(summaryData.totalDamages || 0),
+          efficiencyScore: Math.round(summaryData.efficiencyScore || 0),
+          routesOptimized: parseInt(summaryData.routesOptimized || 0)
         },
         visitsData: visitsData.map(v => ({
-          ...v,
+          id: v.id,
+          storeName: v.storeName,
+          visitOrder: v.visitOrder,
           actualDuration: v.actualDuration,
-          estimatedDuration: v.estimatedDuration || 40,
-          timeDifference: (v.actualDuration - (v.estimatedDuration || 40))
+          estimatedDuration: v.estimatedDuration,
+          timeDifference: v.timeDifference,
+          date: v.date
         })),
-        distancesData: distancesData,
+        distancesData: [],
         patterns: {
           slowestStores: slowestStores.map(s => ({
             name: s.name,
@@ -1576,10 +1573,13 @@ class AdminController {
           }))
         },
         recommendations: recommendations
-      });
+      };
+      
+      console.log('✅ Métricas ML obtenidas correctamente');
+      res.json(result);
       
     } catch (error) {
-      console.error('Error obteniendo métricas ML:', error);
+      console.error('❌ Error obteniendo métricas ML:', error);
       res.status(500).json({ error: error.message });
     } finally {
       await connection.end();
