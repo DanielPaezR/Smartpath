@@ -480,7 +480,7 @@ class AdminController {
         LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id 
           AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
-          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          ${restockTimeCondition}
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
