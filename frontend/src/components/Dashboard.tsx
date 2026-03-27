@@ -1,10 +1,10 @@
-// frontend/src/components/common/Dashboard.tsx
+// frontend/src/components/Dashboard.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import AdminDashboard from '../components/admin/AdminDashboard';
-import AdvisorDashboard from '../components/advisor/AdvisorDashboard';
-import ChangePassword from '../components/common/ChangePassword';
+import AdminDashboard from './admin/AdminDashboard';
+import AdvisorDashboard from './advisor/AdvisorDashboard';
+import ChangePassword from './common/ChangePassword';
 import '../styles/common/Dashboard.css';
 
 const Dashboard: React.FC = () => {
@@ -23,6 +23,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard-container">
+      {/* 👈 EL HEADER DEBE ESTAR AQUÍ, FUERA DE CUALQUIER CONDICIÓN */}
       <header className="dashboard-header">
         <div className="header-brand">
           <img 
@@ -59,7 +60,6 @@ const Dashboard: React.FC = () => {
         )}
       </main>
 
-      {/* Modal de cambio de contraseña - aquí va */}
       {showChangePassword && (
         <ChangePassword onClose={() => setShowChangePassword(false)} />
       )}
