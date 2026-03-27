@@ -4,6 +4,7 @@ import adminController from '../controllers/adminController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
+router.get('/advisor/metrics', authenticateToken, adminController.getAdvisorMetrics);
 
 // Todas las rutas requieren autenticación y rol de admin
 router.use(authenticateToken);
@@ -34,7 +35,6 @@ router.post('/advisors/:advisorId/schedule', adminController.addStoreToSchedule)
 router.delete('/advisors/:advisorId/schedule/:scheduleId', adminController.removeStoreFromSchedule);
 router.put('/advisors/:advisorId/schedule/order', adminController.updateScheduleOrder);
 router.get('/stores/simple', adminController.getAllStoresSimple);
-router.get('/advisor/metrics', authenticateToken, adminController.getAdvisorMetrics);
 router.get('/ml/metrics', adminController.getMLMetrics);
 
 // Generar rutas diarias
