@@ -251,3 +251,127 @@
     height: 140px;
   }
 }
+
+/* frontend/src/styles/AdvisorMetrics.css */
+
+/* Tiendas lentas */
+.slow-stores-section {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.slow-stores-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 1rem;
+  color: #2c3e50;
+}
+
+.slow-stores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slow-store-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  transition: transform 0.2s;
+}
+
+.slow-store-item:hover {
+  transform: translateX(5px);
+  background: #fff3e0;
+}
+
+.store-rank {
+  width: 32px;
+  height: 32px;
+  background: #e74c3c;
+  color: white;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.store-info {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.store-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.store-visits {
+  font-size: 0.7rem;
+  color: #7f8c8d;
+}
+
+.store-time {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.time-value {
+  font-weight: 600;
+  color: #e74c3c;
+  font-size: 0.9rem;
+}
+
+.time-bar {
+  width: 100px;
+  height: 4px;
+  background: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.time-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f39c12, #e74c3c);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* Recomendaciones */
+.recommendations-section {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.recommendations-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  color: #2e7d32;
+}
+
+.recommendations-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.recommendations-list li {
+  margin-bottom: 12px;
+  color: #2c3e50;
+  line-height: 1.4;
+}
+
+.recommendations-list li:last-child {
+  margin-bottom: 0;
+}

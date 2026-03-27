@@ -1198,7 +1198,7 @@ class AdminController {
           ${dateCondition}
       `, [advisorId]);
       
-      // 2. Tiempo promedio (solo visitas completadas con duración)
+      // 2. Tiempo promedio
       const [timeResult] = await connection.execute(`
         SELECT COALESCE(AVG(rs.actual_duration), 0) as avg_time
         FROM routes r
@@ -1209,7 +1209,7 @@ class AdminController {
           ${dateCondition}
       `, [advisorId]);
       
-      // 3. Productos repuestos (solo del período)
+      // 3. Productos repuestos
       const [restockResult] = await connection.execute(`
         SELECT COALESCE(SUM(ri.quantity), 0) as total_restocks
         FROM routes r
@@ -1217,11 +1217,10 @@ class AdminController {
         JOIN restock_items ri ON rs.id = ri.route_store_id
         WHERE r.advisor_id = ? 
           AND rs.status = 'completed'
-          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
           ${dateCondition}
       `, [advisorId]);
       
-      // 4. Productos dañados (solo del período, usando reported_at)
+      // 4. Productos dañados
       const [damageResult] = await connection.execute(`
         SELECT COUNT(DISTINCT dr.id) as total_damages
         FROM routes r
@@ -1229,7 +1228,6 @@ class AdminController {
         JOIN damage_reports dr ON rs.store_id = dr.store_id
         WHERE r.advisor_id = ? 
           AND rs.status = 'completed'
-          AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
           ${dateCondition}
       `, [advisorId]);
       
@@ -1254,49 +1252,107 @@ class AdminController {
           ${dateCondition}
       `, [advisorId]);
       
-      const totalVisits = visitsResult[0]?.total_visits || 0;
-      const avgTime = Math.round(timeResult[0]?.avg_time || 0);
-      const restocks = restockResult[0]?.total_restocks || 0;
-      const damages = damageResult[0]?.total_damages || 0;
-      const totalDistance = Math.round(distanceResult[0]?.total_distance || 0);
+      // 🆕 7. Ranking de tiendas por tiempo (las que más demoran)
+      const [slowStores] = await connection.execute(`
+        SELECT 
+          s.name as store_name,
+          AVG(rs.actual_duration) as avg_time,
+          COUNT(rs.id) as visits_count
+        FROM routes r
+        JOIN route_stores rs ON r.id = rs.route_id
+        JOIN stores s ON rs.store_id = s.id
+        WHERE r.advisor_id = ? 
+          AND rs.status = 'completed'
+          AND rs.actual_duration > 0
+          ${dateCondition}
+        GROUP BY s.id, s.name
+        ORDER BY avg_time DESC
+        LIMIT 5
+      `, [advisorId]);
       
-      const efficientVisits = efficiencyResult[0]?.efficient_visits || 0;
+      // 🆕 8. Recomendaciones personalizadas
+      const recommendations = [];
+      
+      // Verificar tiendas lentas
+      if (slowStores.length > 0 && slowStores[0].avg_time > 40) {
+        recommendations.push(`⏱️ La tienda "${slowStores[0].store_name}" te toma ${Math.round(slowStores[0].avg_time)} minutos en promedio (${slowStores[0].visits_count} visitas). Intenta optimizar tu tiempo allí.`);
+      }
+      
+      // Verificar eficiencia general
       const totalWithTime = efficiencyResult[0]?.total_visits_with_time || 0;
+      const efficientVisits = efficiencyResult[0]?.efficient_visits || 0;
       const efficiency = totalWithTime > 0 ? Math.round((efficientVisits / totalWithTime) * 100) : 0;
       
-      console.log(`📊 Resultados para asesor ${advisorId}:`, {
-        visitas: totalVisits,
-        tiempoPromedio: avgTime,
-        reposiciones: restocks,
-        daños: damages,
-        eficiencia: efficiency
-      });
+      if (efficiency < 70 && totalWithTime > 2) {
+        recommendations.push(`📊 Tu eficiencia actual es del ${efficiency}%. El objetivo es 80%. Revisa las tiendas que te toman más tiempo.`);
+      }
       
-      // Datos para el período seleccionado
+      // Verificar reposiciones
+      const restocks = restockResult[0]?.total_restocks || 0;
+      const totalVisits = visitsResult[0]?.total_visits || 0;
+      const avgRestocks = totalVisits > 0 ? (restocks / totalVisits).toFixed(1) : 0;
+      
+      if (avgRestocks > 0) {
+        recommendations.push(`📦 En promedio repones ${avgRestocks} productos por visita. ¡Buen trabajo!`);
+      }
+      
+      // Verificar daños
+      const damages = damageResult[0]?.total_damages || 0;
+      if (damages > restocks * 0.1) {
+        recommendations.push(`⚠️ Has reportado ${damages} productos dañados. Revisa con cuidado el estado de los productos en bodega.`);
+      }
+      
+      if (recommendations.length === 0) {
+        recommendations.push('✅ ¡Excelente trabajo! Sigue así.');
+      }
+      
+      const totalVisitsCount = visitsResult[0]?.total_visits || 0;
+      const avgTime = Math.round(timeResult[0]?.avg_time || 0);
+      const restocksTotal = restockResult[0]?.total_restocks || 0;
+      const damagesTotal = damageResult[0]?.total_damages || 0;
+      const totalDistance = Math.round(distanceResult[0]?.total_distance || 0);
+      
+      const efficientVisitsCount = efficiencyResult[0]?.efficient_visits || 0;
+      const totalWithTimeCount = efficiencyResult[0]?.total_visits_with_time || 0;
+      const efficiencyScore = totalWithTimeCount > 0 ? Math.round((efficientVisitsCount / totalWithTimeCount) * 100) : 0;
+      
       const currentData = {
-        visits: totalVisits,
-        completed: totalVisits,
+        visits: totalVisitsCount,
+        completed: totalVisitsCount,
         avgTime: avgTime,
-        restocks: restocks,
-        damages: damages
+        restocks: restocksTotal,
+        damages: damagesTotal
       };
       
       const result = {
         daily: currentData,
         weekly: {
           ...currentData,
-          efficiency: efficiency
+          efficiency: efficiencyScore
         },
         monthly: {
           ...currentData,
-          efficiency: efficiency,
+          efficiency: efficiencyScore,
           totalDistance: totalDistance
         },
         trends: {
           dailyVisits: [],
           efficiencyTrend: []
-        }
+        },
+        slowStores: slowStores.map(s => ({
+          name: s.store_name,
+          avgTime: Math.round(s.avg_time),
+          visits: s.visits_count
+        })),
+        recommendations: recommendations
       };
+      
+      console.log(`📊 Resultados para asesor ${advisorId}:`, {
+        visitas: totalVisitsCount,
+        reposiciones: restocksTotal,
+        daños: damagesTotal,
+        tiendasLentas: slowStores.length
+      });
       
       res.json(result);
       

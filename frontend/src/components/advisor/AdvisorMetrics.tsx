@@ -20,6 +20,12 @@ interface MonthlyMetrics extends WeeklyMetrics {
   totalDistance: number;
 }
 
+interface SlowStore {
+  name: string;
+  avgTime: number;
+  visits: number;
+}
+
 interface AdvisorMetricsData {
   daily: DailyMetrics;
   weekly: WeeklyMetrics;
@@ -28,6 +34,8 @@ interface AdvisorMetricsData {
     dailyVisits: { date: string; count: number }[];
     efficiencyTrend: { week: string; score: number }[];
   };
+  slowStores: SlowStore[];
+  recommendations: string[];
 }
 
 const AdvisorMetrics: React.FC = () => {
@@ -178,6 +186,42 @@ const AdvisorMetrics: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Ranking de tiendas más lentas */}
+      {metrics.slowStores && metrics.slowStores.length > 0 && (
+        <div className="slow-stores-section">
+          <h3>🐌 Tiendas que más tiempo toman</h3>
+          <div className="slow-stores-list">
+            {metrics.slowStores.map((store, i) => (
+              <div key={i} className="slow-store-item">
+                <div className="store-rank">{i + 1}</div>
+                <div className="store-info">
+                  <span className="store-name">{store.name}</span>
+                  <span className="store-visits">{store.visits} visitas</span>
+                </div>
+                <div className="store-time">
+                  <span className="time-value">{formatTime(store.avgTime)}</span>
+                  <div className="time-bar">
+                    <div className="time-fill" style={{ width: `${Math.min(100, (store.avgTime / 60) * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recomendaciones personalizadas */}
+      {metrics.recommendations && metrics.recommendations.length > 0 && (
+        <div className="recommendations-section">
+          <h3>💡 Recomendaciones para ti</h3>
+          <ul className="recommendations-list">
+            {metrics.recommendations.map((rec, i) => (
+              <li key={i}>{rec}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Gráfico de tendencia diaria */}
       {metrics.trends.dailyVisits.length > 0 && (
