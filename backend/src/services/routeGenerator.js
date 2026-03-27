@@ -47,9 +47,9 @@ export const routeGenerator = {
           continue;
         }
         
-        // ✅ USAR DAILY_ROUTES (la tabla que usa el asesor)
+        // ✅ USAR ROUTES (porque route_stores tiene FK a routes.id)
         const [existingRoute] = await connection.execute(
-          'SELECT id FROM daily_routes WHERE user_id = ? AND route_date = ?',
+          'SELECT id FROM routes WHERE advisor_id = ? AND date = ?',
           [advisor.id, targetDate]
         );
         
@@ -59,7 +59,7 @@ export const routeGenerator = {
           // Actualizar ruta existente
           routeId = existingRoute[0].id;
           await connection.execute(
-            `UPDATE daily_routes 
+            `UPDATE routes 
              SET total_stores = ?, status = 'pending', updated_at = NOW()
              WHERE id = ?`,
             [stores.length, routeId]
@@ -70,9 +70,9 @@ export const routeGenerator = {
           updatedCount++;
           console.log(`🔄 Actualizando ruta existente para ${advisor.name} (ID: ${routeId})`);
         } else {
-          // Crear nueva ruta en daily_routes
+          // Crear nueva ruta en routes
           const [result] = await connection.execute(
-            `INSERT INTO daily_routes (user_id, route_date, total_stores, status, created_at, updated_at)
+            `INSERT INTO routes (advisor_id, date, total_stores, status, created_at, updated_at)
              VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
             [advisor.id, targetDate, stores.length]
           );

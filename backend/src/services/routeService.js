@@ -50,4 +50,82 @@ export class RouteService {
       if (connection) await connection.end();
     }
   }
+
+  static async completeVisit(routeId, storeVisitId, visitData) {
+    let connection;
+    try {
+      connection = await createConnection();
+      
+      const { duration, notes, damageReports, signature } = visitData;
+      
+      // Actualizar la visita en route_stores
+      await connection.execute(
+        `UPDATE route_stores 
+         SET status = 'completed', 
+             end_time = NOW(),
+             actual_duration = ?,
+             notes = ?,
+             signature_url = ?
+         WHERE id = ? AND route_id = ?`,
+        [duration, notes, signature, storeVisitId, routeId]
+      );
+      
+      // Incrementar completed_stores en la ruta
+      await connection.execute(
+        `UPDATE routes 
+         SET completed_stores = completed_stores + 1,
+             status = CASE 
+               WHEN completed_stores + 1 >= total_stores THEN 'completed'
+               ELSE 'in_progress'
+             END
+         WHERE id = ?`,
+        [routeId]
+      );
+      
+      // Guardar reportes de daño si existen
+      if (damageReports && damageReports.length > 0) {
+        for (const report of damageReports) {
+          await connection.execute(
+            `INSERT INTO damage_reports 
+             (barcode, product_name, product_brand, product_category, damage_type, 
+              description, severity, store_id, reported_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [
+              report.barcode,
+              report.product.name,
+              report.product.brand,
+              report.product.category,
+              report.damageType,
+              report.description,
+              report.severity,
+              report.storeId,
+              report.reportedBy
+            ]
+          );
+        }
+      }
+      
+      return true;
+    } finally {
+      if (connection) await connection.end();
+    }
+  }
+
+  static async skipStoreVisit(routeId, storeVisitId, skipReason) {
+    let connection;
+    try {
+      connection = await createConnection();
+      await connection.execute(
+        `UPDATE route_stores 
+         SET status = 'skipped', 
+             skip_reason = ?,
+             end_time = NOW()
+         WHERE id = ? AND route_id = ?`,
+        [skipReason, storeVisitId, routeId]
+      );
+      return true;
+    } finally {
+      if (connection) await connection.end();
+    }
+  }
 }
