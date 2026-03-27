@@ -1,4 +1,6 @@
 // frontend/src/components/admin/AdminDashboard.tsx
+// Elimina TODO el header y deja solo el contenido
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,7 +37,7 @@ const DashboardCard: React.FC<{
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth(); // ya no necesitas logout aquí
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,6 @@ const AdminDashboard: React.FC = () => {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      // El backend devuelve directamente los datos, no con { success: true, data: ... }
       const data: DashboardOverview = await response.json();
       console.log('✅ Datos reales del backend:', data);
       
@@ -94,7 +95,6 @@ const AdminDashboard: React.FC = () => {
       console.error('❌ Error cargando dashboard:', err);
       setError(err.message);
       setBackendAvailable(false);
-      // No usar datos mock, mostrar error claramente
       setDashboardData(null);
     } finally {
       setLoading(false);
@@ -105,15 +105,10 @@ const AdminDashboard: React.FC = () => {
     loadDashboardData();
   }, []);
 
-  const handleLogout = () => {
-    if (window.confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      logout();
-      navigate('/login');
-    }
-  };
-
   return (
     <div className="admin-dashboard">
+      {/* ELIMINAR TODO EL HEADER - YA ESTÁ EN DASHBOARD.TSX */}
+
       <main className="dashboard-content">
         {/* Grid de Tarjetas */}
         <section className="cards-section">
@@ -181,7 +176,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         </section>
 
-        {/* Resumen Rápido - Ahora con datos reales */}
+        {/* Resumen Rápido */}
         <section className="quick-overview">
           <div className="overview-header">
             <div className="overview-title-row">
