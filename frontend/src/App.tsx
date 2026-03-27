@@ -16,6 +16,7 @@ import './styles/global-fixes.css';
 import InstallPWA from './components/common/InstallPWA';
 import './App.css';
 import AdvisorMetrics from './components/advisor/AdvisorMetrics';
+import MLDataDashboard from './components/admin/MLDataDashboard';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -133,6 +134,12 @@ function App() {
               <AdvisorRoute>
                 <AdvisorMetrics />
               </AdvisorRoute>
+            } />
+
+            <Route path="/admin/ml-dashboard" element={
+              <AdminRoute>
+                <MLDataDashboard />
+              </AdminRoute>
             } />
 
             {/* Ruta 404 */}
