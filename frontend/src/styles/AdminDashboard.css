@@ -566,3 +566,26 @@
 .stat-link:hover {
   opacity: 0.8;
 }
+
+/* Agregar al final de AdminDashboard.css */
+.header-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.change-password-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.85rem;
+}
+
+.change-password-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: white;
+}

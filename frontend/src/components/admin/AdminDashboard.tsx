@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../services/api';
+import ChangePassword from '../common/ChangePassword';
 import '../../styles/AdminDashboard.css';
 
 // Interfaces para los datos
@@ -35,11 +36,12 @@ const DashboardCard: React.FC<{
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [backendAvailable, setBackendAvailable] = useState<boolean>(true);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const checkBackendHealth = async (): Promise<boolean> => {
     try {
@@ -103,9 +105,67 @@ const AdminDashboard: React.FC = () => {
     loadDashboardData();
   }, []);
 
+  const handleLogout = () => {
+    if (window.confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      logout();
+      navigate('/login');
+    }
+  };
+
   return (
     <div className="admin-dashboard">
-      {/* 👈 NO HAY HEADER AQUÍ - YA ESTÁ EN DASHBOARD.TSX */}
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="header-container">
+          <div className="header-top">
+            <div className="header-title">
+              <h1>Panel de Administración</h1>
+              <p>SmartPath - Sistema de Optimización de Rutas</p>
+            </div>
+
+            <div className="header-buttons">
+              <button 
+                onClick={() => setShowChangePassword(true)} 
+                className="change-password-btn"
+              >
+                🔐 Cambiar Contraseña
+              </button>
+              <button onClick={handleLogout} className="logout-btn">
+                <span>🚪</span>
+                <span className="btn-text">Cerrar Sesión</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="user-info-row">
+            <div className="user-badges">
+              <span className="admin-badge">
+                <span>👑</span>
+                Administrador
+              </span>
+              
+              <span className="user-id">
+                <span>ID:</span> 
+                {user?.id || 'N/A'}
+              </span>
+            </div>
+
+            <div className="user-profile">
+              <div className="user-avatar">
+                {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+              </div>
+              <div className="user-details">
+                <div className="user-name">
+                  {user?.name || 'Administrador'}
+                </div>
+                <div className="user-email">
+                  {user?.email || 'admin@vitamarket.com'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <main className="dashboard-content">
         {/* Grid de Tarjetas */}
@@ -266,6 +326,11 @@ const AdminDashboard: React.FC = () => {
           )}
         </section>
       </main>
+
+      {/* Modal de cambio de contraseña */}
+      {showChangePassword && (
+        <ChangePassword onClose={() => setShowChangePassword(false)} />
+      )}
     </div>
   );
 };
