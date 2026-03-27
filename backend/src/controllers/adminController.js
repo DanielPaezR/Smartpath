@@ -431,7 +431,9 @@ class AdminController {
           (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}) as totalRestocks
         FROM route_stores rs
         LEFT JOIN routes r ON rs.route_id = r.id
-        WHERE rs.status = 'completed' ${timeCondition}
+        WHERE rs.status = 'completed'
+        AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        ${timeCondition}
       `);
 
       // 2. Daños por categoría
