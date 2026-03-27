@@ -459,7 +459,10 @@ class AdminController {
           u.name as advisorName,
           COUNT(DISTINCT rs.id) as completedVisits,
           COALESCE(AVG(rs.actual_duration), 0) as averageTimePerStore,
-          COUNT(DISTINCT dr.id) as damageReports,
+          COUNT(DISTINCT CASE 
+            WHEN dr.id IS NOT NULL ${damageTimeCondition} 
+            THEN dr.id 
+          END) as damageReports,
           COALESCE(
             (COUNT(DISTINCT CASE WHEN rs.actual_duration <= 40 THEN rs.id END) * 100.0) / 
             NULLIF(COUNT(DISTINCT rs.id), 0), 0
@@ -470,7 +473,7 @@ class AdminController {
           AND rs.status = 'completed' 
           ${timeCondition}
         LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id 
-          AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          ${damageTimeCondition}
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
