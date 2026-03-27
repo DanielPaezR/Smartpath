@@ -391,26 +391,36 @@ class AdminController {
       
       console.log(`📡 Obteniendo métricas avanzadas para: ${timeRange}`);
       
-      // Determinar el rango de tiempo
+      // Determinar las condiciones de tiempo para cada tabla
       let timeCondition = '';
       let damageTimeCondition = '';
-      let restockDateCondition = '';
-
+      let restockTimeCondition = '';
+      
       switch(timeRange) {
         case 'day':
-          restockDateCondition = "AND ri.reported_at >= CURDATE()";
+          timeCondition = "AND rs.end_time >= CURDATE()";
+          damageTimeCondition = "AND dr.created_at >= CURDATE()";
+          restockTimeCondition = "AND ri.reported_at >= CURDATE()";
           break;
         case 'week':
-          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
           break;
         case 'month':
-          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
           break;
         case 'quarter':
-          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
           break;
         default:
-          restockDateCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          timeCondition = "AND rs.end_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          damageTimeCondition = "AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+          restockTimeCondition = "AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       }
 
       // 1. Métricas generales
@@ -421,12 +431,10 @@ class AdminController {
           COALESCE(AVG(CASE WHEN rs.actual_duration > 0 THEN rs.actual_duration END), 0) as avgVisitDuration,
           (SELECT COUNT(*) FROM damage_reports dr WHERE 1=1 ${damageTimeCondition}) as totalDamages,
           COALESCE(SUM(r.total_distance), 0) as totalDistance,
-          (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}) as totalRestocks
+          (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE 1=1 ${restockTimeCondition}) as totalRestocks
         FROM route_stores rs
         LEFT JOIN routes r ON rs.route_id = r.id
-        WHERE rs.status = 'completed'
-        AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-        ${timeCondition}
+        WHERE rs.status = 'completed' ${timeCondition}
       `);
 
       // 2. Daños por categoría
@@ -453,7 +461,7 @@ class AdminController {
         LIMIT 5
       `);
 
-      // 4. Performance de asesores (sin reposiciones)
+      // 4. Performance de asesores (sin daños ni reposiciones)
       const [advisorPerformance] = await connection.execute(`
         SELECT 
           u.name as advisorName,
@@ -474,6 +482,7 @@ class AdminController {
         ORDER BY efficiencyScore DESC
       `);
 
+      // 5. Daños por asesor (consulta separada)
       const [damageByAdvisor] = await connection.execute(`
         SELECT 
           u.name as advisorName,
@@ -487,7 +496,7 @@ class AdminController {
         GROUP BY u.id, u.name
       `);
 
-      // 5. Reposiciones por asesor (consulta separada)
+      // 6. Reposiciones por asesor (consulta separada)
       const [restockByAdvisor] = await connection.execute(`
         SELECT 
           u.name as advisorName,
@@ -497,20 +506,14 @@ class AdminController {
         JOIN routes r ON rs.route_id = r.id
         JOIN users u ON r.advisor_id = u.id
         WHERE u.role = 'advisor'
-          ${restockDateCondition}
+          ${restockTimeCondition}
         GROUP BY u.id, u.name
       `);
 
-      console.log('📊 Reposiciones por asesor:', restockByAdvisor);
-
-      // Combinar resultados
+      // Combinar datos de performance con daños y reposiciones
       const advisorPerformanceComplete = advisorPerformance.map(advisor => {
         const damageData = damageByAdvisor.find(d => d.advisorName === advisor.advisorName);
         const restockData = restockByAdvisor.find(r => r.advisorName === advisor.advisorName);
-        
-        console.log(`📊 Asesor: ${advisor.advisorName}`);
-        console.log(`   Daños: ${damageData?.totalDamages || 0}`);
-        console.log(`   Reposiciones: ${restockData?.totalRestocks || 0}`);
         
         return {
           advisorName: advisor.advisorName,
@@ -524,76 +527,15 @@ class AdminController {
 
       // Calcular eficiencia promedio
       let averageEfficiency = 85;
-      if (advisorPerformance.length > 0) {
-        const totalEfficiency = advisorPerformance.reduce((sum, a) => sum + a.efficiencyScore, 0);
-        averageEfficiency = Math.round(totalEfficiency / advisorPerformance.length);
+      if (advisorPerformanceComplete.length > 0) {
+        const totalEfficiency = advisorPerformanceComplete.reduce((sum, a) => sum + a.efficiencyScore, 0);
+        averageEfficiency = Math.round(totalEfficiency / advisorPerformanceComplete.length);
       } else if (overall[0]?.avgVisitDuration && overall[0].avgVisitDuration > 0) {
         averageEfficiency = Math.max(0, Math.min(100, 100 - ((overall[0].avgVisitDuration - 30) * 2)));
       }
 
       const totalRestocks = overall[0]?.totalRestocks || 0;
       const totalVisits = overall[0]?.completedVisits || 0;
-
-      // Crear restockMetrics con datos reales
-      const restockMetrics = {
-        totalItems: totalRestocks,
-        totalValue: 0,
-        uniqueProducts: 0,
-        averageItemsPerVisit: totalVisits > 0 ? parseFloat((totalRestocks / totalVisits).toFixed(1)) : 0,
-        topRestockedProducts: [],
-        topRestockedCategories: [],
-        restockByAdvisor: [],
-        restockByStore: [],
-        dailyRestockTrend: []
-      };
-
-      // Si hay reposiciones, obtener datos adicionales
-      if (totalRestocks > 0) {
-        try {
-          // Top productos
-          const [topProducts] = await connection.execute(`
-            SELECT 
-              ri.product_name as productName,
-              ri.product_barcode as productBarcode,
-              SUM(ri.quantity) as quantity,
-              SUM(ri.quantity * ri.unit_price) as totalValue
-            FROM restock_items ri
-            WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}
-            GROUP BY ri.product_barcode, ri.product_name
-            ORDER BY quantity DESC
-            LIMIT 10
-          `);
-          
-          restockMetrics.topRestockedProducts = topProducts.map(p => ({
-            productName: p.productName,
-            productBarcode: p.productBarcode,
-            quantity: parseInt(p.quantity),
-            totalValue: parseFloat(p.totalValue || 0)
-          }));
-          restockMetrics.uniqueProducts = topProducts.length;
-          
-          // Por categoría
-          const [topCategories] = await connection.execute(`
-            SELECT 
-              COALESCE(ri.product_category, 'Sin categoría') as category,
-              SUM(ri.quantity) as quantity
-            FROM restock_items ri
-            WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}
-            GROUP BY category
-            ORDER BY quantity DESC
-          `);
-          
-          const totalQuantity = topCategories.reduce((sum, c) => sum + c.quantity, 0);
-          restockMetrics.topRestockedCategories = topCategories.map(c => ({
-            category: c.category,
-            quantity: parseInt(c.quantity),
-            percentage: totalQuantity > 0 ? parseFloat(((c.quantity / totalQuantity) * 100).toFixed(1)) : 0
-          }));
-          
-        } catch (err) {
-          console.error('Error obteniendo detalles de reposiciones:', err);
-        }
-      }
 
       const metrics = {
         overall: {
@@ -613,20 +555,31 @@ class AdminController {
             damageCount: parseInt(s.damageCount)
           }))
         },
-        advisorPerformance: advisorPerformanceComplete.map(a => ({
-          advisorName: a.advisorName,
-          completedVisits: a.completedVisits,
-          averageTimePerStore: a.averageTimePerStore,
-          efficiencyScore: a.efficiencyScore,
-          damageReports: a.damageReports,
-          totalRestocks: a.totalRestocks
-        })),
-        restockMetrics: restockMetrics
+        advisorPerformance: advisorPerformanceComplete,
+        restockMetrics: {
+          totalItems: totalRestocks,
+          totalValue: 0,
+          uniqueProducts: 0,
+          averageItemsPerVisit: totalVisits > 0 ? parseFloat((totalRestocks / totalVisits).toFixed(1)) : 0,
+          topRestockedProducts: [],
+          topRestockedCategories: [],
+          restockByAdvisor: restockByAdvisor.map(r => ({
+            advisorId: 0,
+            advisorName: r.advisorName,
+            totalItems: parseInt(r.totalRestocks),
+            totalValue: 0,
+            averagePerVisit: 0
+          })),
+          restockByStore: [],
+          dailyRestockTrend: []
+        }
       };
 
       console.log('✅ Métricas avanzadas obtenidas correctamente');
       console.log('📊 Reposiciones totales:', totalRestocks);
       console.log('📊 Daños totales:', metrics.damageAnalytics.totalDamagedProducts);
+      console.log('📊 Daños por asesor:', damageByAdvisor);
+      console.log('📊 Reposiciones por asesor:', restockByAdvisor);
       
       res.json(metrics);
 
