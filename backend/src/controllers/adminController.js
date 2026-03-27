@@ -430,7 +430,7 @@ class AdminController {
           COALESCE(SUM(r.total_distance), 0) as totalDistance,
           (SELECT COALESCE(SUM(ri.quantity), 0) FROM restock_items ri WHERE 1=1 ${damageTimeCondition.replace('dr.created_at', 'ri.reported_at')}) as totalRestocks
         FROM route_stores rs
-        LEFT JOIN daily_routes r ON rs.route_id = r.id
+        LEFT JOIN routes r ON rs.route_id = r.id
         WHERE rs.status = 'completed' ${timeCondition}
       `);
 
@@ -470,7 +470,7 @@ class AdminController {
             NULLIF(COUNT(DISTINCT rs.id), 0), 0
           ) as efficiencyScore
         FROM users u
-        LEFT JOIN daily_routes r ON u.id = r.user_id
+        LEFT JOIN routes r ON u.id = r.advisor_id
         LEFT JOIN route_stores rs ON r.id = rs.route_id 
           AND rs.status = 'completed' 
           ${timeCondition}
