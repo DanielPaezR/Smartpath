@@ -467,6 +467,7 @@ class AdminController {
           COUNT(DISTINCT rs.id) as completedVisits,
           COALESCE(AVG(rs.actual_duration), 0) as averageTimePerStore,
           COUNT(DISTINCT dr.id) as damageReports,
+          COALESCE(SUM(ri.quantity), 0) as totalRestocks,
           COALESCE(
             (COUNT(DISTINCT CASE WHEN rs.actual_duration <= 40 THEN rs.id END) * 100.0) / 
             NULLIF(COUNT(DISTINCT rs.id), 0), 0
@@ -478,6 +479,8 @@ class AdminController {
           ${timeCondition}
         LEFT JOIN damage_reports dr ON rs.store_id = dr.store_id 
           AND dr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        LEFT JOIN restock_items ri ON rs.id = ri.route_store_id
+          AND ri.reported_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         WHERE u.role = 'advisor'
         GROUP BY u.id, u.name
         HAVING completedVisits > 0
@@ -580,7 +583,8 @@ class AdminController {
           completedVisits: parseInt(a.completedVisits),
           averageTimePerStore: Math.round(a.averageTimePerStore),
           efficiencyScore: Math.round(a.efficiencyScore),
-          damageReports: parseInt(a.damageReports || 0)
+          damageReports: parseInt(a.damageReports || 0),
+          totalRestocks: parseInt(a.totalRestocks || 0)
         })),
         restockMetrics: restockMetrics
       };

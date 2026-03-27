@@ -92,8 +92,9 @@ export interface AdvancedMetrics {
     averageTimePerStore: number;
     efficiencyScore: number;
     damageReports: number;
+     totalRestocks?: number;
   }[];
-  restockMetrics: RestockMetrics; // 👈 NUEVO
+  restockMetrics: RestockMetrics;
 }
 
 export const adminService = {
