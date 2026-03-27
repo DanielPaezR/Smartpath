@@ -114,51 +114,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="admin-dashboard">
-      {/* Header */}
-      <header className="dashboard-header">
-        <div className="header-container">
-          <div className="header-top">
-            <div className="header-title">
-              <h1>Panel de Administración</h1>
-              <p>SmartPath - Sistema de Optimización de Rutas</p>
-            </div>
-
-            <button onClick={handleLogout} className="logout-btn">
-              <span>🚪</span>
-              <span className="btn-text">Cerrar Sesión</span>
-            </button>
-          </div>
-
-          <div className="user-info-row">
-            <div className="user-badges">
-              <span className="admin-badge">
-                <span>👑</span>
-                Administrador
-              </span>
-              
-              <span className="user-id">
-                <span>ID:</span> 
-                {user?.id || 'N/A'}
-              </span>
-            </div>
-
-            <div className="user-profile">
-              <div className="user-avatar">
-                {user?.name?.charAt(0)?.toUpperCase() || 'A'}
-              </div>
-              <div className="user-details">
-                <div className="user-name">
-                  {user?.name || 'Administrador'}
-                </div>
-                <div className="user-email">
-                  {user?.email || 'admin@vitamarket.com'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="dashboard-content">
         {/* Grid de Tarjetas */}
         <section className="cards-section">
