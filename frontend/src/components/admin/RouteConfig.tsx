@@ -217,17 +217,27 @@ const RouteConfig: React.FC = () => {
     
     setGenerating(true);
     try {
+      // 🆕 Obtener la fecha actual en formato YYYY-MM-DD
+      const today = new Date().toISOString().split('T')[0];
+      console.log('📅 Generando rutas para:', today);
+      
       const response = await fetch(`${API_BASE_URL}/admin/routes/generate-daily`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ date: today })  // ✅ Enviar la fecha actual
       });
+      
       const result = await response.json();
       
       if (result.success) {
-        alert(`✅ ${result.message}\n📊 Rutas generadas: ${result.created} nuevas, ${result.updated} actualizadas`);
+        alert(`✅ ${result.message}\n📊 Rutas generadas: ${result.created} nuevas`);
+        // Recargar la vista actual para mostrar los cambios
+        if (selectedAdvisor) {
+          loadSchedule(selectedAdvisor);
+        }
       } else {
         alert(`❌ Error: ${result.error}`);
       }
