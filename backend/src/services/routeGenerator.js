@@ -10,8 +10,6 @@ export const routeGenerator = {
       const dayOfWeek = new Date(targetDate).toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
       
       console.log(`📅 Generando rutas para ${targetDate} (${dayOfWeek})`);
-      
-      // 🆕 LOG PARA DEPURAR
       console.log(`🔍 Fecha: ${targetDate}, Día de la semana calculado: "${dayOfWeek}"`);
       
       const [advisors] = await connection.execute(
@@ -19,10 +17,9 @@ export const routeGenerator = {
       );
       
       let createdCount = 0;
-      let updatedCount = 0;
+      let deletedCount = 0;
       
       for (const advisor of advisors) {
-        // 🆕 LOG: qué plantilla estamos buscando
         console.log(`🔍 Buscando plantilla para ${advisor.name}: advisor_id=${advisor.id}, day_of_week="${dayOfWeek}"`);
         
         const [template] = await connection.execute(
@@ -53,38 +50,44 @@ export const routeGenerator = {
           continue;
         }
         
-        // 🆕 Mostrar primeras tiendas para verificar
         console.log(`   Primeras tiendas: ${stores.slice(0, 3).map(s => s.name).join(', ')}...`);
         
+        // 🔥 CORRECCIÓN: ELIMINAR COMPLETAMENTE LA RUTA EXISTENTE
         const [existingRoute] = await connection.execute(
           'SELECT id FROM routes WHERE advisor_id = ? AND date = ?',
           [advisor.id, targetDate]
         );
         
-        let routeId;
-        
         if (existingRoute.length > 0) {
-          routeId = existingRoute[0].id;
+          const routeId = existingRoute[0].id;
+          
+          // Primero eliminar las tiendas asociadas
+          const [deletedStores] = await connection.execute(
+            'DELETE FROM route_stores WHERE route_id = ?',
+            [routeId]
+          );
+          console.log(`   🗑️ Eliminadas ${deletedStores.affectedRows} tiendas de ruta existente (route_id: ${routeId})`);
+          
+          // Luego eliminar la ruta
           await connection.execute(
-            `UPDATE routes 
-             SET total_stores = ?, status = 'pending', updated_at = NOW()
-             WHERE id = ?`,
-            [stores.length, routeId]
+            'DELETE FROM routes WHERE id = ?',
+            [routeId]
           );
-          await connection.execute('DELETE FROM route_stores WHERE route_id = ?', [routeId]);
-          updatedCount++;
-          console.log(`🔄 Actualizando ruta existente para ${advisor.name} (ID: ${routeId})`);
-        } else {
-          const [result] = await connection.execute(
-            `INSERT INTO routes (advisor_id, date, total_stores, status, created_at, updated_at)
-             VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
-            [advisor.id, targetDate, stores.length]
-          );
-          routeId = result.insertId;
-          createdCount++;
-          console.log(`✅ Creando nueva ruta para ${advisor.name} (ID: ${routeId}) con ${stores.length} tiendas`);
+          console.log(`   🗑️ Eliminada ruta anterior de ${advisor.name} (ID: ${routeId})`);
+          deletedCount++;
         }
         
+        // Crear NUEVA ruta
+        const [result] = await connection.execute(
+          `INSERT INTO routes (advisor_id, date, total_stores, status, created_at, updated_at)
+           VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
+          [advisor.id, targetDate, stores.length]
+        );
+        const routeId = result.insertId;
+        createdCount++;
+        console.log(`✅ Creando NUEVA ruta para ${advisor.name} (ID: ${routeId}) con ${stores.length} tiendas`);
+        
+        // Insertar las nuevas tiendas
         for (let i = 0; i < stores.length; i++) {
           const store = stores[i];
           await connection.execute(
@@ -98,12 +101,12 @@ export const routeGenerator = {
         console.log(`   ✅ ${stores.length} tiendas asignadas a ${advisor.name}`);
       }
       
-      console.log(`📊 Resumen: ${createdCount} rutas creadas, ${updatedCount} actualizadas`);
+      console.log(`📊 Resumen: ${createdCount} rutas creadas, ${deletedCount} rutas eliminadas previamente`);
       return { 
         success: true, 
         message: `Rutas generadas para ${targetDate}`,
         created: createdCount,
-        updated: updatedCount
+        deleted: deletedCount
       };
       
     } catch (error) {
