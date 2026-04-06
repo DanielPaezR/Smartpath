@@ -15,6 +15,7 @@ interface MyDB extends DBSchema {
       timeInStore: number;
       status: 'pending' | 'in-progress' | 'completed' | 'skipped';
       tasks: any[];
+      tasksChecklist: { [taskId: string]: boolean }; // 🆕 Checklist de tareas completadas
       damageReports: any[];
       restockItems: any[];
       notes: string;
@@ -30,7 +31,7 @@ interface MyDB extends DBSchema {
     key: string;
     value: {
       id?: string;
-      type: 'damage' | 'restock' | 'visit_complete' | 'task_update';
+      type: 'damage' | 'restock' | 'visit_complete' | 'task_update' | 'photo_upload';
       data: any;
       timestamp: string;
       retryCount: number;
@@ -38,6 +39,23 @@ interface MyDB extends DBSchema {
     indexes: {
       'by-timestamp': string;
       'by-retryCount': number;
+    };
+  };
+  // 🆕 Almacén específico para fotos (manejo más eficiente)
+  pendingPhotos: {
+    key: string;
+    value: {
+      id: string;
+      visitId: string;
+      type: 'before' | 'after' | 'damage';
+      data: Blob;
+      filename: string;
+      timestamp: string;
+      synced: boolean;
+    };
+    indexes: {
+      'by-visitId': string;
+      'by-synced': string;
     };
   };
 }
@@ -49,8 +67,8 @@ class OfflineStorageService {
   async init() {
     if (this.db) return this.db;
     
-    this.db = await openDB<MyDB>('SmartPathOffline', 1, {
-      upgrade(db) {
+    this.db = await openDB<MyDB>('SmartPathOffline', 2, {  // 🔥 Versión 2 (nueva estructura)
+      upgrade(db, oldVersion, newVersion, transaction) {
         // Almacenamiento de visitas en progreso
         if (!db.objectStoreNames.contains('visits')) {
           const visitStore = db.createObjectStore('visits', { keyPath: 'id' });
@@ -63,13 +81,133 @@ class OfflineStorageService {
           syncStore.createIndex('by-timestamp', 'timestamp');
           syncStore.createIndex('by-retryCount', 'retryCount');
         }
+        
+        // 🆕 Almacén para fotos pendientes
+        if (!db.objectStoreNames.contains('pendingPhotos')) {
+          const photoStore = db.createObjectStore('pendingPhotos', { keyPath: 'id' });
+          photoStore.createIndex('by-visitId', 'visitId');
+          photoStore.createIndex('by-synced', 'synced');
+        }
       },
     });
     
     return this.db;
   }
 
-  // Guardar estado completo de la visita
+  // ============================================
+  // 🆕 FUNCIONES PARA EL CHECKLIST DE TAREAS
+  // ============================================
+  
+  // Guardar el progreso del checklist de tareas
+  async saveTasksChecklist(visitId: string, tasksChecklist: { [taskId: string]: boolean }) {
+    const db = await this.init();
+    const existingVisit = await db.get('visits', visitId);
+    
+    if (existingVisit) {
+      existingVisit.tasksChecklist = tasksChecklist;
+      existingVisit.lastUpdate = new Date().toISOString();
+      existingVisit.synced = false;
+      await db.put('visits', existingVisit);
+      console.log('✅ Checklist guardado localmente:', Object.keys(tasksChecklist).filter(k => tasksChecklist[k]).length, 'tareas completadas');
+    } else {
+      console.warn('⚠️ No se encontró la visita para guardar el checklist');
+    }
+  }
+  
+  // Obtener el checklist de tareas de una visita
+  async getTasksChecklist(visitId: string): Promise<{ [taskId: string]: boolean } | null> {
+    const db = await this.init();
+    const visit = await db.get('visits', visitId);
+    return visit?.tasksChecklist || null;
+  }
+  
+  // Marcar/desmarcar una tarea específica
+  async toggleTask(visitId: string, taskId: string, completed: boolean) {
+    const db = await this.init();
+    const visit = await db.get('visits', visitId);
+    
+    if (visit) {
+      if (!visit.tasksChecklist) visit.tasksChecklist = {};
+      visit.tasksChecklist[taskId] = completed;
+      visit.lastUpdate = new Date().toISOString();
+      visit.synced = false;
+      await db.put('visits', visit);
+      console.log(`📋 Tarea ${taskId} ${completed ? 'completada' : 'pendiente'} (guardado local)`);
+      
+      // Encolar para sincronización
+      await this.queueSyncAction('task_update', {
+        visitId,
+        taskId,
+        completed,
+        tasksChecklist: visit.tasksChecklist
+      });
+    }
+  }
+
+  // ============================================
+  // 🆕 FUNCIONES PARA FOTOS (mejoradas)
+  // ============================================
+  
+  // Guardar una foto localmente (antes de subir al servidor)
+  async savePhoto(visitId: string, type: 'before' | 'after' | 'damage', file: File): Promise<string> {
+    const db = await this.init();
+    const photoId = `${visitId}_${type}_${Date.now()}`;
+    
+    await db.add('pendingPhotos', {
+      id: photoId,
+      visitId: visitId,
+      type: type,
+      data: file,
+      filename: file.name,
+      timestamp: new Date().toISOString(),
+      synced: false
+    });
+    
+    // También guardar referencia en la visita
+    const visit = await db.get('visits', visitId);
+    if (visit) {
+      if (!visit.photos) visit.photos = [];
+      visit.photos.push({ id: photoId, type, filename: file.name, synced: false });
+      visit.lastUpdate = new Date().toISOString();
+      await db.put('visits', visit);
+    }
+    
+    console.log(`📸 Foto ${type} guardada localmente para visita ${visitId}`);
+    return photoId;
+  }
+  
+  // Obtener todas las fotos pendientes de una visita
+  async getPendingPhotos(visitId: string) {
+    const db = await this.init();
+    const index = db.transaction('pendingPhotos').store.index('by-visitId');
+    return await index.getAll(visitId);
+  }
+  
+  // Marcar foto como sincronizada
+  async markPhotoSynced(photoId: string) {
+    const db = await this.init();
+    const photo = await db.get('pendingPhotos', photoId);
+    if (photo) {
+      photo.synced = true;
+      await db.put('pendingPhotos', photo);
+    }
+  }
+  
+  // Eliminar fotos de una visita ya completada
+  async clearPhotosForVisit(visitId: string) {
+    const db = await this.init();
+    const photos = await this.getPendingPhotos(visitId);
+    for (const photo of photos) {
+      await db.delete('pendingPhotos', photo.id);
+    }
+    console.log(`🗑️ ${photos.length} fotos eliminadas para visita ${visitId}`);
+  }
+
+  // ============================================
+  // FUNCIONES EXISTENTES (mejoradas)
+  // ============================================
+  
+  // Guardar estado completo de la visita (incluyendo checklist)
   async saveVisitState(visitId: string, data: {
     routeStoreId: number;
     storeId: number;
@@ -77,6 +215,7 @@ class OfflineStorageService {
     startTime: string;
     status: 'pending' | 'in-progress' | 'completed' | 'skipped';
     tasks: any[];
+    tasksChecklist?: { [taskId: string]: boolean };
     timeInStore: number;
     damageReports: any[];
     restockItems: any[];
@@ -87,6 +226,7 @@ class OfflineStorageService {
     const db = await this.init();
     await db.put('visits', {
       ...data,
+      tasksChecklist: data.tasksChecklist || {},
       id: visitId,
       lastUpdate: new Date().toISOString(),
       synced: false
@@ -94,7 +234,7 @@ class OfflineStorageService {
     console.log('💾 Visita guardada localmente:', visitId);
   }
 
-  // Obtener estado de una visita
+  // Obtener estado completo de una visita
   async getVisitState(visitId: string) {
     const db = await this.init();
     return await db.get('visits', visitId);
@@ -104,10 +244,12 @@ class OfflineStorageService {
   async deleteVisitState(visitId: string) {
     const db = await this.init();
     await db.delete('visits', visitId);
+    // También limpiar sus fotos
+    await this.clearPhotosForVisit(visitId);
   }
 
   // Agregar acción a la cola de sincronización
-  async queueSyncAction(type: 'damage' | 'restock' | 'visit_complete' | 'task_update', data: any) {
+  async queueSyncAction(type: 'damage' | 'restock' | 'visit_complete' | 'task_update' | 'photo_upload', data: any) {
     const db = await this.init();
     const id = await db.add('pendingSync', {
       type,
@@ -143,12 +285,16 @@ class OfflineStorageService {
     }
   }
 
-  // Sincronizar todo lo pendiente
+  // Sincronizar todo lo pendiente (incluyendo fotos)
   async syncAll() {
     if (this.syncInProgress) return;
     this.syncInProgress = true;
     
     try {
+      // 1. Sincronizar fotos primero
+      await this.syncPhotos();
+      
+      // 2. Sincronizar el resto de acciones
       const pendingActions = await this.getPendingSync();
       console.log(`🔄 Sincronizando ${pendingActions.length} acciones pendientes...`);
       
@@ -168,6 +314,44 @@ class OfflineStorageService {
       }
     } finally {
       this.syncInProgress = false;
+    }
+  }
+  
+  // 🆕 Sincronizar fotos pendientes
+  private async syncPhotos() {
+    const db = await this.init();
+    const index = db.transaction('pendingPhotos').store.index('by-synced');
+    const unsyncedPhotos = await index.getAll(IDBKeyRange.only(false));
+    
+    console.log(`📸 Sincronizando ${unsyncedPhotos.length} fotos pendientes...`);
+    
+    for (const photo of unsyncedPhotos) {
+      try {
+        const formData = new FormData();
+        formData.append('photo', photo.data, photo.filename);
+        formData.append('type', photo.type);
+        formData.append('visitId', photo.visitId);
+        
+        const token = localStorage.getItem('token');
+        const API_BASE_URL = '/~daniel.paez/smartpath/api';
+        
+        const response = await fetch(`${API_BASE_URL}/upload/photo`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        if (response.ok) {
+          await this.markPhotoSynced(photo.id);
+          console.log(`📸 Foto ${photo.id} sincronizada`);
+        } else {
+          throw new Error('Error subiendo foto');
+        }
+      } catch (error) {
+        console.error(`❌ Error sincronizando foto ${photo.id}:`, error);
+      }
     }
   }
 
@@ -224,6 +408,10 @@ class OfflineStorageService {
           body: JSON.stringify(data)
         });
         if (!taskResponse.ok) throw new Error('Error actualizando tareas');
+        break;
+        
+      case 'photo_upload':
+        // Las fotos se manejan en syncPhotos()
         break;
     }
   }

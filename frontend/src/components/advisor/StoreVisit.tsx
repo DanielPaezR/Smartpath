@@ -51,18 +51,21 @@ interface IDamageReport {
   reportedBy: string;
 }
 
-// COMPONENTE PARA CÁMARA NATIVA - FOTOS
+// COMPONENTE PARA CÁMARA NATIVA - CON GUARDADO LOCAL EN INDEXEDDB
 const CameraButton: React.FC<{
   onCapture: (photos: string[]) => void;
   existingPhotos?: string[];
   maxPhotos?: number;
   disabled?: boolean;
   required?: boolean;
-}> = ({ onCapture, existingPhotos = [], maxPhotos = 3, disabled = false, required = false }) => {
+  visitId?: string;  // 🆕 Necesario para guardar en IndexedDB
+  taskKey?: string;  // 🆕 Para asociar la foto a una tarea específica
+}> = ({ onCapture, existingPhotos = [], maxPhotos = 3, disabled = false, required = false, visitId, taskKey }) => {
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>(existingPhotos);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -71,16 +74,35 @@ const CameraButton: React.FC<{
       return;
     }
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const photoData = reader.result as string;
-        const newPhotos = [...capturedPhotos, photoData];
-        setCapturedPhotos(newPhotos);
-        onCapture(newPhotos);
-      };
-      reader.readAsDataURL(file);
-    });
+    setIsSaving(true);
+    
+    for (const file of Array.from(files)) {
+      try {
+        // 🆕 Guardar la foto en IndexedDB primero
+        if (visitId) {
+          const photoType = taskKey === 'evidenceBefore' ? 'before' : 
+                           taskKey === 'evidenceAfter' ? 'after' : 'damage';
+          await offlineStorage.savePhoto(visitId, photoType, file);
+          console.log(`📸 Foto guardada localmente para tarea: ${taskKey}`);
+        }
+        
+        // También mantener en memoria para previsualización inmediata
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const photoData = reader.result as string;
+          const newPhotos = [...capturedPhotos, photoData];
+          setCapturedPhotos(newPhotos);
+          onCapture(newPhotos);
+        };
+        reader.readAsDataURL(file);
+        
+      } catch (error) {
+        console.error('Error guardando foto localmente:', error);
+        alert('Error al guardar la foto. Intenta nuevamente.');
+      }
+    }
+    
+    setIsSaving(false);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -107,10 +129,10 @@ const CameraButton: React.FC<{
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || capturedPhotos.length >= maxPhotos}
+        disabled={disabled || capturedPhotos.length >= maxPhotos || isSaving}
         className="camera-open-btn"
       >
-        📸 {capturedPhotos.length === 0 ? 'Tomar Foto' : 'Agregar Foto'} 
+        📸 {isSaving ? 'Guardando...' : (capturedPhotos.length === 0 ? 'Tomar Foto' : 'Agregar Foto')} 
         {capturedPhotos.length > 0 && ` (${capturedPhotos.length}/${maxPhotos})`}
         {required && capturedPhotos.length === 0 && <span className="required-badge">*Obligatorio</span>}
       </button>
@@ -316,20 +338,54 @@ const StoreVisit: React.FC = () => {
     }
   ];
 
-  // Cargar estado guardado localmente
+  // Cargar estado guardado localmente (incluyendo fotos y checklist)
   const loadSavedState = async () => {
     if (!storeVisitId) return;
+    
     const saved = await offlineStorage.getVisitState(storeVisitId);
     if (saved) {
       console.log('🔄 Cargando estado guardado localmente');
-      setTasks(saved.tasks || []);
+      
+      // Recuperar checklist de tareas
+      if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
+        const updatedTasks = taskDefinitions.map(task => ({
+          ...task,
+          completed: saved.tasksChecklist[task.key] || false,
+          timestamp: saved.tasksChecklist[task.key] ? new Date() : undefined
+        }));
+        setTasks(updatedTasks);
+        console.log('✅ Checklist recuperado:', saved.tasksChecklist);
+      } else if (saved.tasks && saved.tasks.length > 0) {
+        setTasks(saved.tasks);
+      } else {
+        setTasks([...taskDefinitions]);
+      }
+      
       setTimeInStore(saved.timeInStore || 0);
       setDamageReports(saved.damageReports || []);
       setRestockItems(saved.restockItems || []);
       setVisitNotes(saved.notes || '');
-      setVisitStatus(saved.status || 'in-progress');
+      
+      // Normalizar el status al cargar
+      const normalizedStatus = normalizeStatus(saved.status || 'pending');
+      setVisitStatus(normalizedStatus);
+      
       setHasInitializedTasks(true);
-      setIsTimerRunning(true);
+      if (normalizedStatus === 'in-progress') {
+        setIsTimerRunning(true);
+      }
+      
+      // Recuperar fotos pendientes de la visita
+      const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
+      if (pendingPhotos.length > 0) {
+        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes`);
+      }
+    } else {
+      // Si no hay estado guardado, inicializar tareas
+      if (!hasInitializedTasks) {
+        setTasks([...taskDefinitions]);
+        setHasInitializedTasks(true);
+      }
     }
   };
 
@@ -643,13 +699,22 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  const handleTaskCheckbox = (task: ITask, index: number) => {
+  const handleTaskCheckbox = async (task: ITask, index: number) => {
     if (task.completed) {
       const updatedTasks = [...tasks];
       updatedTasks[index].completed = false;
       updatedTasks[index].timestamp = undefined;
       updatedTasks[index].additionalData = undefined;
       setTasks(updatedTasks);
+      
+      // Guardar checklist en IndexedDB
+      if (storeVisitId) {
+        const checklist = updatedTasks.reduce((acc, t) => {
+          acc[t.key] = t.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        await offlineStorage.saveTasksChecklist(storeVisitId, checklist);
+      }
       return;
     }
 
@@ -680,6 +745,15 @@ const StoreVisit: React.FC = () => {
     updatedTasks[index].completed = true;
     updatedTasks[index].timestamp = new Date();
     setTasks(updatedTasks);
+    
+    // Guardar checklist en IndexedDB
+    if (storeVisitId) {
+      const checklist = updatedTasks.reduce((acc, t) => {
+        acc[t.key] = t.completed;
+        return acc;
+      }, {} as { [key: string]: boolean });
+      await offlineStorage.saveTasksChecklist(storeVisitId, checklist);
+    }
   };
 
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
@@ -770,7 +844,12 @@ const StoreVisit: React.FC = () => {
     setIsTimerRunning(false);
     setVisitStatus('completed');
     
-    await offlineStorage.deleteVisitState(storeVisitId);
+    // Limpiar fotos de esta visita de IndexedDB
+    if (storeVisitId) {
+      await offlineStorage.clearPhotosForVisit(storeVisitId);
+      await offlineStorage.deleteVisitState(storeVisitId);
+    }
+    
     localStorage.removeItem('storeVisitState');
     
     navigate('/dashboard', { 
@@ -925,6 +1004,8 @@ const StoreVisit: React.FC = () => {
                 maxPhotos={3}
                 disabled={task.completed}
                 required={true}
+                visitId={storeVisitId}
+                taskKey={task.key}
               />
             </div>
           )}
@@ -952,10 +1033,15 @@ const StoreVisit: React.FC = () => {
     return '#27ae60';
   };
 
-  // Guardar estado automáticamente
+  // Guardar estado automáticamente (incluyendo checklist)
   useEffect(() => {
     if (visitStatus === 'in-progress' && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
       const saveInterval = setInterval(() => {
+        const tasksChecklist = tasks.reduce((acc, task) => {
+          acc[task.key] = task.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        
         offlineStorage.saveVisitState(storeVisitId, {
           routeStoreId: Number(currentStore.id),
           storeId: Number(currentStore.storeId.id),
@@ -963,6 +1049,7 @@ const StoreVisit: React.FC = () => {
           startTime: new Date().toISOString(),
           status: visitStatus,
           tasks: tasks,
+          tasksChecklist: tasksChecklist,
           timeInStore: timeInStore,
           damageReports: damageReports,
           restockItems: restockItems,
@@ -976,13 +1063,17 @@ const StoreVisit: React.FC = () => {
     }
   }, [visitStatus, tasks, timeInStore, damageReports, restockItems, visitNotes, storeVisitId, currentStore, storeInfo.name]);
 
-  // Detectar cambios de conexión
+  // Detectar cambios de conexión y sincronizar
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true);
-      offlineStorage.syncAll();
+      console.log('🟢 Conexión recuperada, sincronizando...');
+      await offlineStorage.syncAll();
     };
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('🔴 Sin conexión, trabajando en modo offline');
+    };
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
