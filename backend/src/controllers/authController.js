@@ -53,7 +53,7 @@ export const login = async (req, res) => {
         name: user.name 
       },
       process.env.JWT_SECRET || 'smartpath_super_secret_key_2024_vitamarket',
-      { expiresIn: '24h' }
+      { expiresIn: '30d' }
     );
 
     // Devolver usuario sin password
