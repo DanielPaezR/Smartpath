@@ -403,6 +403,10 @@ const StoreVisit: React.FC = () => {
       store => store.id.toString() === storeVisitId.toString()
     );
 
+    console.log('🔍 currentStoreVisit COMPLETO:', currentStoreVisit);
+    console.log('🔍 start_time específico:', currentStoreVisit?.start_time);
+    console.log('🔍 status:', currentStoreVisit?.status);
+
     if (currentStoreVisit) {
       const normalizedStatus = normalizeStatus(currentStoreVisit.status || 'pending');
       setVisitStatus(normalizedStatus);
@@ -498,7 +502,9 @@ const StoreVisit: React.FC = () => {
     
     try {
       const currentRoute = await routeService.getCurrentRoute(user.id);
-      
+      // 🆕 LOG PARA VER QUÉ DATOS LLEGAN
+      console.log('📡 Ruta completa recibida:', JSON.stringify(currentRoute, null, 2));
+
       if (!currentRoute) {
         console.error('❌ No se pudo cargar la ruta');
         return;
