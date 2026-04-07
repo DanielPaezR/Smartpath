@@ -1,4 +1,7 @@
+import dotenv from 'dotenv';
 import { routeGenerator } from './src/services/routeGenerator.js';
+
+dotenv.config();
 
 async function run() {
     try {
