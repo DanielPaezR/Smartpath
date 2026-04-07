@@ -1,4 +1,4 @@
-const { routeGenerator } = require('./src/services/routeGenerator.js');
+import { routeGenerator } from './src/services/routeGenerator.js';
 
 async function run() {
     try {
