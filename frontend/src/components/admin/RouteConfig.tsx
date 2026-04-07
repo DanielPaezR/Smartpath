@@ -189,7 +189,7 @@ const RouteConfig: React.FC = () => {
       // 1. Guardar en advisor_weekly_schedule (ya se hace con add/remove)
       
       // 2. Regenerar daily_routes para los próximos días
-      const response = await fetch(`${API_BASE_URL}/admin/routes/regenerate-week`, {
+      const response = await fetch(`${API_BASE_URL}/admin/routes/generate-week`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
