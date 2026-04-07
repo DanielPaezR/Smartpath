@@ -411,12 +411,14 @@ const StoreVisit: React.FC = () => {
         setIsTimerRunning(true);
         initializeTasks();
         
+        // Calcular tiempo real desde start_time
         if (currentStoreVisit.start_time) {
           const startTime = new Date(currentStoreVisit.start_time);
           const now = new Date();
           const diffMs = now.getTime() - startTime.getTime();
           const minutesElapsed = Math.floor(diffMs / 60000);
           setTimeInStore(minutesElapsed);
+          console.log(`⏱️ Tiempo cargado desde start_time: ${minutesElapsed} minutos`);
         }
       }
       
@@ -535,15 +537,19 @@ const StoreVisit: React.FC = () => {
     if (!route) return;
     
     try {
-      await routeService.startVisit(
+      const response = await routeService.startVisit(
         route.id,
         route.stores[currentStoreIndex].id
       );
       
+      // Obtener el start_time de la respuesta
+      const startTime = response.startTime ? new Date(response.startTime) : new Date();
+      
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
         ...updatedStores[currentStoreIndex],
-        status: 'in-progress'
+        status: 'in-progress',
+        start_time: startTime.toISOString()  // Guardar start_time
       };
       
       setRoute({
@@ -553,6 +559,7 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(true);
       setVisitStatus('in-progress');
+      setTimeInStore(0);  // Iniciar en 0
       initializeTasks();
       
     } catch (error) {
@@ -1033,6 +1040,24 @@ const StoreVisit: React.FC = () => {
     return '#27ae60';
   };
 
+  // Formatear tiempo en formato legible (mm:ss o hh:mm:ss) - SIN padStart
+  const formatTime = (minutes: number): string => {
+    const totalSeconds = Math.floor(minutes * 60);
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    // Función manual para agregar cero a la izquierda
+    const padZero = (num: number): string => {
+      return num < 10 ? '0' + num : num.toString();
+    };
+    
+    if (hours > 0) {
+      return `${hours}h ${padZero(mins)}m ${padZero(secs)}s`;
+    }
+    return `${padZero(mins)}:${padZero(secs)}`;
+  };
+
   // Guardar estado automáticamente (incluyendo checklist)
   useEffect(() => {
     if (visitStatus === 'in-progress' && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
@@ -1127,13 +1152,47 @@ const StoreVisit: React.FC = () => {
     if (route && !hasCheckedStatus) checkVisitStatus();
   }, [route, hasCheckedStatus, checkVisitStatus]);
 
+  // Temporizador que calcula tiempo real desde start_time
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
+    
     if (isTimerRunning && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
-      timer = setInterval(() => { setTimeInStore(prev => prev + 1); }, 60000);
+      // Función para calcular tiempo real desde el inicio
+      const updateRealTime = () => {
+        if (!route || !storeVisitId) return;
+        
+        const currentStoreVisit = route.stores?.find(
+          store => store.id.toString() === storeVisitId.toString()
+        );
+        
+        if (currentStoreVisit?.start_time) {
+          const startTime = new Date(currentStoreVisit.start_time);
+          const now = new Date();
+          const diffMs = now.getTime() - startTime.getTime();
+          const minutesElapsed = Math.floor(diffMs / 60000);
+          
+          // Solo actualizar si el tiempo cambió
+          setTimeInStore(prev => {
+            if (prev !== minutesElapsed) {
+              console.log(`⏱️ Tiempo real actualizado: ${minutesElapsed} minutos`);
+              return minutesElapsed;
+            }
+            return prev;
+          });
+        }
+      };
+      
+      // Calcular inmediatamente
+      updateRealTime();
+      
+      // Actualizar cada 30 segundos (más preciso que 60)
+      timer = setInterval(updateRealTime, 30000);
     }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isTimerRunning, visitStatus]);
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isTimerRunning, visitStatus, route, storeVisitId]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -1183,7 +1242,7 @@ const StoreVisit: React.FC = () => {
             <div className="visit-status in-progress">
               <h3>🟢 Visita en Progreso</h3>
               <p>Progreso: {progressPercentage.toFixed(0)}% completado</p>
-              <p className="time-elapsed">⏱️ Tiempo: {timeInStore} minutos</p>
+              <p className="time-elapsed">⏱️ Tiempo: {formatTime(timeInStore)}</p>
             </div>
             <div className="tasks-section">
               <h3>📋 Checklist de Tareas:</h3>
@@ -1256,7 +1315,7 @@ const StoreVisit: React.FC = () => {
           <div className="time-progress-header">
             <span className="time-progress-label">⏱️ Tiempo en visita</span>
             <span className="time-progress-value">
-              {Math.floor(timeInStore / 60)}:{String(timeInStore % 60).length === 1 ? '0' + String(timeInStore % 60) : String(timeInStore % 60)}
+              {formatTime(timeInStore)}
               <span className="time-max"> / {maxTimePerStore} min</span>
             </span>
           </div>
