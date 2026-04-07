@@ -58,9 +58,9 @@ const CameraButton: React.FC<{
   maxPhotos?: number;
   disabled?: boolean;
   required?: boolean;
-  visitId?: string;  // 🆕 Necesario para guardar en IndexedDB
-  taskKey?: string;  // 🆕 Para asociar la foto a una tarea específica
-}> = ({ onCapture, existingPhotos = [], maxPhotos = 3, disabled = false, required = false, visitId, taskKey }) => {
+  visitId?: string;
+  taskKey?: string;
+}> = ({ onCapture, existingPhotos = [], maxPhotos = 6, disabled = false, required = false, visitId, taskKey }) => {
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>(existingPhotos);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -1001,7 +1001,7 @@ const StoreVisit: React.FC = () => {
               <CameraButton 
                 onCapture={(photos) => handlePhotosChange(index, photos)}
                 existingPhotos={task.photos || []}
-                maxPhotos={3}
+                maxPhotos={6}
                 disabled={task.completed}
                 required={true}
                 visitId={storeVisitId}
@@ -1302,7 +1302,7 @@ const StoreVisit: React.FC = () => {
           <div className="damage-modal">
             <h3>⚠️ Reportar Producto Dañado</h3>
             <div className="product-info"><h4>Producto: {currentProduct.name}</h4><p><strong>Código:</strong> {currentBarcode}</p><p><strong>Marca:</strong> {currentProduct.brand}</p></div>
-            <div className="modal-form-group"><label className="modal-label">📸 Fotos del daño (máx 3):</label><CameraButton onCapture={handleDamagePhotosChange} existingPhotos={damagePhotos} maxPhotos={3} disabled={loading} required={true} /></div>
+            <div className="modal-form-group"><label className="modal-label">📸 Fotos del daño (máx 6):</label><CameraButton onCapture={handleDamagePhotosChange} existingPhotos={damagePhotos} maxPhotos={3} disabled={loading} required={true} /></div>
             <div className="modal-form-group"><label className="modal-label">Tipo de Daño:</label><select value={damageType} onChange={(e) => setDamageType(e.target.value)} className="modal-select" disabled={loading}><option value="">Seleccionar tipo</option><option value="empaque_danado">Empaque dañado</option><option value="producto_vencido">Producto vencido</option><option value="producto_abierto">Producto abierto</option><option value="producto_roto">Producto roto</option><option value="otro">Otro</option></select></div>
             <div className="modal-form-group"><label className="modal-label">Severidad:</label><select value={damageSeverity} onChange={(e) => setDamageSeverity(e.target.value as 'low' | 'medium' | 'high')} className="modal-select" disabled={loading}><option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option></select></div>
             <div className="modal-form-group"><label className="modal-label">Descripción:</label><textarea value={damageDescription} onChange={(e) => setDamageDescription(e.target.value)} placeholder="Describir el daño encontrado..." className="modal-textarea" disabled={loading} rows={3} /></div>

@@ -121,6 +121,11 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }, 100);
     };
 
+    // 🆕 NUEVA FUNCIÓN: Manejar cambio de cantidad desde input numérico
+    const handleQuantityChange = (value: number) => {
+        setTempItem(prev => prev ? { ...prev, quantity: Math.max(1, value) } : null);
+    };
+
     // Finalizar y guardar todos los productos
     const handleFinish = async () => {
         if (tempItem) {
@@ -153,14 +158,6 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         } finally {
             setLoading(false);
         }
-    };
-
-    const incrementQuantity = () => {
-        setTempItem(prev => prev ? { ...prev, quantity: prev.quantity + 1 } : null);
-    };
-
-    const decrementQuantity = () => {
-        setTempItem(prev => prev ? { ...prev, quantity: Math.max(1, prev.quantity - 1) } : null);
     };
 
     const removeItem = (index: number) => {
@@ -322,22 +319,37 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     </>
                                 )}
                                 
+                                {/* 🆕 SELECTOR DE CANTIDAD CON INPUT NUMÉRICO */}
                                 <div className="quantity-selector">
                                     <span className="product-label">Cantidad:</span>
                                     <div className="quantity-controls">
                                         <button 
                                             type="button" 
                                             className="qty-btn"
-                                            onClick={decrementQuantity}
+                                            onClick={() => handleQuantityChange(tempItem.quantity - 1)}
                                             disabled={tempItem.quantity <= 1}
                                         >
                                             -
                                         </button>
-                                        <span className="quantity-value">{tempItem.quantity}</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="9999"
+                                            value={tempItem.quantity}
+                                            onChange={(e) => {
+                                                const value = parseInt(e.target.value);
+                                                if (!isNaN(value) && value >= 1) {
+                                                    handleQuantityChange(value);
+                                                } else if (e.target.value === '') {
+                                                    handleQuantityChange(1);
+                                                }
+                                            }}
+                                            className="quantity-input"
+                                        />
                                         <button 
                                             type="button" 
                                             className="qty-btn"
-                                            onClick={incrementQuantity}
+                                            onClick={() => handleQuantityChange(tempItem.quantity + 1)}
                                         >
                                             +
                                         </button>
