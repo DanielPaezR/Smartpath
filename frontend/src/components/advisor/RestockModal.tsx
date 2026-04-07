@@ -123,7 +123,9 @@ const RestockModal: React.FC<IRestockModalProps> = ({
 
     // 🆕 NUEVA FUNCIÓN: Manejar cambio de cantidad desde input numérico
     const handleQuantityChange = (value: number) => {
-        setTempItem(prev => prev ? { ...prev, quantity: Math.max(1, value) } : null);
+        // Asegurar que el valor sea válido (mínimo 1)
+        const finalValue = Math.max(1, value);
+        setTempItem(prev => prev ? { ...prev, quantity: finalValue } : null);
     };
 
     // Finalizar y guardar todos los productos
@@ -319,15 +321,18 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     </>
                                 )}
                                 
-                                {/* 🆕 SELECTOR DE CANTIDAD CON INPUT NUMÉRICO */}
+                                {/* SELECTOR DE CANTIDAD CON INPUT NUMÉRICO - VERSIÓN CORREGIDA */}
                                 <div className="quantity-selector">
                                     <span className="product-label">Cantidad:</span>
                                     <div className="quantity-controls">
                                         <button 
                                             type="button" 
                                             className="qty-btn"
-                                            onClick={() => handleQuantityChange(tempItem.quantity - 1)}
-                                            disabled={tempItem.quantity <= 1}
+                                            onClick={() => {
+                                                const newQuantity = Math.max(1, (tempItem?.quantity || 1) - 1);
+                                                handleQuantityChange(newQuantity);
+                                            }}
+                                            disabled={tempItem?.quantity <= 1}
                                         >
                                             -
                                         </button>
@@ -335,12 +340,27 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                             type="number"
                                             min="1"
                                             max="9999"
-                                            value={tempItem.quantity}
+                                            value={tempItem?.quantity || 1}
                                             onChange={(e) => {
-                                                const value = parseInt(e.target.value);
-                                                if (!isNaN(value) && value >= 1) {
-                                                    handleQuantityChange(value);
-                                                } else if (e.target.value === '') {
+                                                const value = e.target.value;
+                                                // Permitir vacío temporalmente para que el usuario pueda borrar
+                                                if (value === '') {
+                                                    setTempItem(prev => prev ? { ...prev, quantity: 0 } : null);
+                                                    return;
+                                                }
+                                                const numValue = parseInt(value);
+                                                if (!isNaN(numValue)) {
+                                                    // Si es 0 o negativo, lo dejamos como 0 temporalmente
+                                                    if (numValue <= 0) {
+                                                        setTempItem(prev => prev ? { ...prev, quantity: 0 } : null);
+                                                    } else {
+                                                        handleQuantityChange(Math.min(9999, numValue));
+                                                    }
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                // Al salir del campo, si está en 0 o vacío, poner 1
+                                                if (!tempItem || tempItem.quantity < 1) {
                                                     handleQuantityChange(1);
                                                 }
                                             }}
@@ -349,7 +369,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                         <button 
                                             type="button" 
                                             className="qty-btn"
-                                            onClick={() => handleQuantityChange(tempItem.quantity + 1)}
+                                            onClick={() => handleQuantityChange((tempItem?.quantity || 1) + 1)}
                                         >
                                             +
                                         </button>
