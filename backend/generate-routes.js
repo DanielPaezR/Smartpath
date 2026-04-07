@@ -1,5 +1,4 @@
-// /home/daniel.paez/Smartpath/backend/generate-routes.js
-import { routeGenerator } from './dist/services/routeGenerator.js';
+const { routeGenerator } = require('./src/services/routeGenerator.js');
 
 async function run() {
     try {
