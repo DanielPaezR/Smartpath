@@ -549,6 +549,9 @@ const StoreVisit: React.FC = () => {
       );
       
       const startTime = response.startTime ? new Date(response.startTime) : new Date();
+
+      // 🆕 Guardar start_time en localStorage
+      localStorage.setItem(`start_time_${route.stores[currentStoreIndex].id}`, startTime.toISOString());
       
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
@@ -850,6 +853,11 @@ const StoreVisit: React.FC = () => {
       stores: updatedStores,
       completed_stores: (route.completed_stores || 0) + 1
     });
+
+    // Limpiar start_time de localStorage
+    if (storeVisitId) {
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+    }
     
     setIsTimerRunning(false);
     setVisitStatus('completed');
@@ -878,6 +886,10 @@ const StoreVisit: React.FC = () => {
 
   const handleSkipStore = async (reason: string) => {
     if (!route) return;
+    // Limpiar start_time de localStorage
+    if (storeVisitId) {
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+    }
 
     try {
       await routeService.skipStoreVisit(
@@ -1182,6 +1194,59 @@ const StoreVisit: React.FC = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => { window.removeEventListener('beforeunload', handleBeforeUnload); };
   }, [visitStatus, tasks]);
+
+  // Recuperar start_time de localStorage al cargar (para visitas en progreso)
+  useEffect(() => {
+    const recoverStartTime = async () => {
+      if (!storeVisitId) return;
+      
+      // Si ya tenemos start_time en route, no hacer nada
+      if (currentStore?.start_time) {
+        console.log('✅ start_time ya existe en route:', currentStore.start_time);
+        return;
+      }
+      
+      // Intentar recuperar de localStorage
+      const savedStartTime = localStorage.getItem(`start_time_${storeVisitId}`);
+      if (savedStartTime) {
+        console.log('🔄 Recuperando start_time de localStorage:', savedStartTime);
+        
+        // Actualizar el route con el start_time recuperado
+        if (route) {
+          const updatedStores = [...route.stores];
+          const storeIndex = updatedStores.findIndex(s => s.id.toString() === storeVisitId.toString());
+          if (storeIndex !== -1) {
+            updatedStores[storeIndex] = {
+              ...updatedStores[storeIndex],
+              start_time: savedStartTime
+            };
+            setRoute({ ...route, stores: updatedStores });
+            
+            // Calcular tiempo transcurrido
+            const startTime = new Date(savedStartTime);
+            const now = new Date();
+            const minutesElapsed = (now.getTime() - startTime.getTime()) / 60000;
+            setTimeInMinutes(minutesElapsed);
+            console.log(`⏱️ Tiempo recuperado: ${minutesElapsed.toFixed(2)} minutos`);
+          }
+        }
+      } else {
+        // Intentar recuperar de offlineStorage
+        const saved = await offlineStorage.getVisitState(storeVisitId);
+        if (saved?.startTime) {
+          console.log('🔄 Recuperando start_time de offlineStorage:', saved.startTime);
+          localStorage.setItem(`start_time_${storeVisitId}`, saved.startTime);
+          
+          const startTime = new Date(saved.startTime);
+          const now = new Date();
+          const minutesElapsed = (now.getTime() - startTime.getTime()) / 60000;
+          setTimeInMinutes(minutesElapsed);
+        }
+      }
+    };
+    
+    recoverStartTime();
+  }, [storeVisitId, currentStore, route]);
   
   if (!route) {
     return (
