@@ -415,6 +415,15 @@ class OfflineStorageService {
         break;
     }
   }
+  async updateVisitTime(visitId: string, timeInStore: number) {
+    const db = await this.init();
+    const visit = await db.get('visits', visitId);
+    if (visit) {
+      visit.timeInStore = timeInStore;
+      visit.lastUpdate = new Date().toISOString();
+      await db.put('visits', visit);
+    }
+  }
 }
 
 export const offlineStorage = new OfflineStorageService();
