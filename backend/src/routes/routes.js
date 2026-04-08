@@ -1,4 +1,5 @@
 import express from 'express';
+import { authenticateToken } from '../middleware/auth.js';
 import { routeController } from '../controllers/routeController.js';
 import trackingRoutes from './trackingRoutes.js';
 import { productController } from '../controllers/productController.js';
