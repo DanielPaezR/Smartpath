@@ -60,41 +60,6 @@ const TaskProgress: React.FC<TaskProgressProps> = ({
         }} />
       </div>
 
-      {/* Barra de progreso de tiempo - solo si hay límite */}
-      {hasTimeLimit && (
-        <>
-          <div style={{
-            width: '100%',
-            height: '4px',
-            backgroundColor: '#e9ecef',
-            borderRadius: '2px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: `${Math.min(timePercentage, 100)}%`,
-              height: '100%',
-              backgroundColor: timeWarning ? '#dc3545' : '#ffc107',
-              transition: 'width 0.3s ease',
-              borderRadius: '2px'
-            }} />
-          </div>
-
-          {/* Etiquetas */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '12px',
-            color: '#666',
-            marginTop: '5px'
-          }}>
-            <span>Tareas: {taskPercentage.toFixed(0)}%</span>
-            <span style={{ color: timeWarning ? '#dc3545' : '#666' }}>
-              Tiempo: {timePercentage.toFixed(0)}%
-            </span>
-          </div>
-        </>
-      )}
-
       {/* Si no hay límite, solo mostrar porcentaje de tareas */}
       {!hasTimeLimit && (
         <div style={{
