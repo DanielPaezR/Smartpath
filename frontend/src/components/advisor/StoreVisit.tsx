@@ -815,29 +815,68 @@ const StoreVisit: React.FC = () => {
       return;
     }
 
-    const visitData = {
-      duration: Math.floor(timeInMinutes),
-      notes: visitNotes,
-      damageReports: damageReports,
-      signature: tasks.find(t => t.key === 'signature')?.signature,
-      routeId: route.id,
-      storeVisitId: route.stores[currentStoreIndex].id
-    };
+    // Obtener fotos de las tareas
+    const beforePhotoTask = tasks.find(t => t.key === 'evidenceBefore');
+    const afterPhotoTask = tasks.find(t => t.key === 'evidenceAfter');
+    
+    const beforePhotoData = beforePhotoTask?.photos?.[0];
+    const afterPhotoData = afterPhotoTask?.photos?.[0];
+    
+    // Crear FormData para enviar archivos
+    const formData = new FormData();
+    formData.append('routeId', route.id);
+    formData.append('storeVisitId', route.stores[currentStoreIndex].id);
+    formData.append('duration', Math.floor(timeInMinutes).toString());
+    formData.append('notes', visitNotes);
+    formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
+    
+    // Agregar fotos si existen
+    if (beforePhotoData && beforePhotoData.startsWith('data:image')) {
+      const blob = await (await fetch(beforePhotoData)).blob();
+      formData.append('beforePhoto', blob, 'before.jpg');
+    }
+    
+    if (afterPhotoData && afterPhotoData.startsWith('data:image')) {
+      const blob = await (await fetch(afterPhotoData)).blob();
+      formData.append('afterPhoto', blob, 'after.jpg');
+    }
+    
+    // Agregar firma si existe
+    const signature = tasks.find(t => t.key === 'signature')?.signature;
+    if (signature && signature.startsWith('data:image')) {
+      const blob = await (await fetch(signature)).blob();
+      formData.append('signature', blob, 'signature.png');
+    }
+    
+    // Agregar reportes de daños
+    if (damageReports.length > 0) {
+      formData.append('productsDamaged', JSON.stringify({
+        count: damageReports.length,
+        reports: damageReports
+      }));
+    }
 
-    if (isOnline) {
-      try {
-        await routeService.completeVisit(route.id, route.stores[currentStoreIndex].id, visitData);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/routes/complete-visit`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
         await finalizeVisit();
-      } catch (error) {
-        console.error('Error finalizando visita:', error);
-        await offlineStorage.queueSyncAction('visit_complete', visitData);
-        await finalizeVisit(true);
-        alert(`✅ Visita completada en modo offline. Se sincronizará cuando haya conexión.`);
+        alert('✅ Visita completada exitosamente');
+      } else {
+        throw new Error(result.message);
       }
-    } else {
-      await offlineStorage.queueSyncAction('visit_complete', visitData);
+    } catch (error) {
+      console.error('Error finalizando visita:', error);
+      alert('❌ Error al completar la visita. Los datos se guardarán localmente.');
+      await offlineStorage.queueSyncAction('visit_complete', { formData: 'pending' });
       await finalizeVisit(true);
-      alert(`✅ Visita completada en modo offline. Se sincronizará cuando haya conexión.`);
     }
   };
 

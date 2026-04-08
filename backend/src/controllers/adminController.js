@@ -1731,12 +1731,12 @@ class AdminController {
     }
   }
 
-  // Obtener fotos con filtros
+  // Obtener fotos con filtros - VERSIÓN CORREGIDA
   async getPhotos(req, res) {
     const connection = await createConnection();
     try {
       const { 
-        type,        // 'before', 'after', 'damage'
+        type,
         advisorId, 
         storeId, 
         startDate, 
@@ -1744,12 +1744,14 @@ class AdminController {
         limit = 50 
       } = req.query;
       
+      console.log('📸 Buscando fotos...');
+      
+      // Construir query
       let query = `
         SELECT 
           rs.id as visit_id,
           rs.before_photo_url,
           rs.after_photo_url,
-          rs.products_damaged,
           s.name as store_name,
           u.name as advisor_name,
           r.date,
@@ -1758,54 +1760,35 @@ class AdminController {
         JOIN routes r ON rs.route_id = r.id
         JOIN stores s ON rs.store_id = s.id
         JOIN users u ON r.advisor_id = u.id
-        WHERE 1=1
+        WHERE (rs.before_photo_url IS NOT NULL OR rs.after_photo_url IS NOT NULL)
       `;
       
-      const params = [];
-      
-      if (type === 'before') {
-        query += " AND rs.before_photo_url IS NOT NULL AND rs.before_photo_url != ''";
-      } else if (type === 'after') {
-        query += " AND rs.after_photo_url IS NOT NULL AND rs.after_photo_url != ''";
-      } else if (type === 'damage') {
-        query += " AND rs.products_damaged IS NOT NULL";
+      if (startDate && endDate) {
+        query += ` AND r.date BETWEEN '${startDate}' AND '${endDate}'`;
       }
       
-      if (advisorId) {
-        query += " AND r.advisor_id = ?";
-        params.push(advisorId);
-      }
+      query += ` ORDER BY rs.created_at DESC LIMIT ${parseInt(limit)}`;
       
-      if (storeId) {
-        query += " AND rs.store_id = ?";
-        params.push(storeId);
-      }
+      const [photos] = await connection.execute(query);
       
-      if (startDate) {
-        query += " AND r.date >= ?";
-        params.push(startDate);
-      }
+      console.log(`📸 Encontradas ${photos.length} filas con fotos`);
       
-      if (endDate) {
-        query += " AND r.date <= ?";
-        params.push(endDate);
-      }
-      
-      query += " ORDER BY rs.created_at DESC LIMIT ?";
-      params.push(parseInt(limit));
-      
-      const [photos] = await connection.execute(query, params);
-      
-      // Procesar fotos para el frontend
+      // Procesar fotos y construir URL completa
       const processedPhotos = [];
+      const baseUrl = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath';
       
       for (const photo of photos) {
         // Fotos de antes
-        if (photo.before_photo_url) {
+        if (photo.before_photo_url && photo.before_photo_url.trim() !== '') {
+          let photoUrl = photo.before_photo_url;
+          // Si no es una URL completa, construirla
+          if (!photoUrl.startsWith('http')) {
+            photoUrl = baseUrl + photoUrl;
+          }
           processedPhotos.push({
             id: photo.visit_id,
             type: 'before',
-            photo_url: photo.before_photo_url,
+            photo_url: photoUrl,
             store_name: photo.store_name,
             advisor_name: photo.advisor_name,
             date: photo.date,
@@ -1814,48 +1797,24 @@ class AdminController {
         }
         
         // Fotos de después
-        if (photo.after_photo_url) {
+        if (photo.after_photo_url && photo.after_photo_url.trim() !== '') {
+          let photoUrl = photo.after_photo_url;
+          if (!photoUrl.startsWith('http')) {
+            photoUrl = baseUrl + photoUrl;
+          }
           processedPhotos.push({
             id: photo.visit_id,
             type: 'after',
-            photo_url: photo.after_photo_url,
+            photo_url: photoUrl,
             store_name: photo.store_name,
             advisor_name: photo.advisor_name,
             date: photo.date,
             created_at: photo.created_at
           });
         }
-        
-        // Fotos de daños
-        if (photo.products_damaged) {
-          try {
-            const damages = typeof photo.products_damaged === 'string' 
-              ? JSON.parse(photo.products_damaged) 
-              : photo.products_damaged;
-              
-            if (damages && damages.reports) {
-              for (const damage of damages.reports) {
-                if (damage.photos && damage.photos.length > 0) {
-                  for (const damagePhoto of damage.photos) {
-                    processedPhotos.push({
-                      id: photo.visit_id,
-                      type: 'damage',
-                      photo_url: damagePhoto,
-                      product_name: damage.product_name,
-                      store_name: photo.store_name,
-                      advisor_name: photo.advisor_name,
-                      date: photo.date,
-                      created_at: photo.created_at
-                    });
-                  }
-                }
-              }
-            }
-          } catch(e) {
-            console.error('Error parsing damage JSON:', e);
-          }
-        }
       }
+      
+      console.log(`📸 Total fotos procesadas: ${processedPhotos.length}`);
       
       res.json({
         success: true,
@@ -1864,7 +1823,7 @@ class AdminController {
       });
       
     } catch (error) {
-      console.error('Error obteniendo fotos:', error);
+      console.error('❌ Error obteniendo fotos:', error);
       res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
