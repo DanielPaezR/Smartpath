@@ -1642,11 +1642,11 @@ class AdminController {
       
       let dateCondition = '';
       if (period === 'week') {
-        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        dateCondition = "AND rs.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
       } else if (period === 'month') {
-        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        dateCondition = "AND rs.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       } else if (period === 'quarter') {
-        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+        dateCondition = "AND rs.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
       }
       
       // 1. Tiempo promedio de visita
@@ -1669,39 +1669,31 @@ class AdminController {
         WHERE status = 'completed' AND tasks_completed > 0 ${dateCondition}
       `);
       
-      // 3. Uso de offline (datos sincronizados)
-      const [offlineMetrics] = await connection.execute(`
-        SELECT 
-          COUNT(*) as total_sync_operations,
-          AVG(retryCount) as avg_retries
-        FROM pendingSync
-      `);
-      
-      // 4. Eficiencia por asesor
+      // 3. Eficiencia por asesor
       const [advisorEfficiency] = await connection.execute(`
         SELECT 
           u.name,
           COUNT(rs.id) as visits,
           AVG(rs.actual_duration) as avg_time,
           AVG(rs.tasks_completed) as avg_tasks,
-          ROUND((SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / COUNT(rs.id), 2) as efficiency
+          ROUND((SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(rs.id), 0), 2) as efficiency
         FROM route_stores rs
         JOIN routes r ON rs.route_id = r.id
         JOIN users u ON r.advisor_id = u.id
-        WHERE rs.status = 'completed' ${dateCondition}
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
         GROUP BY u.id, u.name
         ORDER BY efficiency DESC
       `);
       
-      // 5. Actividad diaria
+      // 4. Actividad diaria
       const [dailyActivity] = await connection.execute(`
         SELECT 
-          DATE(created_at) as date,
+          DATE(rs.created_at) as date,
           COUNT(*) as visits_completed,
-          AVG(actual_duration) as avg_duration
-        FROM route_stores
-        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
-        GROUP BY DATE(created_at)
+          AVG(rs.actual_duration) as avg_duration
+        FROM route_stores rs
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
+        GROUP BY DATE(rs.created_at)
         ORDER BY date DESC
         LIMIT 30
       `);
@@ -1723,8 +1715,8 @@ class AdminController {
             avg_time_per_task: Math.round(taskMetrics[0]?.avg_time_per_task || 0)
           },
           offline: {
-            total_sync_operations: offlineMetrics[0]?.total_sync_operations || 0,
-            avg_retries: parseFloat(offlineMetrics[0]?.avg_retries || 0).toFixed(1)
+            total_sync_operations: 0,
+            avg_retries: 0
           },
           advisor_performance: advisorEfficiency,
           daily_trend: dailyActivity
@@ -1822,7 +1814,9 @@ class AdminController {
                 }
               }
             }
-          } catch(e) {}
+          } catch(e) {
+            console.error('Error parsing damage JSON:', e);
+          }
         } else {
           processedPhotos.push({
             ...photo,
