@@ -321,7 +321,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     </>
                                 )}
                                 
-                                {/* SELECTOR DE CANTIDAD CON INPUT NUMÉRICO - VERSIÓN CORREGIDA */}
+                                {/* SELECTOR DE CANTIDAD CON INPUT NUMÉRICO - CORREGIDO */}
                                 <div className="quantity-selector">
                                     <span className="product-label">Cantidad:</span>
                                     <div className="quantity-controls">
@@ -329,42 +329,41 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                             type="button" 
                                             className="qty-btn"
                                             onClick={() => {
-                                                const newQuantity = Math.max(1, (tempItem?.quantity || 1) - 1);
-                                                handleQuantityChange(newQuantity);
+                                                const currentQty = tempItem?.quantity || 1;
+                                                if (currentQty > 1) {
+                                                    handleQuantityChange(currentQty - 1);
+                                                }
                                             }}
                                             disabled={tempItem?.quantity <= 1}
                                         >
                                             -
                                         </button>
                                         <input
-                                            type="number"
-                                            min="1"
-                                            max="9999"
-                                            value={tempItem?.quantity || 1}
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={tempItem?.quantity === 0 ? '' : tempItem?.quantity || ''}
                                             onChange={(e) => {
-                                                const value = e.target.value;
-                                                // Permitir vacío temporalmente para que el usuario pueda borrar
-                                                if (value === '') {
+                                                const rawValue = e.target.value;
+                                                // Permitir campo vacío
+                                                if (rawValue === '') {
                                                     setTempItem(prev => prev ? { ...prev, quantity: 0 } : null);
                                                     return;
                                                 }
-                                                const numValue = parseInt(value);
-                                                if (!isNaN(numValue)) {
-                                                    // Si es 0 o negativo, lo dejamos como 0 temporalmente
-                                                    if (numValue <= 0) {
-                                                        setTempItem(prev => prev ? { ...prev, quantity: 0 } : null);
-                                                    } else {
-                                                        handleQuantityChange(Math.min(9999, numValue));
-                                                    }
+                                                // Validar que solo sean números
+                                                const numValue = parseInt(rawValue, 10);
+                                                if (!isNaN(numValue) && numValue >= 0) {
+                                                    setTempItem(prev => prev ? { ...prev, quantity: numValue } : null);
                                                 }
                                             }}
                                             onBlur={() => {
-                                                // Al salir del campo, si está en 0 o vacío, poner 1
+                                                // Al salir, si está vacío o es 0, poner 1
                                                 if (!tempItem || tempItem.quantity < 1) {
                                                     handleQuantityChange(1);
                                                 }
                                             }}
                                             className="quantity-input"
+                                            placeholder="1"
                                         />
                                         <button 
                                             type="button" 
