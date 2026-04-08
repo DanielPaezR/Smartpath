@@ -1842,33 +1842,64 @@ class AdminController {
 
   // Obtener métricas de rendimiento del sistema
   async getPerformanceMetrics(req, res) {
+    const connection = await createConnection();
     try {
-      // Importar os usando import dinámico
-      const os = await import('os');
-      
-      const metrics = {
-        server: {
-          uptime: process.uptime(),
-          memory: {
-            rss: process.memoryUsage().rss,
-            heapTotal: process.memoryUsage().heapTotal,
-            heapUsed: process.memoryUsage().heapUsed
-          },
-          node_version: process.version,
-          platform: process.platform,
-          cpu_count: os.cpus().length,
-          timestamp: new Date().toISOString()
+      // 1. Métricas del servidor
+      const serverMetrics = {
+        uptime: process.uptime(),
+        memory: {
+          rss: process.memoryUsage().rss,
+          heapTotal: process.memoryUsage().heapTotal,
+          heapUsed: process.memoryUsage().heapUsed
         },
-        database: {
-          size_mb: 0,
-          tables: {}
-        }
+        node_version: process.version,
+        platform: process.platform
       };
       
-      res.json({ success: true, metrics });
+      // 2. Métricas de la base de datos
+      let dbSize = 0;
+      let tableCounts = {};
+      
+      try {
+        // Tamaño de la BD
+        const [sizeResult] = await connection.execute(`
+          SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as size_mb
+          FROM information_schema.tables
+          WHERE table_schema = DATABASE()
+        `);
+        dbSize = sizeResult[0]?.size_mb || 0;
+        
+        // Conteo de registros por tabla
+        const tables = ['users', 'stores', 'routes', 'route_stores', 'restock_items', 'damage_reports'];
+        for (const table of tables) {
+          try {
+            const [result] = await connection.execute(`SELECT COUNT(*) as count FROM ${table}`);
+            tableCounts[table] = result[0]?.count || 0;
+          } catch (e) {
+            tableCounts[table] = 0;
+          }
+        }
+      } catch (dbError) {
+        console.error('Error consultando BD:', dbError.message);
+      }
+      
+      res.json({
+        success: true,
+        metrics: {
+          server: serverMetrics,
+          database: {
+            size_mb: dbSize,
+            tables: tableCounts
+          },
+          timestamp: new Date().toISOString()
+        }
+      });
+      
     } catch (error) {
-      console.error('Error obteniendo métricas de rendimiento:', error);
+      console.error('Error obteniendo métricas:', error);
       res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
     }
   }
 }
