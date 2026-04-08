@@ -1642,14 +1642,14 @@ class AdminController {
       
       let dateCondition = '';
       if (period === 'week') {
-        dateCondition = "AND rs.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
       } else if (period === 'month') {
-        dateCondition = "AND rs.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
       } else if (period === 'quarter') {
-        dateCondition = "AND rs.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
       }
       
-      // 1. Tiempo promedio de visita
+      // 1. Tiempo promedio de visita (sin rs. porque no hay alias)
       const [avgVisitTime] = await connection.execute(`
         SELECT 
           AVG(actual_duration) as avg_duration,
@@ -1680,7 +1680,7 @@ class AdminController {
         FROM route_stores rs
         JOIN routes r ON rs.route_id = r.id
         JOIN users u ON r.advisor_id = u.id
-        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition.replace(/created_at/g, 'rs.created_at')}
         GROUP BY u.id, u.name
         ORDER BY efficiency DESC
       `);
@@ -1688,12 +1688,12 @@ class AdminController {
       // 4. Actividad diaria
       const [dailyActivity] = await connection.execute(`
         SELECT 
-          DATE(rs.created_at) as date,
+          DATE(created_at) as date,
           COUNT(*) as visits_completed,
-          AVG(rs.actual_duration) as avg_duration
-        FROM route_stores rs
-        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition}
-        GROUP BY DATE(rs.created_at)
+          AVG(actual_duration) as avg_duration
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
+        GROUP BY DATE(created_at)
         ORDER BY date DESC
         LIMIT 30
       `);
