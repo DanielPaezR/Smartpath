@@ -1735,10 +1735,13 @@ class AdminController {
   async getPhotos(req, res) {
     const connection = await createConnection();
     try {
-      console.log('📸 Iniciando búsqueda de fotos...');
+      // Obtener filtros de la query string
+      const { type, advisorId, storeId, startDate, endDate, limit = 50 } = req.query;
       
-      // Consulta simple sin filtros dinámicos que causan problemas
-      const query = `
+      console.log('📸 FILTROS RECIBIDOS:', { type, advisorId, storeId, startDate, endDate, limit });
+      
+      // Construir query base
+      let query = `
         SELECT 
           rs.id as visit_id,
           rs.before_photo_url,
@@ -1752,11 +1755,44 @@ class AdminController {
         JOIN stores s ON rs.store_id = s.id
         JOIN users u ON r.advisor_id = u.id
         WHERE (rs.before_photo_url IS NOT NULL OR rs.after_photo_url IS NOT NULL)
-        ORDER BY rs.created_at DESC
-        LIMIT 50
       `;
       
-      const [photos] = await connection.execute(query);
+      const params = [];
+      
+      // Aplicar filtros
+      if (type === 'before') {
+        query += ` AND rs.before_photo_url IS NOT NULL`;
+      } else if (type === 'after') {
+        query += ` AND rs.after_photo_url IS NOT NULL`;
+      }
+      
+      if (advisorId && advisorId !== '') {
+        query += ` AND u.id = ?`;
+        params.push(advisorId);
+      }
+      
+      if (storeId && storeId !== '') {
+        query += ` AND s.id = ?`;
+        params.push(storeId);
+      }
+      
+      if (startDate && startDate !== '') {
+        query += ` AND r.date >= ?`;
+        params.push(startDate);
+      }
+      
+      if (endDate && endDate !== '') {
+        query += ` AND r.date <= ?`;
+        params.push(endDate);
+      }
+      
+      query += ` ORDER BY rs.created_at DESC LIMIT ?`;
+      params.push(parseInt(limit));
+      
+      console.log('📸 Query final:', query);
+      console.log('📸 Parámetros:', params);
+      
+      const [photos] = await connection.execute(query, params);
       
       console.log(`📸 Encontradas ${photos.length} filas con fotos`);
       
