@@ -204,15 +204,16 @@ const AdminMetrics: React.FC = () => {
       </div>
 
       <div className="metrics-grid">
-        {/* Tarjeta: Rendimiento del Servidor */}
+        {/* Tarjeta: Servidor */}
         <div className="metric-card">
           <div className="metric-icon">🖥️</div>
           <div className="metric-title">Servidor</div>
           <div className="metric-value">{formatUptime(metrics?.server.uptime || 0)}</div>
           <div className="metric-label">Tiempo activo</div>
           <div className="metric-details">
-            <span>Node: {metrics?.server.node_version}</span>
-            <span>RAM: {formatBytes(metrics?.server.memory?.heapUsed || 0)}</span>
+            <span>🔷 Node: {metrics?.server.node_version}</span>
+            <span>💾 RAM: {formatBytes(metrics?.server.memory?.heapUsed || 0)}</span>
+            <span>🖥️ Plataforma: {metrics?.server.platform}</span>
           </div>
         </div>
 
@@ -223,19 +224,21 @@ const AdminMetrics: React.FC = () => {
           <div className="metric-value">{metrics?.database.size_mb || 0} MB</div>
           <div className="metric-label">Tamaño total</div>
           <div className="metric-details">
-            <span>📦 {metrics?.database.tables?.route_stores || 0} visitas</span>
-            <span>🏪 {metrics?.database.tables?.stores || 0} tiendas</span>
+            <span>📦 Visitas: {metrics?.database.tables?.route_stores || 0}</span>
+            <span>🏪 Tiendas: {metrics?.database.tables?.stores || 0}</span>
+            <span>📋 Rutas: {metrics?.database.tables?.routes || 0}</span>
           </div>
         </div>
 
-        {/* Tarjeta: API Response Time */}
+        {/* Tarjeta: API */}
         <div className="metric-card">
           <div className="metric-icon">⚡</div>
           <div className="metric-title">API</div>
           <div className="metric-value">{formatTime(metrics?.api.avg_response_time || 0)}</div>
           <div className="metric-label">Tiempo de respuesta</div>
           <div className="metric-details">
-            <span>Última: {formatTime(metrics?.api.last_response_time || 0)}</span>
+            <span>🔄 Última: {formatTime(metrics?.api.last_response_time || 0)}</span>
+            <span>✅ Estado: {metrics?.api.avg_response_time < 100 ? 'Óptimo' : metrics?.api.avg_response_time < 300 ? 'Normal' : 'Lento'}</span>
           </div>
         </div>
 
@@ -246,54 +249,57 @@ const AdminMetrics: React.FC = () => {
           <div className="metric-value">{formatBytes(metrics?.client.storage.total || 0)}</div>
           <div className="metric-label">Total usado</div>
           <div className="metric-details">
-            <span>IndexedDB: {formatBytes(metrics?.client.storage.indexedDB || 0)}</span>
-            <span>LocalStorage: {formatBytes(metrics?.client.storage.localStorage || 0)}</span>
+            <span>📀 IndexedDB: {formatBytes(metrics?.client.storage.indexedDB || 0)}</span>
+            <span>📋 LocalStorage: {formatBytes(metrics?.client.storage.localStorage || 0)}</span>
           </div>
         </div>
 
-        {/* Tarjeta: Rendimiento Frontend */}
+        {/* Tarjeta: Carga del Aplicativo */}
         <div className="metric-card">
           <div className="metric-icon">🚀</div>
           <div className="metric-title">Carga del Aplicativo</div>
           <div className="metric-value">{formatTime(metrics?.client.performance.loadTime || 0)}</div>
           <div className="metric-label">Tiempo total de carga</div>
           <div className="metric-details">
-            <span>DOM Ready: {formatTime(metrics?.client.performance.domReady || 0)}</span>
-            <span>First Paint: {formatTime(metrics?.client.performance.firstPaint || 0)}</span>
+            <span>📄 DOM Ready: {formatTime(metrics?.client.performance.domReady || 0)}</span>
+            <span>🎨 First Paint: {formatTime(metrics?.client.performance.firstPaint || 0)}</span>
           </div>
         </div>
 
-        {/* Tarjeta: Estado de Conexión */}
+        {/* Tarjeta: Conexión */}
         <div className="metric-card">
           <div className="metric-icon">📡</div>
           <div className="metric-title">Conexión</div>
           <div className="metric-value">{metrics?.client.connection.online ? '🟢 Online' : '🔴 Offline'}</div>
           <div className="metric-label">Estado actual</div>
           <div className="metric-details">
-            <span>Tipo: {metrics?.client.connection.type || 'N/A'}</span>
-            <span>Velocidad: {metrics?.client.connection.downlink || '?'} Mbps</span>
+            <span>📶 Tipo: {metrics?.client.connection.type || 'N/A'}</span>
+            <span>⚡ Velocidad: {metrics?.client.connection.downlink || '?'} Mbps</span>
+            <span>⏱️ Latencia: {metrics?.client.connection.rtt || '?'} ms</span>
           </div>
         </div>
 
-        {/* Tarjeta: Sincronización Offline */}
+        {/* Tarjeta: Sincronización */}
         <div className="metric-card">
           <div className="metric-icon">🔄</div>
           <div className="metric-title">Sincronización</div>
           <div className="metric-value">{metrics?.client.pendingSync || 0}</div>
           <div className="metric-label">Datos pendientes</div>
           <div className="metric-details">
-            <span>Por sincronizar con servidor</span>
+            <span>⏳ Por sincronizar con servidor</span>
+            <span>✅ {metrics?.client.pendingSync === 0 ? 'Todo sincronizado' : 'Revisar conexión'}</span>
           </div>
         </div>
 
-        {/* Tarjeta: Memoria del Navegador */}
+        {/* Tarjeta: Rendimiento */}
         <div className="metric-card">
           <div className="metric-icon">🧠</div>
           <div className="metric-title">Rendimiento</div>
           <div className="metric-value">{formatBytes(metrics?.client.storage.indexedDB || 0)}</div>
           <div className="metric-label">Cache local</div>
           <div className="metric-details">
-            <span>Última medición: {new Date(metrics?.timestamp || '').toLocaleTimeString()}</span>
+            <span>⏰ Última medición: {new Date(metrics?.timestamp || '').toLocaleTimeString()}</span>
+            <span>📊 Estado: {metrics?.client.storage.indexedDB > 50 * 1024 * 1024 ? 'Alto' : 'Normal'}</span>
           </div>
         </div>
       </div>
