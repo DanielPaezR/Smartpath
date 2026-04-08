@@ -1634,6 +1634,217 @@ class AdminController {
       await connection.end();
     }
   }
+
+  async getSystemMetrics(req, res) {
+    const connection = await createConnection();
+    try {
+      const { period = 'month' } = req.query;
+      
+      let dateCondition = '';
+      if (period === 'week') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+      } else if (period === 'month') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      } else if (period === 'quarter') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+      }
+      
+      // 1. Tiempo promedio de visita
+      const [avgVisitTime] = await connection.execute(`
+        SELECT 
+          AVG(actual_duration) as avg_duration,
+          COUNT(*) as total_visits,
+          AVG(CASE WHEN actual_duration <= 40 THEN actual_duration END) as efficient_avg,
+          SUM(CASE WHEN actual_duration <= 40 THEN 1 ELSE 0 END) as efficient_visits
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
+      `);
+      
+      // 2. Tiempo promedio por tarea
+      const [taskMetrics] = await connection.execute(`
+        SELECT 
+          AVG(tasks_completed) as avg_tasks_completed,
+          AVG(actual_duration / NULLIF(tasks_completed, 0)) as avg_time_per_task
+        FROM route_stores
+        WHERE status = 'completed' AND tasks_completed > 0 ${dateCondition}
+      `);
+      
+      // 3. Uso de offline (datos sincronizados)
+      const [offlineMetrics] = await connection.execute(`
+        SELECT 
+          COUNT(*) as total_sync_operations,
+          AVG(retryCount) as avg_retries
+        FROM pendingSync
+      `);
+      
+      // 4. Eficiencia por asesor
+      const [advisorEfficiency] = await connection.execute(`
+        SELECT 
+          u.name,
+          COUNT(rs.id) as visits,
+          AVG(rs.actual_duration) as avg_time,
+          AVG(rs.tasks_completed) as avg_tasks,
+          ROUND((SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / COUNT(rs.id), 2) as efficiency
+        FROM route_stores rs
+        JOIN routes r ON rs.route_id = r.id
+        JOIN users u ON r.advisor_id = u.id
+        WHERE rs.status = 'completed' ${dateCondition}
+        GROUP BY u.id, u.name
+        ORDER BY efficiency DESC
+      `);
+      
+      // 5. Actividad diaria
+      const [dailyActivity] = await connection.execute(`
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as visits_completed,
+          AVG(actual_duration) as avg_duration
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+        LIMIT 30
+      `);
+      
+      res.json({
+        success: true,
+        metrics: {
+          visits: {
+            total: avgVisitTime[0]?.total_visits || 0,
+            efficient: avgVisitTime[0]?.efficient_visits || 0,
+            efficiency_rate: avgVisitTime[0]?.total_visits > 0 
+              ? ((avgVisitTime[0].efficient_visits / avgVisitTime[0].total_visits) * 100).toFixed(2)
+              : 0,
+            avg_duration: Math.round(avgVisitTime[0]?.avg_duration || 0),
+            efficient_avg: Math.round(avgVisitTime[0]?.efficient_avg || 0)
+          },
+          tasks: {
+            avg_completed: parseFloat(taskMetrics[0]?.avg_tasks_completed || 0).toFixed(1),
+            avg_time_per_task: Math.round(taskMetrics[0]?.avg_time_per_task || 0)
+          },
+          offline: {
+            total_sync_operations: offlineMetrics[0]?.total_sync_operations || 0,
+            avg_retries: parseFloat(offlineMetrics[0]?.avg_retries || 0).toFixed(1)
+          },
+          advisor_performance: advisorEfficiency,
+          daily_trend: dailyActivity
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error obteniendo métricas del sistema:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Obtener fotos con filtros
+  async getPhotos(req, res) {
+    const connection = await createConnection();
+    try {
+      const { 
+        type,        // 'before', 'after', 'damage'
+        advisorId, 
+        storeId, 
+        startDate, 
+        endDate,
+        limit = 50 
+      } = req.query;
+      
+      let query = `
+        SELECT 
+          rs.id as visit_id,
+          rs.before_photo_url,
+          rs.after_photo_url,
+          rs.products_damaged,
+          s.name as store_name,
+          u.name as advisor_name,
+          r.date,
+          rs.created_at
+        FROM route_stores rs
+        JOIN routes r ON rs.route_id = r.id
+        JOIN stores s ON rs.store_id = s.id
+        JOIN users u ON r.advisor_id = u.id
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      
+      if (type === 'before') {
+        query += " AND rs.before_photo_url IS NOT NULL AND rs.before_photo_url != ''";
+      } else if (type === 'after') {
+        query += " AND rs.after_photo_url IS NOT NULL AND rs.after_photo_url != ''";
+      } else if (type === 'damage') {
+        query += " AND rs.products_damaged IS NOT NULL";
+      }
+      
+      if (advisorId) {
+        query += " AND r.advisor_id = ?";
+        params.push(advisorId);
+      }
+      
+      if (storeId) {
+        query += " AND rs.store_id = ?";
+        params.push(storeId);
+      }
+      
+      if (startDate) {
+        query += " AND r.date >= ?";
+        params.push(startDate);
+      }
+      
+      if (endDate) {
+        query += " AND r.date <= ?";
+        params.push(endDate);
+      }
+      
+      query += " ORDER BY rs.created_at DESC LIMIT ?";
+      params.push(parseInt(limit));
+      
+      const [photos] = await connection.execute(query, params);
+      
+      // Procesar daños para extraer fotos
+      const processedPhotos = [];
+      for (const photo of photos) {
+        if (photo.products_damaged) {
+          try {
+            const damages = JSON.parse(photo.products_damaged);
+            if (damages.reports) {
+              for (const damage of damages.reports) {
+                if (damage.photos && damage.photos.length > 0) {
+                  processedPhotos.push({
+                    ...photo,
+                    damage_photos: damage.photos,
+                    damage_product: damage.product_name,
+                    type: 'damage'
+                  });
+                }
+              }
+            }
+          } catch(e) {}
+        } else {
+          processedPhotos.push({
+            ...photo,
+            type: photo.before_photo_url ? 'before' : 'after',
+            photo_url: photo.before_photo_url || photo.after_photo_url
+          });
+        }
+      }
+      
+      res.json({
+        success: true,
+        photos: processedPhotos,
+        total: processedPhotos.length
+      });
+      
+    } catch (error) {
+      console.error('Error obteniendo fotos:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 export default new AdminController();

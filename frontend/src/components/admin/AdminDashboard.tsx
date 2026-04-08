@@ -226,6 +226,32 @@ const AdminDashboard: React.FC = () => {
             />
 
             <DashboardCard 
+              icon="📊"
+              title="Métricas del Sistema" 
+              description="Tiempos de respuesta, eficiencia y rendimiento del sistema"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/metrics-system');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
+            />
+
+            <DashboardCard 
+              icon="📸"
+              title="Galería de Fotos" 
+              description="Visualiza fotos de antes, después y productos dañados"
+              onClick={() => {
+                if (backendAvailable) {
+                  navigate('/admin/photo-gallery');
+                } else {
+                  alert('Esta función requiere que el backend esté disponible');
+                }
+              }}
+            />
+            
+            <DashboardCard 
               icon="🤖"
               title="Machine Learning" 
               description="Visualiza datos para entrenamiento del modelo de optimización"

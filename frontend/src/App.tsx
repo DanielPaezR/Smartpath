@@ -17,6 +17,8 @@ import InstallPWA from './components/common/InstallPWA';
 import './App.css';
 import AdvisorMetrics from './components/advisor/AdvisorMetrics';
 import MLDataDashboard from './components/admin/MLDataDashboard';
+import AdminMetrics from './components/admin/AdminMetrics';
+import PhotoGallery from './components/admin/PhotoGallery';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -139,6 +141,18 @@ function App() {
             <Route path="/admin/ml-dashboard" element={
               <AdminRoute>
                 <MLDataDashboard />
+              </AdminRoute>
+            } />
+
+            <Route path="/admin/metrics-system" element={
+              <AdminRoute>
+                <AdminMetrics />
+              </AdminRoute>
+            } />
+
+            <Route path="/admin/photo-gallery" element={
+              <AdminRoute>
+                <PhotoGallery />
               </AdminRoute>
             } />
 

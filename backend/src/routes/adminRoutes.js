@@ -21,6 +21,8 @@ router.get('/advisors', adminController.getAllAdvisors);
 router.get('/advisors/:id', adminController.getAdvisorById);
 router.get('/reports/damage', adminController.getDamageReports);
 router.get('/metrics/advanced', adminController.getAdvancedMetrics);
+router.get('/metrics/system', adminController.getSystemMetrics);
+router.get('/photos', adminController.getPhotos);
 
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
 
