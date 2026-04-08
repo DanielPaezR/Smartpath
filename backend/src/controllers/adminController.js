@@ -1796,33 +1796,64 @@ class AdminController {
       
       const [photos] = await connection.execute(query, params);
       
-      // Procesar daños para extraer fotos
+      // Procesar fotos para el frontend
       const processedPhotos = [];
+      
       for (const photo of photos) {
+        // Fotos de antes
+        if (photo.before_photo_url) {
+          processedPhotos.push({
+            id: photo.visit_id,
+            type: 'before',
+            photo_url: photo.before_photo_url,
+            store_name: photo.store_name,
+            advisor_name: photo.advisor_name,
+            date: photo.date,
+            created_at: photo.created_at
+          });
+        }
+        
+        // Fotos de después
+        if (photo.after_photo_url) {
+          processedPhotos.push({
+            id: photo.visit_id,
+            type: 'after',
+            photo_url: photo.after_photo_url,
+            store_name: photo.store_name,
+            advisor_name: photo.advisor_name,
+            date: photo.date,
+            created_at: photo.created_at
+          });
+        }
+        
+        // Fotos de daños
         if (photo.products_damaged) {
           try {
-            const damages = JSON.parse(photo.products_damaged);
-            if (damages.reports) {
+            const damages = typeof photo.products_damaged === 'string' 
+              ? JSON.parse(photo.products_damaged) 
+              : photo.products_damaged;
+              
+            if (damages && damages.reports) {
               for (const damage of damages.reports) {
                 if (damage.photos && damage.photos.length > 0) {
-                  processedPhotos.push({
-                    ...photo,
-                    damage_photos: damage.photos,
-                    damage_product: damage.product_name,
-                    type: 'damage'
-                  });
+                  for (const damagePhoto of damage.photos) {
+                    processedPhotos.push({
+                      id: photo.visit_id,
+                      type: 'damage',
+                      photo_url: damagePhoto,
+                      product_name: damage.product_name,
+                      store_name: photo.store_name,
+                      advisor_name: photo.advisor_name,
+                      date: photo.date,
+                      created_at: photo.created_at
+                    });
+                  }
                 }
               }
             }
           } catch(e) {
             console.error('Error parsing damage JSON:', e);
           }
-        } else {
-          processedPhotos.push({
-            ...photo,
-            type: photo.before_photo_url ? 'before' : 'after',
-            photo_url: photo.before_photo_url || photo.after_photo_url
-          });
         }
       }
       
