@@ -1762,7 +1762,7 @@ class AdminController {
       
       // Procesar fotos
       const processedPhotos = [];
-      const baseUrl = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath';
+      const baseUrl = 'http://localhost:10000';
       
       for (const photo of photos) {
         if (photo.before_photo_url && photo.before_photo_url.trim() !== '') {

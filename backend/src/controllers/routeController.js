@@ -626,9 +626,9 @@ export const routeController = {
     try {
       // Obtener datos del body y archivos
       const { routeId, storeVisitId, duration, notes, tasksCompleted, productsDamaged } = req.body;
-      const beforePhotoFile = req.file; // Esto requiere multer
       
       console.log('📸 Datos recibidos:', { routeId, storeVisitId, duration, notes, tasksCompleted });
+      console.log('📸 Archivos recibidos:', req.files ? Object.keys(req.files) : 'ninguno');
       
       if (!routeId || !storeVisitId) {
         return res.status(400).json({ 
@@ -649,21 +649,18 @@ export const routeController = {
 
       const status = normalizeStatus('completed', 'route_stores');
       
-      // Guardar URL de la foto si se subió
+      // Guardar URL de las fotos en la estructura correcta con subcarpetas
       let beforePhotoUrl = null;
       let afterPhotoUrl = null;
       
-      if (req.file) {
-        beforePhotoUrl = `/uploads/${req.file.filename}`;
-      }
-      
-      // Si hay más archivos, ajustar según los campos
       if (req.files) {
-        if (req.files.beforePhoto) {
-          beforePhotoUrl = `/uploads/${req.files.beforePhoto[0].filename}`;
+        if (req.files.beforePhoto && req.files.beforePhoto[0]) {
+          beforePhotoUrl = `/uploads/photos/before/${req.files.beforePhoto[0].filename}`;
+          console.log('📸 Foto BEFORE guardada:', beforePhotoUrl);
         }
-        if (req.files.afterPhoto) {
-          afterPhotoUrl = `/uploads/${req.files.afterPhoto[0].filename}`;
+        if (req.files.afterPhoto && req.files.afterPhoto[0]) {
+          afterPhotoUrl = `/uploads/photos/after/${req.files.afterPhoto[0].filename}`;
+          console.log('📸 Foto AFTER guardada:', afterPhotoUrl);
         }
       }
       
