@@ -1735,13 +1735,12 @@ class AdminController {
   async getPhotos(req, res) {
     const connection = await createConnection();
     try {
-      // Obtener filtros de la query string
       const { type, advisorId, storeId, startDate, endDate, limit = 50 } = req.query;
       
-      console.log('📸 FILTROS RECIBIDOS:', { type, advisorId, storeId, startDate, endDate, limit });
+      console.log('📸 Filtros:', { type, advisorId, storeId, startDate, endDate });
       
-      // Construir query base
-      let query = `
+      // Construir consulta de forma segura
+      let sql = `
         SELECT 
           rs.id as visit_id,
           rs.before_photo_url,
@@ -1754,62 +1753,56 @@ class AdminController {
         JOIN routes r ON rs.route_id = r.id
         JOIN stores s ON rs.store_id = s.id
         JOIN users u ON r.advisor_id = u.id
-        WHERE (rs.before_photo_url IS NOT NULL OR rs.after_photo_url IS NOT NULL)
+        WHERE 1=1
       `;
       
-      const params = [];
-      
-      // Aplicar filtros
+      // Aplicar filtros de forma simple
       if (type === 'before') {
-        query += ` AND rs.before_photo_url IS NOT NULL`;
+        sql += ` AND rs.before_photo_url IS NOT NULL AND rs.before_photo_url != ''`;
       } else if (type === 'after') {
-        query += ` AND rs.after_photo_url IS NOT NULL`;
+        sql += ` AND rs.after_photo_url IS NOT NULL AND rs.after_photo_url != ''`;
+      } else {
+        sql += ` AND (rs.before_photo_url IS NOT NULL OR rs.after_photo_url IS NOT NULL)`;
       }
       
       if (advisorId && advisorId !== '') {
-        query += ` AND u.id = ?`;
-        params.push(advisorId);
+        sql += ` AND u.id = ${parseInt(advisorId)}`;
       }
       
       if (storeId && storeId !== '') {
-        query += ` AND s.id = ?`;
-        params.push(storeId);
+        sql += ` AND s.id = ${parseInt(storeId)}`;
       }
       
       if (startDate && startDate !== '') {
-        query += ` AND r.date >= ?`;
-        params.push(startDate);
+        sql += ` AND r.date >= '${startDate}'`;
       }
       
       if (endDate && endDate !== '') {
-        query += ` AND r.date <= ?`;
-        params.push(endDate);
+        sql += ` AND r.date <= '${endDate}'`;
       }
       
-      query += ` ORDER BY rs.created_at DESC LIMIT ?`;
-      params.push(parseInt(limit));
+      sql += ` ORDER BY rs.created_at DESC LIMIT ${parseInt(limit)}`;
       
-      console.log('📸 Query final:', query);
-      console.log('📸 Parámetros:', params);
+      console.log('📸 SQL:', sql);
       
-      const [photos] = await connection.execute(query, params);
+      const [photos] = await connection.execute(sql);
       
-      console.log(`📸 Encontradas ${photos.length} filas con fotos`);
+      console.log(`📸 Encontradas ${photos.length} fotos`);
       
-      // Procesar fotos
+      // Procesar resultados
       const processedPhotos = [];
       const baseUrl = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath';
       
       for (const photo of photos) {
-        if (photo.before_photo_url && photo.before_photo_url.trim() !== '') {
-          let photoUrl = photo.before_photo_url;
-          if (!photoUrl.startsWith('http')) {
-            photoUrl = baseUrl + (photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl);
+        if (photo.before_photo_url && photo.before_photo_url.trim()) {
+          let url = photo.before_photo_url;
+          if (!url.startsWith('http')) {
+            url = baseUrl + (url.startsWith('/') ? url : '/' + url);
           }
           processedPhotos.push({
             id: photo.visit_id,
             type: 'before',
-            photo_url: photoUrl,
+            photo_url: url,
             store_name: photo.store_name,
             advisor_name: photo.advisor_name,
             date: photo.date,
@@ -1817,15 +1810,15 @@ class AdminController {
           });
         }
         
-        if (photo.after_photo_url && photo.after_photo_url.trim() !== '') {
-          let photoUrl = photo.after_photo_url;
-          if (!photoUrl.startsWith('http')) {
-            photoUrl = baseUrl + (photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl);
+        if (photo.after_photo_url && photo.after_photo_url.trim()) {
+          let url = photo.after_photo_url;
+          if (!url.startsWith('http')) {
+            url = baseUrl + (url.startsWith('/') ? url : '/' + url);
           }
           processedPhotos.push({
             id: photo.visit_id,
             type: 'after',
-            photo_url: photoUrl,
+            photo_url: url,
             store_name: photo.store_name,
             advisor_name: photo.advisor_name,
             date: photo.date,
@@ -1834,16 +1827,10 @@ class AdminController {
         }
       }
       
-      console.log(`📸 Total fotos procesadas: ${processedPhotos.length}`);
-      
-      res.json({
-        success: true,
-        photos: processedPhotos,
-        total: processedPhotos.length
-      });
+      res.json({ success: true, photos: processedPhotos, total: processedPhotos.length });
       
     } catch (error) {
-      console.error('❌ Error obteniendo fotos:', error);
+      console.error('❌ Error:', error);
       res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
