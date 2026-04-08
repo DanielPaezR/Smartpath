@@ -36,10 +36,13 @@ router.delete('/advisors/:advisorId/schedule/:scheduleId', adminController.remov
 router.put('/advisors/:advisorId/schedule/order', adminController.updateScheduleOrder);
 router.get('/stores/simple', adminController.getAllStoresSimple);
 router.get('/ml/metrics', adminController.getMLMetrics);
+// Agregar esta línea en adminRoutes.js
+router.get('/advisor/visit-notes', authenticateToken, adminController.getVisitNotes);
+router.get('/advisors/:advisorId/weekly-pattern', adminController.getWeeklyPattern);
 
 // Generar rutas diarias
 router.post('/routes/generate-daily', adminController.generateDailyRoutes);
 router.post('/routes/generate-week', adminController.generateWeekRoutes);
-router.get('/advisors/:advisorId/weekly-pattern', adminController.getWeeklyPattern);
+
 
 export default router;
