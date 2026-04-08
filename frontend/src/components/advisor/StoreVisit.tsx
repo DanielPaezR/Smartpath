@@ -270,7 +270,7 @@ const StoreVisit: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
-  const [maxTimePerStore, setMaxTimePerStore] = useState(40);
+
 
   // Estados de visita
   const [visitStatus, setVisitStatus] = useState<'pending' | 'in-progress' | 'in_progress' | 'completed' | 'skipped'>('pending');
@@ -1044,12 +1044,8 @@ const StoreVisit: React.FC = () => {
   const totalTasks = tasks.length;
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  const getTimeColor = (time: number, maxTime: number = 40) => {
-    const percentage = (time / maxTime) * 100;
-    if (percentage >= 100) return '#e74c3c';
-    if (percentage >= 80) return '#f39c12';
-    if (percentage >= 50) return '#3498db';
-    return '#27ae60';
+  const getTimeColor = () => {
+    return '#27ae60'; // Siempre verde
   };
 
   // Guardar estado automáticamente
@@ -1351,47 +1347,25 @@ const StoreVisit: React.FC = () => {
           🗺️ Navegar a Tienda
         </button>
         
+        {/* Barra de progreso de tiempo - SIN LÍMITE */}
         <div className="time-progress-container">
           <div className="time-progress-header">
             <span className="time-progress-label">⏱️ Tiempo en visita</span>
             <span className="time-progress-value">
               {formatTime(timeInMinutes)}
-              <span className="time-max"> / {maxTimePerStore} min</span>
             </span>
           </div>
-          <div className="time-progress-bar-bg">
-            <div 
-              className="time-progress-bar-fill"
-              style={{ 
-                width: `${Math.min(100, (timeInMinutes / maxTimePerStore) * 100)}%`,
-                backgroundColor: getTimeColor(timeInMinutes, maxTimePerStore)
-              }}
-            />
+          <div className="time-info" style={{ textAlign: 'center', marginTop: '8px', fontSize: '12px', color: '#666' }}>
+            Registrando tiempo real para análisis de eficiencia
           </div>
-          {timeInMinutes >= maxTimePerStore - 5 && timeInMinutes < maxTimePerStore && (
-            <div className="time-warning-soft">
-              ⚠️ Quedan {maxTimePerStore - Math.floor(timeInMinutes)} minutos para completar la visita
-            </div>
-          )}
-          {timeInMinutes >= maxTimePerStore && (
-            <div className="time-warning-hard">
-              ⏰ Has excedido el tiempo recomendado de {maxTimePerStore} minutos
-            </div>
-          )}
         </div>
         
         <TaskProgress 
           completed={completedTasks}
           total={totalTasks}
           timeElapsed={Math.floor(timeInMinutes)}
-          maxTime={maxTimePerStore}
         />
         
-        {timeInMinutes >= maxTimePerStore && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && (
-          <div className="time-warning">
-            ⚠️ Has excedido el tiempo máximo
-          </div>
-        )}
       </header>
 
       {renderVisitContent()}

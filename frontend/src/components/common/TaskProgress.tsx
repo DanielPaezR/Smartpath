@@ -5,7 +5,7 @@ interface TaskProgressProps {
   completed: number;
   total: number;
   timeElapsed: number;
-  maxTime: number;
+  maxTime?: number;
 }
 
 const TaskProgress: React.FC<TaskProgressProps> = ({
@@ -15,8 +15,18 @@ const TaskProgress: React.FC<TaskProgressProps> = ({
   maxTime
 }) => {
   const taskPercentage = total > 0 ? (completed / total) * 100 : 0;
-  const timePercentage = (timeElapsed / maxTime) * 100;
-  const timeWarning = timeElapsed >= maxTime;
+  
+  // Función manual para formatear tiempo (mm:ss)
+  const formatTime = (minutes: number): string => {
+    const mins = Math.floor(minutes);
+    const secs = Math.floor((minutes % 1) * 60);
+    const padZero = (num: number): string => num < 10 ? '0' + num : num.toString();
+    return `${padZero(mins)}:${padZero(secs)}`;
+  };
+  
+  const hasTimeLimit = maxTime !== undefined && maxTime > 0;
+  const timePercentage = hasTimeLimit ? (timeElapsed / maxTime) * 100 : 0;
+  const timeWarning = hasTimeLimit && timeElapsed >= maxTime;
 
   return (
     <div style={{ marginTop: '15px' }}>
@@ -28,7 +38,7 @@ const TaskProgress: React.FC<TaskProgressProps> = ({
         marginBottom: '10px',
         color: '#555'
       }}>
-        <span>⏱️ {timeElapsed}/{maxTime} min</span>
+        <span>⏱️ Tiempo: {formatTime(timeElapsed)}</span>
         <span>📊 {completed}/{total} tareas</span>
       </div>
 
@@ -50,36 +60,53 @@ const TaskProgress: React.FC<TaskProgressProps> = ({
         }} />
       </div>
 
-      {/* Barra de progreso de tiempo */}
-      <div style={{
-        width: '100%',
-        height: '4px',
-        backgroundColor: '#e9ecef',
-        borderRadius: '2px',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          width: `${Math.min(timePercentage, 100)}%`,
-          height: '100%',
-          backgroundColor: timeWarning ? '#dc3545' : '#ffc107',
-          transition: 'width 0.3s ease',
-          borderRadius: '2px'
-        }} />
-      </div>
+      {/* Barra de progreso de tiempo - solo si hay límite */}
+      {hasTimeLimit && (
+        <>
+          <div style={{
+            width: '100%',
+            height: '4px',
+            backgroundColor: '#e9ecef',
+            borderRadius: '2px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${Math.min(timePercentage, 100)}%`,
+              height: '100%',
+              backgroundColor: timeWarning ? '#dc3545' : '#ffc107',
+              transition: 'width 0.3s ease',
+              borderRadius: '2px'
+            }} />
+          </div>
 
-      {/* Etiquetas */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: '12px',
-        color: '#666',
-        marginTop: '5px'
-      }}>
-        <span>Tareas: {taskPercentage.toFixed(0)}%</span>
-        <span style={{ color: timeWarning ? '#dc3545' : '#666' }}>
-          Tiempo: {timePercentage.toFixed(0)}%
-        </span>
-      </div>
+          {/* Etiquetas */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '12px',
+            color: '#666',
+            marginTop: '5px'
+          }}>
+            <span>Tareas: {taskPercentage.toFixed(0)}%</span>
+            <span style={{ color: timeWarning ? '#dc3545' : '#666' }}>
+              Tiempo: {timePercentage.toFixed(0)}%
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Si no hay límite, solo mostrar porcentaje de tareas */}
+      {!hasTimeLimit && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          fontSize: '12px',
+          color: '#666',
+          marginTop: '5px'
+        }}>
+          <span>Tareas: {taskPercentage.toFixed(0)}%</span>
+        </div>
+      )}
     </div>
   );
 };
