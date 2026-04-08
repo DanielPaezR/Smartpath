@@ -363,7 +363,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                                 }
                                             }}
                                             className="quantity-input"
-                                            placeholder="1"
+                                            placeholder="0"
                                         />
                                         <button 
                                             type="button" 
