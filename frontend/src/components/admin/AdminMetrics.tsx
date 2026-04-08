@@ -61,10 +61,11 @@ const AdminMetrics: React.FC = () => {
   };
 
   const formatTime = (minutes: number) => {
-    if (minutes < 60) return `${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}min`;
+    const mins = typeof minutes === 'number' ? minutes : parseFloat(minutes || 0);
+    if (mins < 60) return `${Math.round(mins)} min`;
+    const hours = Math.floor(mins / 60);
+    const restMins = Math.round(mins % 60);
+    return `${hours}h ${restMins}min`;
   };
 
   if (loading) return <div className="admin-metrics-loading">Cargando métricas del sistema...</div>;
@@ -132,7 +133,7 @@ const AdminMetrics: React.FC = () => {
                     <td>{advisor.name}</td>
                     <td>{advisor.visits}</td>
                     <td>{formatTime(advisor.avg_time)}</td>
-                    <td>{advisor.avg_tasks.toFixed(1)}</td>
+                    <td>{typeof advisor.avg_tasks === 'number' ? advisor.avg_tasks.toFixed(1) : parseFloat(advisor.avg_tasks || 0).toFixed(1)}</td>
                     <td>{advisor.efficiency}%</td>
                     <td>
                       <div className="efficiency-bar">
