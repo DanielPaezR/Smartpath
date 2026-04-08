@@ -1739,7 +1739,6 @@ class AdminController {
       
       console.log('📸 Filtros:', { type, advisorId, storeId, startDate, endDate });
       
-      // Construir consulta de forma segura
       let sql = `
         SELECT 
           rs.id as visit_id,
@@ -1756,13 +1755,7 @@ class AdminController {
         WHERE 1=1
       `;
       
-      // Aplicar filtros de forma simple
-      if (type === 'before') {
-        sql += ` AND rs.before_photo_url IS NOT NULL AND rs.before_photo_url != ''`;
-      } else if (type === 'after') {
-        sql += ` AND rs.after_photo_url IS NOT NULL AND rs.after_photo_url != ''`;
-      }
-      
+      // Filtros
       if (advisorId && advisorId !== '') {
         sql += ` AND u.id = ${parseInt(advisorId)}`;
       }
@@ -1785,14 +1778,15 @@ class AdminController {
       
       const [photos] = await connection.execute(sql);
       
-      console.log(`📸 Encontradas ${photos.length} fotos`);
+      console.log(`📸 Encontradas ${photos.length} filas`);
       
-      // Procesar resultados
+      // Procesar fotos - CADA FOTO ES UN ELEMENTO INDEPENDIENTE
       const processedPhotos = [];
       const baseUrl = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath';
       
       for (const photo of photos) {
-        if (photo.before_photo_url && photo.before_photo_url.trim()) {
+        // Si el filtro es 'before' o no hay filtro, agregar foto de before
+        if ((!type || type === 'all' || type === 'before') && photo.before_photo_url && photo.before_photo_url.trim()) {
           let url = photo.before_photo_url;
           if (!url.startsWith('http')) {
             url = baseUrl + (url.startsWith('/') ? url : '/' + url);
@@ -1808,7 +1802,8 @@ class AdminController {
           });
         }
         
-        if (photo.after_photo_url && photo.after_photo_url.trim()) {
+        // Si el filtro es 'after' o no hay filtro, agregar foto de after
+        if ((!type || type === 'all' || type === 'after') && photo.after_photo_url && photo.after_photo_url.trim()) {
           let url = photo.after_photo_url;
           if (!url.startsWith('http')) {
             url = baseUrl + (url.startsWith('/') ? url : '/' + url);
@@ -1825,7 +1820,13 @@ class AdminController {
         }
       }
       
-      res.json({ success: true, photos: processedPhotos, total: processedPhotos.length });
+      console.log(`📸 Total fotos procesadas: ${processedPhotos.length}`);
+      
+      res.json({
+        success: true,
+        photos: processedPhotos,
+        total: processedPhotos.length
+      });
       
     } catch (error) {
       console.error('❌ Error:', error);
