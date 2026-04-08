@@ -1731,23 +1731,14 @@ class AdminController {
     }
   }
 
-  // Obtener fotos con filtros - VERSIÓN CORREGIDA
+  // Obtener fotos - VERSIÓN ULTRA SIMPLIFICADA
   async getPhotos(req, res) {
     const connection = await createConnection();
     try {
-      const { 
-        type,
-        advisorId, 
-        storeId, 
-        startDate, 
-        endDate,
-        limit = 50 
-      } = req.query;
+      console.log('📸 Iniciando búsqueda de fotos...');
       
-      console.log('📸 Buscando fotos...');
-      
-      // Construir query
-      let query = `
+      // Consulta simple sin filtros dinámicos que causan problemas
+      const query = `
         SELECT 
           rs.id as visit_id,
           rs.before_photo_url,
@@ -1761,29 +1752,23 @@ class AdminController {
         JOIN stores s ON rs.store_id = s.id
         JOIN users u ON r.advisor_id = u.id
         WHERE (rs.before_photo_url IS NOT NULL OR rs.after_photo_url IS NOT NULL)
+        ORDER BY rs.created_at DESC
+        LIMIT 50
       `;
-      
-      if (startDate && endDate) {
-        query += ` AND r.date BETWEEN '${startDate}' AND '${endDate}'`;
-      }
-      
-      query += ` ORDER BY rs.created_at DESC LIMIT ${parseInt(limit)}`;
       
       const [photos] = await connection.execute(query);
       
       console.log(`📸 Encontradas ${photos.length} filas con fotos`);
       
-      // Procesar fotos y construir URL completa
+      // Procesar fotos
       const processedPhotos = [];
       const baseUrl = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath';
       
       for (const photo of photos) {
-        // Fotos de antes
         if (photo.before_photo_url && photo.before_photo_url.trim() !== '') {
           let photoUrl = photo.before_photo_url;
-          // Si no es una URL completa, construirla
           if (!photoUrl.startsWith('http')) {
-            photoUrl = baseUrl + photoUrl;
+            photoUrl = baseUrl + (photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl);
           }
           processedPhotos.push({
             id: photo.visit_id,
@@ -1796,11 +1781,10 @@ class AdminController {
           });
         }
         
-        // Fotos de después
         if (photo.after_photo_url && photo.after_photo_url.trim() !== '') {
           let photoUrl = photo.after_photo_url;
           if (!photoUrl.startsWith('http')) {
-            photoUrl = baseUrl + photoUrl;
+            photoUrl = baseUrl + (photoUrl.startsWith('/') ? photoUrl : '/' + photoUrl);
           }
           processedPhotos.push({
             id: photo.visit_id,
