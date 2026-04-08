@@ -1635,56 +1635,96 @@ class AdminController {
     }
   }
 
-  async getPerformanceMetrics(req, res) {
+  async getSystemMetrics(req, res) {
     const connection = await createConnection();
     try {
-      // 1. Métricas del servidor
-      const serverMetrics = {
-        uptime: process.uptime(),
-        memory: {
-          rss: process.memoryUsage().rss,
-          heapTotal: process.memoryUsage().heapTotal,
-          heapUsed: process.memoryUsage().heapUsed,
-          external: process.memoryUsage().external
-        },
-        node_version: process.version,
-        platform: process.platform,
-        cpu_count: require('os').cpus().length
-      };
+      const { period = 'month' } = req.query;
       
-      // 2. Métricas de la base de datos
-      const [dbSize] = await connection.execute(`
+      let dateCondition = '';
+      if (period === 'week') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+      } else if (period === 'month') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      } else if (period === 'quarter') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+      }
+      
+      // 1. Tiempo promedio de visita (sin rs. porque no hay alias)
+      const [avgVisitTime] = await connection.execute(`
         SELECT 
-          ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as size_mb
-        FROM information_schema.tables
-        WHERE table_schema = DATABASE()
+          AVG(actual_duration) as avg_duration,
+          COUNT(*) as total_visits,
+          AVG(CASE WHEN actual_duration <= 40 THEN actual_duration END) as efficient_avg,
+          SUM(CASE WHEN actual_duration <= 40 THEN 1 ELSE 0 END) as efficient_visits
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
       `);
       
-      const tables = ['users', 'stores', 'routes', 'route_stores', 'restock_items', 'damage_reports', 'route_templates'];
-      const tableCounts = {};
-      for (const table of tables) {
-        try {
-          const [result] = await connection.execute(`SELECT COUNT(*) as count FROM ${table}`);
-          tableCounts[table] = result[0]?.count || 0;
-        } catch (e) {
-          tableCounts[table] = 0;
-        }
-      }
+      // 2. Tiempo promedio por tarea
+      const [taskMetrics] = await connection.execute(`
+        SELECT 
+          AVG(tasks_completed) as avg_tasks_completed,
+          AVG(actual_duration / NULLIF(tasks_completed, 0)) as avg_time_per_task
+        FROM route_stores
+        WHERE status = 'completed' AND tasks_completed > 0 ${dateCondition}
+      `);
+      
+      // 3. Eficiencia por asesor
+      const [advisorEfficiency] = await connection.execute(`
+        SELECT 
+          u.name,
+          COUNT(rs.id) as visits,
+          AVG(rs.actual_duration) as avg_time,
+          AVG(rs.tasks_completed) as avg_tasks,
+          ROUND((SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(rs.id), 0), 2) as efficiency
+        FROM route_stores rs
+        JOIN routes r ON rs.route_id = r.id
+        JOIN users u ON r.advisor_id = u.id
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition.replace(/created_at/g, 'rs.created_at')}
+        GROUP BY u.id, u.name
+        ORDER BY efficiency DESC
+      `);
+      
+      // 4. Actividad diaria
+      const [dailyActivity] = await connection.execute(`
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as visits_completed,
+          AVG(actual_duration) as avg_duration
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+        LIMIT 30
+      `);
       
       res.json({
         success: true,
         metrics: {
-          server: serverMetrics,
-          database: {
-            size_mb: dbSize[0]?.size_mb || 0,
-            tables: tableCounts
+          visits: {
+            total: avgVisitTime[0]?.total_visits || 0,
+            efficient: avgVisitTime[0]?.efficient_visits || 0,
+            efficiency_rate: avgVisitTime[0]?.total_visits > 0 
+              ? ((avgVisitTime[0].efficient_visits / avgVisitTime[0].total_visits) * 100).toFixed(2)
+              : 0,
+            avg_duration: Math.round(avgVisitTime[0]?.avg_duration || 0),
+            efficient_avg: Math.round(avgVisitTime[0]?.efficient_avg || 0)
           },
-          timestamp: new Date().toISOString()
+          tasks: {
+            avg_completed: parseFloat(taskMetrics[0]?.avg_tasks_completed || 0).toFixed(1),
+            avg_time_per_task: Math.round(taskMetrics[0]?.avg_time_per_task || 0)
+          },
+          offline: {
+            total_sync_operations: 0,
+            avg_retries: 0
+          },
+          advisor_performance: advisorEfficiency,
+          daily_trend: dailyActivity
         }
       });
       
     } catch (error) {
-      console.error('Error obteniendo métricas de rendimiento:', error);
+      console.error('Error obteniendo métricas del sistema:', error);
       res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
@@ -1794,6 +1834,62 @@ class AdminController {
       
     } catch (error) {
       console.error('Error obteniendo fotos:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  async getPerformanceMetrics(req, res) {
+    const connection = await createConnection();
+    try {
+      // 1. Métricas del servidor
+      const serverMetrics = {
+        uptime: process.uptime(),
+        memory: {
+          rss: process.memoryUsage().rss,
+          heapTotal: process.memoryUsage().heapTotal,
+          heapUsed: process.memoryUsage().heapUsed,
+          external: process.memoryUsage().external
+        },
+        node_version: process.version,
+        platform: process.platform,
+        cpu_count: require('os').cpus().length
+      };
+      
+      // 2. Métricas de la base de datos
+      const [dbSize] = await connection.execute(`
+        SELECT 
+          ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as size_mb
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+      `);
+      
+      const tables = ['users', 'stores', 'routes', 'route_stores', 'restock_items', 'damage_reports', 'route_templates'];
+      const tableCounts = {};
+      for (const table of tables) {
+        try {
+          const [result] = await connection.execute(`SELECT COUNT(*) as count FROM ${table}`);
+          tableCounts[table] = result[0]?.count || 0;
+        } catch (e) {
+          tableCounts[table] = 0;
+        }
+      }
+      
+      res.json({
+        success: true,
+        metrics: {
+          server: serverMetrics,
+          database: {
+            size_mb: dbSize[0]?.size_mb || 0,
+            tables: tableCounts
+          },
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error obteniendo métricas de rendimiento:', error);
       res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
