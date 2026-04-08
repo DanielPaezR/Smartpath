@@ -1759,10 +1759,8 @@ class AdminController {
       // Aplicar filtros de forma simple
       if (type === 'before') {
         sql += ` AND rs.before_photo_url IS NOT NULL AND rs.before_photo_url != ''`;
-        sql += ` AND (rs.after_photo_url IS NULL OR rs.after_photo_url = '')`;
       } else if (type === 'after') {
         sql += ` AND rs.after_photo_url IS NOT NULL AND rs.after_photo_url != ''`;
-        sql += ` AND (rs.before_photo_url IS NULL OR rs.before_photo_url = '')`;
       }
       
       if (advisorId && advisorId !== '') {
