@@ -561,3 +561,31 @@
 .scan-btn.secondary:hover:not(:disabled) {
     background: #6c7a7b;
 }
+
+/* Input numérico para cantidad */
+.quantity-input {
+    width: 70px;
+    text-align: center;
+    font-size: 16px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin: 0 5px;
+}
+
+.quantity-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+}
+
+/* Ocultar flechas en navegadores (opcional) */
+.quantity-input::-webkit-inner-spin-button,
+.quantity-input::-webkit-outer-spin-button {
+    opacity: 0.5;
+}
+
+.quantity-input::-webkit-inner-spin-button:hover,
+.quantity-input::-webkit-outer-spin-button:hover {
+    opacity: 1;
+}

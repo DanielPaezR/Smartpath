@@ -1589,6 +1589,51 @@ class AdminController {
       await connection.end();
     }
   }
+
+  async getVisitNotes(req, res) {
+    const connection = await createConnection();
+    try {
+      const advisorId = req.user.id;
+      const { period = 'week' } = req.query;
+      
+      let dateCondition = '';
+      if (period === 'week') {
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+      } else if (period === 'month') {
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+      } else {
+        dateCondition = "AND r.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+      }
+      
+      const [notes] = await connection.execute(`
+        SELECT 
+          rs.notes,
+          s.name as store_name,
+          r.date,
+          rs.end_time,
+          rs.actual_duration
+        FROM route_stores rs
+        JOIN routes r ON rs.route_id = r.id
+        JOIN stores s ON rs.store_id = s.id
+        WHERE r.advisor_id = ? 
+          AND rs.notes IS NOT NULL 
+          AND rs.notes != ''
+          ${dateCondition}
+        ORDER BY r.date DESC, rs.end_time DESC
+      `, [advisorId]);
+      
+      res.json({
+        success: true,
+        notes: notes,
+        total: notes.length
+      });
+    } catch (error) {
+      console.error('Error obteniendo notas:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 export default new AdminController();

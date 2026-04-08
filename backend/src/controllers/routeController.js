@@ -203,7 +203,10 @@ export const routeController = {
           },
           status: store.status,
           visit_order: store.visit_order,
-          route_id: mainRouteId
+          route_id: mainRouteId,
+          start_time: store.start_time,
+          end_time: store.end_time,
+          actual_duration: store.actual_duration 
         }))
       };
 

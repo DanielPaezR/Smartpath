@@ -26,6 +26,14 @@ interface SlowStore {
   visits: number;
 }
 
+interface VisitNote {
+  store_name: string;
+  date: string;
+  notes: string;
+  end_time: string;
+  actual_duration: number;
+}
+
 interface AdvisorMetricsData {
   daily: DailyMetrics;
   weekly: WeeklyMetrics;
@@ -42,12 +50,22 @@ const AdvisorMetrics: React.FC = () => {
   const { user } = useAuth();
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [metrics, setMetrics] = useState<AdvisorMetricsData | null>(null);
+  const [visitNotes, setVisitNotes] = useState<VisitNote[]>([]);
+  const [showNotes, setShowNotes] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingNotes, setLoadingNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notesPeriod, setNotesPeriod] = useState<'week' | 'month'>('week');
 
   useEffect(() => {
     loadMetrics();
   }, [period]);
+
+  useEffect(() => {
+    if (showNotes) {
+      loadVisitNotes();
+    }
+  }, [showNotes, notesPeriod]);
 
   const loadMetrics = async () => {
     try {
@@ -68,6 +86,25 @@ const AdvisorMetrics: React.FC = () => {
     }
   };
 
+  const loadVisitNotes = async () => {
+    try {
+      setLoadingNotes(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/admin/advisor/visit-notes?period=${notesPeriod}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) throw new Error('Error cargando notas');
+      
+      const data = await response.json();
+      setVisitNotes(data.notes || []);
+    } catch (err: any) {
+      console.error('Error cargando notas:', err);
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
+
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -79,11 +116,15 @@ const AdvisorMetrics: React.FC = () => {
     return new Date(dateStr).toLocaleDateString('es', { day: 'numeric', month: 'short' });
   };
 
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
+
   if (loading) return <div className="advisor-metrics-loading">Cargando tus métricas...</div>;
   if (error) return <div className="advisor-metrics-error">Error: {error}</div>;
   if (!metrics) return <div className="advisor-metrics-empty">No hay datos disponibles</div>;
 
-  // Obtener los datos según el período seleccionado
   const currentData = metrics[period];
   const isMonthly = period === 'monthly';
   const isWeekly = period === 'weekly';
@@ -108,6 +149,7 @@ const AdvisorMetrics: React.FC = () => {
       </div>
 
       <div className="metrics-grid">
+        {/* ... métricas existentes ... */}
         <div className="metric-card">
           <div className="metric-icon">🏪</div>
           <div className="metric-info">
@@ -153,7 +195,6 @@ const AdvisorMetrics: React.FC = () => {
           </div>
         </div>
 
-        {/* Eficiencia - solo visible en weekly y monthly */}
         {isWeekly && (
           <div className="metric-card success">
             <div className="metric-icon">📈</div>
@@ -184,6 +225,82 @@ const AdvisorMetrics: React.FC = () => {
               </div>
             </div>
           </>
+        )}
+      </div>
+
+      {/* 🆕 SECCIÓN DE OBSERVACIONES/NOTAS */}
+      <div className="notes-section">
+        <div className="notes-header" onClick={() => setShowNotes(!showNotes)}>
+          <h3>📝 Mis Observaciones de Visitas</h3>
+          <button className="toggle-notes-btn">{showNotes ? '▼' : '▶'}</button>
+        </div>
+        
+        {showNotes && (
+          <div className="notes-content">
+            <div className="notes-period-selector">
+              <button 
+                className={notesPeriod === 'week' ? 'active' : ''} 
+                onClick={() => setNotesPeriod('week')}
+              >
+                📆 Última semana
+              </button>
+              <button 
+                className={notesPeriod === 'month' ? 'active' : ''} 
+                onClick={() => setNotesPeriod('month')}
+              >
+                📅 Último mes
+              </button>
+            </div>
+            
+            {loadingNotes ? (
+              <div className="notes-loading">Cargando observaciones...</div>
+            ) : visitNotes.length === 0 ? (
+              <div className="notes-empty">
+                <p>📭 No hay observaciones registradas en el período seleccionado</p>
+                <p className="notes-hint">Las observaciones que escribas en cada visita aparecerán aquí</p>
+              </div>
+            ) : (
+              <>
+                <div className="notes-summary">
+                  <span>📋 {visitNotes.length} observaciones encontradas</span>
+                  <button 
+                    className="export-notes-btn"
+                    onClick={() => {
+                      const text = visitNotes.map(n => 
+                        `📅 ${formatDateTime(n.date)} | 🏪 ${n.store_name} | ⏱️ ${formatTime(n.actual_duration)}\n📝 ${n.notes}\n${'─'.repeat(50)}`
+                      ).join('\n\n');
+                      navigator.clipboard.writeText(text);
+                      alert('✅ Observaciones copiadas al portapapeles');
+                    }}
+                  >
+                    📋 Copiar todo
+                  </button>
+                </div>
+                <div className="notes-list">
+                  {visitNotes.map((note, idx) => (
+                    <div key={idx} className="note-item">
+                      <div className="note-header">
+                        <div className="note-store">
+                          <span className="note-icon">🏪</span>
+                          <span className="note-store-name">{note.store_name}</span>
+                        </div>
+                        <div className="note-date">
+                          📅 {formatDateTime(note.date)}
+                        </div>
+                        <div className="note-duration">
+                          ⏱️ {formatTime(note.actual_duration)}
+                        </div>
+                      </div>
+                      <div className="note-body">
+                        <span className="note-label">Observación:</span>
+                        <p className="note-text">{note.notes}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 

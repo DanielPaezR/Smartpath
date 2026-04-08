@@ -6,8 +6,24 @@ export const routeGenerator = {
   async generateDailyRoutes(date = null) {
     const connection = await createConnection();
     try {
-      const targetDate = date || new Date().toISOString().split('T')[0];
-      const dayOfWeek = new Date(targetDate).toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
+      // 🆕 Función para obtener fecha local de Colombia (UTC-5)
+      const getLocalDate = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const targetDate = date || getLocalDate();
+      
+      // 🆕 Obtener el día de la semana desde MySQL (más confiable)
+      const [dateResult] = await connection.execute(
+        'SELECT LOWER(DAYNAME(?)) as day_name', 
+        [targetDate]
+      );
+      const dayOfWeek = dateResult[0]?.day_name || 
+                        new Date(targetDate + 'T12:00:00').toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
       
       console.log(`📅 Generando rutas para ${targetDate} (${dayOfWeek})`);
       console.log(`🔍 Fecha: ${targetDate}, Día de la semana calculado: "${dayOfWeek}"`);

@@ -51,18 +51,21 @@ interface IDamageReport {
   reportedBy: string;
 }
 
-// COMPONENTE PARA CÁMARA NATIVA - FOTOS
+// COMPONENTE PARA CÁMARA NATIVA - CON GUARDADO LOCAL EN INDEXEDDB
 const CameraButton: React.FC<{
   onCapture: (photos: string[]) => void;
   existingPhotos?: string[];
   maxPhotos?: number;
   disabled?: boolean;
   required?: boolean;
-}> = ({ onCapture, existingPhotos = [], maxPhotos = 3, disabled = false, required = false }) => {
+  visitId?: string;
+  taskKey?: string;
+}> = ({ onCapture, existingPhotos = [], maxPhotos = 6, disabled = false, required = false, visitId, taskKey }) => {
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>(existingPhotos);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -71,16 +74,33 @@ const CameraButton: React.FC<{
       return;
     }
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const photoData = reader.result as string;
-        const newPhotos = [...capturedPhotos, photoData];
-        setCapturedPhotos(newPhotos);
-        onCapture(newPhotos);
-      };
-      reader.readAsDataURL(file);
-    });
+    setIsSaving(true);
+    
+    for (const file of Array.from(files)) {
+      try {
+        if (visitId) {
+          const photoType = taskKey === 'evidenceBefore' ? 'before' : 
+                           taskKey === 'evidenceAfter' ? 'after' : 'damage';
+          await offlineStorage.savePhoto(visitId, photoType, file);
+          console.log(`📸 Foto guardada localmente para tarea: ${taskKey}`);
+        }
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const photoData = reader.result as string;
+          const newPhotos = [...capturedPhotos, photoData];
+          setCapturedPhotos(newPhotos);
+          onCapture(newPhotos);
+        };
+        reader.readAsDataURL(file);
+        
+      } catch (error) {
+        console.error('Error guardando foto localmente:', error);
+        alert('Error al guardar la foto. Intenta nuevamente.');
+      }
+    }
+    
+    setIsSaving(false);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -107,10 +127,10 @@ const CameraButton: React.FC<{
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || capturedPhotos.length >= maxPhotos}
+        disabled={disabled || capturedPhotos.length >= maxPhotos || isSaving}
         className="camera-open-btn"
       >
-        📸 {capturedPhotos.length === 0 ? 'Tomar Foto' : 'Agregar Foto'} 
+        📸 {isSaving ? 'Guardando...' : (capturedPhotos.length === 0 ? 'Tomar Foto' : 'Agregar Foto')} 
         {capturedPhotos.length > 0 && ` (${capturedPhotos.length}/${maxPhotos})`}
         {required && capturedPhotos.length === 0 && <span className="required-badge">*Obligatorio</span>}
       </button>
@@ -227,7 +247,7 @@ const StoreVisit: React.FC = () => {
   
   const [route, setRoute] = useState<IRoute | null>(null);
   const [currentStoreIndex, setCurrentStoreIndex] = useState(0);
-  const [timeInStore, setTimeInStore] = useState(0);
+  const [timeInMinutes, setTimeInMinutes] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [tasks, setTasks] = useState<ITask[]>([]);
   const [currentTaskIndex, setCurrentTaskIndex] = useState<number | null>(null);
@@ -250,7 +270,7 @@ const StoreVisit: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
-  const [maxTimePerStore, setMaxTimePerStore] = useState(40); // Tiempo máximo por tienda
+
 
   // Estados de visita
   const [visitStatus, setVisitStatus] = useState<'pending' | 'in-progress' | 'in_progress' | 'completed' | 'skipped'>('pending');
@@ -316,20 +336,59 @@ const StoreVisit: React.FC = () => {
     }
   ];
 
+  // Formatear tiempo en formato MM:SS
+  const formatTime = (minutes: number): string => {
+    const totalSeconds = Math.floor(minutes * 60);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    const padZero = (num: number): string => num < 10 ? '0' + num : num.toString();
+    return `${padZero(mins)}:${padZero(secs)}`;
+  };
+
   // Cargar estado guardado localmente
   const loadSavedState = async () => {
     if (!storeVisitId) return;
+    
     const saved = await offlineStorage.getVisitState(storeVisitId);
     if (saved) {
       console.log('🔄 Cargando estado guardado localmente');
-      setTasks(saved.tasks || []);
-      setTimeInStore(saved.timeInStore || 0);
+      
+      if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
+        const updatedTasks = taskDefinitions.map(task => ({
+          ...task,
+          completed: saved.tasksChecklist[task.key] || false,
+          timestamp: saved.tasksChecklist[task.key] ? new Date() : undefined
+        }));
+        setTasks(updatedTasks);
+        console.log('✅ Checklist recuperado:', saved.tasksChecklist);
+      } else if (saved.tasks && saved.tasks.length > 0) {
+        setTasks(saved.tasks);
+      } else {
+        setTasks([...taskDefinitions]);
+      }
+      
+      setTimeInMinutes(saved.timeInStore || 0);
       setDamageReports(saved.damageReports || []);
       setRestockItems(saved.restockItems || []);
       setVisitNotes(saved.notes || '');
-      setVisitStatus(saved.status || 'in-progress');
+      
+      const normalizedStatus = normalizeStatus(saved.status || 'pending');
+      setVisitStatus(normalizedStatus);
+      
       setHasInitializedTasks(true);
-      setIsTimerRunning(true);
+      if (normalizedStatus === 'in-progress') {
+        setIsTimerRunning(true);
+      }
+      
+      const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
+      if (pendingPhotos.length > 0) {
+        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes`);
+      }
+    } else {
+      if (!hasInitializedTasks) {
+        setTasks([...taskDefinitions]);
+        setHasInitializedTasks(true);
+      }
     }
   };
 
@@ -347,6 +406,9 @@ const StoreVisit: React.FC = () => {
       store => store.id.toString() === storeVisitId.toString()
     );
 
+    console.log('🔍 currentStoreVisit COMPLETO:', currentStoreVisit);
+    console.log('🔍 start_time específico:', currentStoreVisit?.start_time);
+
     if (currentStoreVisit) {
       const normalizedStatus = normalizeStatus(currentStoreVisit.status || 'pending');
       setVisitStatus(normalizedStatus);
@@ -359,8 +421,9 @@ const StoreVisit: React.FC = () => {
           const startTime = new Date(currentStoreVisit.start_time);
           const now = new Date();
           const diffMs = now.getTime() - startTime.getTime();
-          const minutesElapsed = Math.floor(diffMs / 60000);
-          setTimeInStore(minutesElapsed);
+          const minutesElapsed = diffMs / 60000;
+          setTimeInMinutes(minutesElapsed);
+          console.log(`⏱️ Tiempo cargado desde start_time: ${minutesElapsed.toFixed(2)} minutos`);
         }
       }
       
@@ -440,7 +503,8 @@ const StoreVisit: React.FC = () => {
     
     try {
       const currentRoute = await routeService.getCurrentRoute(user.id);
-      
+      console.log('📡 Ruta completa recibida:', JSON.stringify(currentRoute, null, 2));
+
       if (!currentRoute) {
         console.error('❌ No se pudo cargar la ruta');
         return;
@@ -479,15 +543,21 @@ const StoreVisit: React.FC = () => {
     if (!route) return;
     
     try {
-      await routeService.startVisit(
+      const response = await routeService.startVisit(
         route.id,
         route.stores[currentStoreIndex].id
       );
       
+      const startTime = response.startTime ? new Date(response.startTime) : new Date();
+
+      // 🆕 Guardar start_time en localStorage
+      localStorage.setItem(`start_time_${route.stores[currentStoreIndex].id}`, startTime.toISOString());
+      
       const updatedStores = [...route.stores];
       updatedStores[currentStoreIndex] = {
         ...updatedStores[currentStoreIndex],
-        status: 'in-progress'
+        status: 'in-progress',
+        start_time: startTime.toISOString()
       };
       
       setRoute({
@@ -497,6 +567,7 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(true);
       setVisitStatus('in-progress');
+      setTimeInMinutes(0);
       initializeTasks();
       
     } catch (error) {
@@ -643,13 +714,21 @@ const StoreVisit: React.FC = () => {
     }
   };
 
-  const handleTaskCheckbox = (task: ITask, index: number) => {
+  const handleTaskCheckbox = async (task: ITask, index: number) => {
     if (task.completed) {
       const updatedTasks = [...tasks];
       updatedTasks[index].completed = false;
       updatedTasks[index].timestamp = undefined;
       updatedTasks[index].additionalData = undefined;
       setTasks(updatedTasks);
+      
+      if (storeVisitId) {
+        const checklist = updatedTasks.reduce((acc, t) => {
+          acc[t.key] = t.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        await offlineStorage.saveTasksChecklist(storeVisitId, checklist);
+      }
       return;
     }
 
@@ -680,6 +759,14 @@ const StoreVisit: React.FC = () => {
     updatedTasks[index].completed = true;
     updatedTasks[index].timestamp = new Date();
     setTasks(updatedTasks);
+    
+    if (storeVisitId) {
+      const checklist = updatedTasks.reduce((acc, t) => {
+        acc[t.key] = t.completed;
+        return acc;
+      }, {} as { [key: string]: boolean });
+      await offlineStorage.saveTasksChecklist(storeVisitId, checklist);
+    }
   };
 
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
@@ -729,7 +816,7 @@ const StoreVisit: React.FC = () => {
     }
 
     const visitData = {
-      duration: timeInStore,
+      duration: Math.floor(timeInMinutes),
       notes: visitNotes,
       damageReports: damageReports,
       signature: tasks.find(t => t.key === 'signature')?.signature,
@@ -766,11 +853,20 @@ const StoreVisit: React.FC = () => {
       stores: updatedStores,
       completed_stores: (route.completed_stores || 0) + 1
     });
+
+    // Limpiar start_time de localStorage
+    if (storeVisitId) {
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+    }
     
     setIsTimerRunning(false);
     setVisitStatus('completed');
     
-    await offlineStorage.deleteVisitState(storeVisitId);
+    if (storeVisitId) {
+      await offlineStorage.clearPhotosForVisit(storeVisitId);
+      await offlineStorage.deleteVisitState(storeVisitId);
+    }
+    
     localStorage.removeItem('storeVisitState');
     
     navigate('/dashboard', { 
@@ -779,7 +875,7 @@ const StoreVisit: React.FC = () => {
         summary: {
           tasksCompleted: completedTasks,
           totalTasks,
-          timeSpent: timeInStore,
+          timeSpent: Math.floor(timeInMinutes),
           damageReports: damageReports.length,
           restockedItems: restockItems.length,
           restockedQuantity: restockItems.reduce((sum, item) => sum + item.quantity, 0)
@@ -790,6 +886,10 @@ const StoreVisit: React.FC = () => {
 
   const handleSkipStore = async (reason: string) => {
     if (!route) return;
+    // Limpiar start_time de localStorage
+    if (storeVisitId) {
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+    }
 
     try {
       await routeService.skipStoreVisit(
@@ -922,9 +1022,11 @@ const StoreVisit: React.FC = () => {
               <CameraButton 
                 onCapture={(photos) => handlePhotosChange(index, photos)}
                 existingPhotos={task.photos || []}
-                maxPhotos={3}
+                maxPhotos={6}
                 disabled={task.completed}
                 required={true}
+                visitId={storeVisitId}
+                taskKey={task.key}
               />
             </div>
           )}
@@ -933,7 +1035,6 @@ const StoreVisit: React.FC = () => {
     );
   };
 
-  // ========== DECLARAR currentStore Y storeInfo ANTES DE LOS useEffect ==========
   const currentStore = route?.stores?.[currentStoreIndex];
   const storeInfo = {
     name: currentStore?.storeId?.name || 'Tienda sin nombre',
@@ -943,19 +1044,19 @@ const StoreVisit: React.FC = () => {
   const totalTasks = tasks.length;
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // Función para obtener el color según el tiempo
-  const getTimeColor = (time: number, maxTime: number = 40) => {
-    const percentage = (time / maxTime) * 100;
-    if (percentage >= 100) return '#e74c3c';
-    if (percentage >= 80) return '#f39c12';
-    if (percentage >= 50) return '#3498db';
-    return '#27ae60';
+  const getTimeColor = () => {
+    return '#27ae60'; // Siempre verde
   };
 
   // Guardar estado automáticamente
   useEffect(() => {
     if (visitStatus === 'in-progress' && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
       const saveInterval = setInterval(() => {
+        const tasksChecklist = tasks.reduce((acc, task) => {
+          acc[task.key] = task.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        
         offlineStorage.saveVisitState(storeVisitId, {
           routeStoreId: Number(currentStore.id),
           storeId: Number(currentStore.storeId.id),
@@ -963,7 +1064,8 @@ const StoreVisit: React.FC = () => {
           startTime: new Date().toISOString(),
           status: visitStatus,
           tasks: tasks,
-          timeInStore: timeInStore,
+          tasksChecklist: tasksChecklist,
+          timeInStore: timeInMinutes,
           damageReports: damageReports,
           restockItems: restockItems,
           notes: visitNotes,
@@ -974,15 +1076,19 @@ const StoreVisit: React.FC = () => {
       
       return () => clearInterval(saveInterval);
     }
-  }, [visitStatus, tasks, timeInStore, damageReports, restockItems, visitNotes, storeVisitId, currentStore, storeInfo.name]);
+  }, [visitStatus, tasks, timeInMinutes, damageReports, restockItems, visitNotes, storeVisitId, currentStore, storeInfo.name]);
 
   // Detectar cambios de conexión
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true);
-      offlineStorage.syncAll();
+      console.log('🟢 Conexión recuperada, sincronizando...');
+      await offlineStorage.syncAll();
     };
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('🔴 Sin conexión, trabajando en modo offline');
+    };
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -995,18 +1101,18 @@ const StoreVisit: React.FC = () => {
     };
   }, [storeVisitId]);
 
-  // Efectos existentes...
+  // Backup en localStorage
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     const saveState = () => {
       if (tasks.length > 0 && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
-        const stateToSave = { tasks, timeInStore, damageReports, restockItems, visitNotes, storeVisitId, routeId: route?.id, currentStoreIndex, saveTimestamp: new Date().toISOString() };
+        const stateToSave = { tasks, timeInStore: timeInMinutes, damageReports, restockItems, visitNotes, storeVisitId, routeId: route?.id, currentStoreIndex, saveTimestamp: new Date().toISOString() };
         localStorage.setItem('storeVisitState', JSON.stringify(stateToSave));
       }
     };
     timeoutId = setTimeout(saveState, 2000);
     return () => { clearTimeout(timeoutId); };
-  }, [tasks, timeInStore, damageReports, restockItems, visitNotes, visitStatus, route?.id, currentStoreIndex, storeVisitId]);
+  }, [tasks, timeInMinutes, damageReports, restockItems, visitNotes, visitStatus, route?.id, currentStoreIndex, storeVisitId]);
 
   useEffect(() => {
     if (hasCheckedStatus && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && tasks.length === 0) {
@@ -1016,7 +1122,7 @@ const StoreVisit: React.FC = () => {
           const parsedState = JSON.parse(savedState);
           if (parsedState.storeVisitId === storeVisitId) {
             if (parsedState.tasks && parsedState.tasks.length > 0) { setTasks(parsedState.tasks); setHasInitializedTasks(true); }
-            if (parsedState.timeInStore !== undefined) setTimeInStore(parsedState.timeInStore);
+            if (parsedState.timeInStore !== undefined) setTimeInMinutes(parsedState.timeInStore);
             if (parsedState.damageReports) setDamageReports(parsedState.damageReports);
             if (parsedState.restockItems) setRestockItems(parsedState.restockItems);
             if (parsedState.visitNotes) setVisitNotes(parsedState.visitNotes);
@@ -1036,13 +1142,42 @@ const StoreVisit: React.FC = () => {
     if (route && !hasCheckedStatus) checkVisitStatus();
   }, [route, hasCheckedStatus, checkVisitStatus]);
 
+  // Temporizador en tiempo real (cada 1 segundo)
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
+    let intervalId: ReturnType<typeof setInterval>;
+    
     if (isTimerRunning && (visitStatus === 'in-progress' || visitStatus === 'in_progress')) {
-      timer = setInterval(() => { setTimeInStore(prev => prev + 1); }, 60000);
+      const updateRealTime = () => {
+        if (!route || !storeVisitId) return;
+        
+        const currentStoreVisit = route.stores?.find(
+          store => store.id.toString() === storeVisitId.toString()
+        );
+        
+        if (currentStoreVisit?.start_time) {
+          const startTime = new Date(currentStoreVisit.start_time);
+          const now = new Date();
+          const diffMs = now.getTime() - startTime.getTime();
+          const minutesElapsed = diffMs / 60000;
+          
+          setTimeInMinutes(prev => {
+            if (Math.abs(prev - minutesElapsed) > 0.01) {
+              console.log(`⏱️ Tiempo real actualizado: ${minutesElapsed.toFixed(2)} minutos`);
+              return minutesElapsed;
+            }
+            return prev;
+          });
+        }
+      };
+      
+      updateRealTime();
+      intervalId = setInterval(updateRealTime, 1000);
     }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isTimerRunning, visitStatus]);
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isTimerRunning, visitStatus, route, storeVisitId]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -1055,7 +1190,59 @@ const StoreVisit: React.FC = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => { window.removeEventListener('beforeunload', handleBeforeUnload); };
   }, [visitStatus, tasks]);
-  
+
+  // Recuperar start_time de localStorage al cargar (para visitas en progreso)
+  useEffect(() => {
+    const recoverStartTime = async () => {
+      if (!storeVisitId) return;
+      
+      // Si ya tenemos start_time en route, no hacer nada
+      if (currentStore?.start_time) {
+        console.log('✅ start_time ya existe en route:', currentStore.start_time);
+        return;
+      }
+      
+      // Intentar recuperar de localStorage
+      const savedStartTime = localStorage.getItem(`start_time_${storeVisitId}`);
+      if (savedStartTime) {
+        console.log('🔄 Recuperando start_time de localStorage:', savedStartTime);
+        
+        // Actualizar el route con el start_time recuperado
+        if (route) {
+          const updatedStores = [...route.stores];
+          const storeIndex = updatedStores.findIndex(s => s.id.toString() === storeVisitId.toString());
+          if (storeIndex !== -1) {
+            updatedStores[storeIndex] = {
+              ...updatedStores[storeIndex],
+              start_time: savedStartTime
+            };
+            setRoute({ ...route, stores: updatedStores });
+            
+            // Calcular tiempo transcurrido
+            const startTime = new Date(savedStartTime);
+            const now = new Date();
+            const minutesElapsed = (now.getTime() - startTime.getTime()) / 60000;
+            setTimeInMinutes(minutesElapsed);
+            console.log(`⏱️ Tiempo recuperado: ${minutesElapsed.toFixed(2)} minutos`);
+          }
+        }
+      } else {
+        // Intentar recuperar de offlineStorage
+        const saved = await offlineStorage.getVisitState(storeVisitId);
+        if (saved?.startTime) {
+          console.log('🔄 Recuperando start_time de offlineStorage:', saved.startTime);
+          localStorage.setItem(`start_time_${storeVisitId}`, saved.startTime);
+          
+          const startTime = new Date(saved.startTime);
+          const now = new Date();
+          const minutesElapsed = (now.getTime() - startTime.getTime()) / 60000;
+          setTimeInMinutes(minutesElapsed);
+        }
+      }
+    };
+    
+    recoverStartTime();
+  }, [storeVisitId, currentStore, route]);
   
   if (!route) {
     return (
@@ -1092,7 +1279,7 @@ const StoreVisit: React.FC = () => {
             <div className="visit-status in-progress">
               <h3>🟢 Visita en Progreso</h3>
               <p>Progreso: {progressPercentage.toFixed(0)}% completado</p>
-              <p className="time-elapsed">⏱️ Tiempo: {timeInStore} minutos</p>
+              <p className="time-elapsed">⏱️ Tiempo: {formatTime(timeInMinutes)}</p>
             </div>
             <div className="tasks-section">
               <h3>📋 Checklist de Tareas:</h3>
@@ -1160,48 +1347,25 @@ const StoreVisit: React.FC = () => {
           🗺️ Navegar a Tienda
         </button>
         
-        {/* Barra de progreso de tiempo */}
+        {/* Barra de progreso de tiempo - SIN LÍMITE */}
         <div className="time-progress-container">
           <div className="time-progress-header">
             <span className="time-progress-label">⏱️ Tiempo en visita</span>
             <span className="time-progress-value">
-              {Math.floor(timeInStore / 60)}:{String(timeInStore % 60).length === 1 ? '0' + String(timeInStore % 60) : String(timeInStore % 60)}
-              <span className="time-max"> / {maxTimePerStore} min</span>
+              {formatTime(timeInMinutes)}
             </span>
           </div>
-          <div className="time-progress-bar-bg">
-            <div 
-              className="time-progress-bar-fill"
-              style={{ 
-                width: `${Math.min(100, (timeInStore / maxTimePerStore) * 100)}%`,
-                backgroundColor: getTimeColor(timeInStore, maxTimePerStore)
-              }}
-            />
+          <div className="time-info" style={{ textAlign: 'center', marginTop: '8px', fontSize: '12px', color: '#666' }}>
+            Registrando tiempo real para análisis de eficiencia
           </div>
-          {timeInStore >= maxTimePerStore - 5 && timeInStore < maxTimePerStore && (
-            <div className="time-warning-soft">
-              ⚠️ Quedan {maxTimePerStore - timeInStore} minutos para completar la visita
-            </div>
-          )}
-          {timeInStore >= maxTimePerStore && (
-            <div className="time-warning-hard">
-              ⏰ Has excedido el tiempo recomendado de {maxTimePerStore} minutos
-            </div>
-          )}
         </div>
         
         <TaskProgress 
           completed={completedTasks}
           total={totalTasks}
-          timeElapsed={timeInStore}
-          maxTime={maxTimePerStore}
+          timeElapsed={Math.floor(timeInMinutes)}
         />
         
-        {timeInStore >= maxTimePerStore && (visitStatus === 'in-progress' || visitStatus === 'in_progress') && (
-          <div className="time-warning">
-            ⚠️ Has excedido el tiempo máximo
-          </div>
-        )}
       </header>
 
       {renderVisitContent()}
@@ -1211,7 +1375,7 @@ const StoreVisit: React.FC = () => {
           <div className="damage-modal">
             <h3>⚠️ Reportar Producto Dañado</h3>
             <div className="product-info"><h4>Producto: {currentProduct.name}</h4><p><strong>Código:</strong> {currentBarcode}</p><p><strong>Marca:</strong> {currentProduct.brand}</p></div>
-            <div className="modal-form-group"><label className="modal-label">📸 Fotos del daño (máx 3):</label><CameraButton onCapture={handleDamagePhotosChange} existingPhotos={damagePhotos} maxPhotos={3} disabled={loading} required={true} /></div>
+            <div className="modal-form-group"><label className="modal-label">📸 Fotos del daño (máx 6):</label><CameraButton onCapture={handleDamagePhotosChange} existingPhotos={damagePhotos} maxPhotos={6} disabled={loading} required={true} /></div>
             <div className="modal-form-group"><label className="modal-label">Tipo de Daño:</label><select value={damageType} onChange={(e) => setDamageType(e.target.value)} className="modal-select" disabled={loading}><option value="">Seleccionar tipo</option><option value="empaque_danado">Empaque dañado</option><option value="producto_vencido">Producto vencido</option><option value="producto_abierto">Producto abierto</option><option value="producto_roto">Producto roto</option><option value="otro">Otro</option></select></div>
             <div className="modal-form-group"><label className="modal-label">Severidad:</label><select value={damageSeverity} onChange={(e) => setDamageSeverity(e.target.value as 'low' | 'medium' | 'high')} className="modal-select" disabled={loading}><option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option></select></div>
             <div className="modal-form-group"><label className="modal-label">Descripción:</label><textarea value={damageDescription} onChange={(e) => setDamageDescription(e.target.value)} placeholder="Describir el daño encontrado..." className="modal-textarea" disabled={loading} rows={3} /></div>
