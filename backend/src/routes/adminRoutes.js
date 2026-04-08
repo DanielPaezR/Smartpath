@@ -23,6 +23,7 @@ router.get('/reports/damage', adminController.getDamageReports);
 router.get('/metrics/advanced', adminController.getAdvancedMetrics);
 router.get('/metrics/system', adminController.getSystemMetrics);
 router.get('/photos', adminController.getPhotos);
+router.get('/metrics/performance', adminController.getPerformanceMetrics);
 
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
 
