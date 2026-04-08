@@ -624,24 +624,12 @@ export const routeController = {
     console.log('🚨=== INICIANDO completeStoreVisit ===');
     const connection = await createConnection();
     try {
-      const { routeId, storeVisitId, duration, notes, signature, productsDamaged, tasksCompleted } = req.body;
+      // Obtener datos del body y archivos
+      const { routeId, storeVisitId, duration, notes, tasksCompleted, productsDamaged } = req.body;
+      const beforePhotoFile = req.file; // Esto requiere multer
       
-      // Obtener archivos subidos
-      const beforePhotoFile = req.files?.beforePhoto?.[0];
-      const afterPhotoFile = req.files?.afterPhoto?.[0];
-      const signatureFile = req.files?.signature?.[0];
+      console.log('📸 Datos recibidos:', { routeId, storeVisitId, duration, notes, tasksCompleted });
       
-      // Construir URLs para guardar en BD
-      const beforePhotoUrl = beforePhotoFile ? `/uploads/photos/before/${beforePhotoFile.filename}` : null;
-      const afterPhotoUrl = afterPhotoFile ? `/uploads/photos/after/${afterPhotoFile.filename}` : null;
-      const signatureUrl = signatureFile ? `/uploads/signatures/${signatureFile.filename}` : null;
-      
-      console.log('📸 Archivos recibidos:', {
-        beforePhoto: beforePhotoUrl,
-        afterPhoto: afterPhotoUrl,
-        signature: signatureUrl
-      });
-
       if (!routeId || !storeVisitId) {
         return res.status(400).json({ 
           success: false,
@@ -661,7 +649,25 @@ export const routeController = {
 
       const status = normalizeStatus('completed', 'route_stores');
       
-      // Preparar datos de daños
+      // Guardar URL de la foto si se subió
+      let beforePhotoUrl = null;
+      let afterPhotoUrl = null;
+      
+      if (req.file) {
+        beforePhotoUrl = `/uploads/${req.file.filename}`;
+      }
+      
+      // Si hay más archivos, ajustar según los campos
+      if (req.files) {
+        if (req.files.beforePhoto) {
+          beforePhotoUrl = `/uploads/${req.files.beforePhoto[0].filename}`;
+        }
+        if (req.files.afterPhoto) {
+          afterPhotoUrl = `/uploads/${req.files.afterPhoto[0].filename}`;
+        }
+      }
+      
+      // Procesar productos dañados
       let productsDamagedValue = null;
       if (productsDamaged) {
         try {
@@ -673,14 +679,12 @@ export const routeController = {
         }
       }
 
-      // Actualizar la visita con las URLs de las fotos
       const [result] = await connection.execute(
         `UPDATE route_stores 
         SET status = ?, end_time = NOW(),
             actual_duration = ?, notes = ?,
             before_photo_url = ?, after_photo_url = ?,
-            products_damaged = ?, signature_url = ?, 
-            tasks_completed = ?
+            products_damaged = ?, tasks_completed = ?
         WHERE id = ? AND route_id = ?`,
         [
           status,
@@ -689,7 +693,6 @@ export const routeController = {
           beforePhotoUrl,
           afterPhotoUrl,
           productsDamagedValue,
-          signatureUrl,
           parseInt(tasksCompleted) || 0,
           storeVisitId,
           routeId
@@ -703,35 +706,26 @@ export const routeController = {
         });
       }
 
-      // Actualizar contador de tiendas completadas
       await connection.execute(
         `UPDATE routes SET completed_stores = completed_stores + 1 WHERE id = ?`,
         [routeId]
       );
 
-      console.log('✅ Visita completada exitosamente en BD');
+      console.log('✅ Visita completada exitosamente');
 
       res.json({
         success: true,
         message: 'Visita completada exitosamente',
         visitId: storeVisitId,
         duration: finalDuration,
-        photos: {
-          before: beforePhotoUrl,
-          after: afterPhotoUrl
-        }
+        photos: { before: beforePhotoUrl, after: afterPhotoUrl }
       });
 
     } catch (error) {
-      console.error('❌ Error completando visita:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error completando visita',
-        error: error.message
-      });
+      console.error('❌ Error:', error);
+      res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
-      console.log('🚨=== FINALIZANDO completeStoreVisit ===');
     }
   },
 

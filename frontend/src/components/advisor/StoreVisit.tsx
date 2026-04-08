@@ -815,48 +815,54 @@ const StoreVisit: React.FC = () => {
       return;
     }
 
-    // Obtener fotos de las tareas
-    const beforePhotoTask = tasks.find(t => t.key === 'evidenceBefore');
-    const afterPhotoTask = tasks.find(t => t.key === 'evidenceAfter');
+    setLoading(true);
     
-    const beforePhotoData = beforePhotoTask?.photos?.[0];
-    const afterPhotoData = afterPhotoTask?.photos?.[0];
-    
-    // Crear FormData para enviar archivos
-    const formData = new FormData();
-    formData.append('routeId', route.id);
-    formData.append('storeVisitId', route.stores[currentStoreIndex].id);
-    formData.append('duration', Math.floor(timeInMinutes).toString());
-    formData.append('notes', visitNotes);
-    formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
-    
-    // Agregar fotos si existen
-    if (beforePhotoData && beforePhotoData.startsWith('data:image')) {
-      const blob = await (await fetch(beforePhotoData)).blob();
-      formData.append('beforePhoto', blob, 'before.jpg');
-    }
-    
-    if (afterPhotoData && afterPhotoData.startsWith('data:image')) {
-      const blob = await (await fetch(afterPhotoData)).blob();
-      formData.append('afterPhoto', blob, 'after.jpg');
-    }
-    
-    // Agregar firma si existe
-    const signature = tasks.find(t => t.key === 'signature')?.signature;
-    if (signature && signature.startsWith('data:image')) {
-      const blob = await (await fetch(signature)).blob();
-      formData.append('signature', blob, 'signature.png');
-    }
-    
-    // Agregar reportes de daños
-    if (damageReports.length > 0) {
-      formData.append('productsDamaged', JSON.stringify({
-        count: damageReports.length,
-        reports: damageReports
-      }));
-    }
-
     try {
+      // Crear FormData para enviar archivos
+      const formData = new FormData();
+      formData.append('routeId', route.id);
+      formData.append('storeVisitId', route.stores[currentStoreIndex].id);
+      formData.append('duration', Math.floor(timeInMinutes).toString());
+      formData.append('notes', visitNotes);
+      formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
+      
+      // Obtener fotos de las tareas
+      const beforePhotoTask = tasks.find(t => t.key === 'evidenceBefore');
+      const afterPhotoTask = tasks.find(t => t.key === 'evidenceAfter');
+      
+      // Agregar foto de antes (primera foto de la tarea)
+      if (beforePhotoTask?.photos && beforePhotoTask.photos.length > 0) {
+        const photoData = beforePhotoTask.photos[0];
+        if (photoData.startsWith('data:image')) {
+          const blob = await (await fetch(photoData)).blob();
+          formData.append('beforePhoto', blob, `before_${Date.now()}.jpg`);
+        }
+      }
+      
+      // Agregar foto de después
+      if (afterPhotoTask?.photos && afterPhotoTask.photos.length > 0) {
+        const photoData = afterPhotoTask.photos[0];
+        if (photoData.startsWith('data:image')) {
+          const blob = await (await fetch(photoData)).blob();
+          formData.append('afterPhoto', blob, `after_${Date.now()}.jpg`);
+        }
+      }
+      
+      // Agregar firma
+      const signature = tasks.find(t => t.key === 'signature')?.signature;
+      if (signature && signature.startsWith('data:image')) {
+        const blob = await (await fetch(signature)).blob();
+        formData.append('signature', blob, `signature_${Date.now()}.png`);
+      }
+      
+      // Agregar reportes de daños como JSON
+      if (damageReports.length > 0) {
+        formData.append('productsDamaged', JSON.stringify({
+          count: damageReports.length,
+          reports: damageReports
+        }));
+      }
+      
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/routes/complete-visit`, {
         method: 'POST',
@@ -874,9 +880,10 @@ const StoreVisit: React.FC = () => {
       }
     } catch (error) {
       console.error('Error finalizando visita:', error);
-      alert('❌ Error al completar la visita. Los datos se guardarán localmente.');
-      await offlineStorage.queueSyncAction('visit_complete', { formData: 'pending' });
+      alert('❌ Error al completar la visita. Los datos se guardaron localmente.');
       await finalizeVisit(true);
+    } finally {
+      setLoading(false);
     }
   };
 
