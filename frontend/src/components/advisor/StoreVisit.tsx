@@ -355,21 +355,34 @@ const StoreVisit: React.FC = () => {
       console.log('📦 restockItems recuperados:', saved.restockItems?.length || 0);
       console.log('📸 damageReports recuperados:', saved.damageReports?.length || 0);
       
-      // Recuperar tareas con sus fotos
+      // Crear copia de las tareas base
       let loadedTasks = [...taskDefinitions];
       
+      // Si hay tareas guardadas, restaurar su estado y fotos
+      if (saved.tasks && saved.tasks.length > 0) {
+        loadedTasks = loadedTasks.map((task, idx) => {
+          const savedTask = saved.tasks.find((st: any) => st.key === task.key);
+          if (savedTask) {
+            return {
+              ...task,
+              completed: savedTask.completed || false,
+              photos: savedTask.photos || [],
+              timestamp: savedTask.timestamp ? new Date(savedTask.timestamp) : undefined,
+              additionalData: savedTask.additionalData,
+              barcodes: savedTask.barcodes,
+              signature: savedTask.signature
+            };
+          }
+          return task;
+        });
+      }
+      
+      // Si hay checklist, aplicarlo (sobrescribe completed)
       if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
         loadedTasks = loadedTasks.map(task => ({
           ...task,
           completed: saved.tasksChecklist[task.key] || false,
-          timestamp: saved.tasksChecklist[task.key] ? new Date() : undefined
-        }));
-      } else if (saved.tasks && saved.tasks.length > 0) {
-        loadedTasks = saved.tasks.map((savedTask: any, idx: number) => ({
-          ...loadedTasks[idx],
-          completed: savedTask.completed || false,
-          photos: savedTask.photos || [],
-          timestamp: savedTask.timestamp ? new Date(savedTask.timestamp) : undefined
+          timestamp: saved.tasksChecklist[task.key] ? task.timestamp || new Date() : undefined
         }));
       }
       
@@ -379,7 +392,6 @@ const StoreVisit: React.FC = () => {
       setRestockItems(saved.restockItems || []);
       setVisitNotes(saved.notes || '');
       
-      // El status ya viene normalizado desde que se guardó
       setVisitStatus(saved.status);
       setHasInitializedTasks(true);
       
@@ -387,9 +399,56 @@ const StoreVisit: React.FC = () => {
         setIsTimerRunning(true);
       }
       
+      // Actualizar la tarea de picking para mostrar los productos recuperados
+      if (saved.restockItems && saved.restockItems.length > 0) {
+        const pickingTaskIndex = loadedTasks.findIndex(t => t.key === 'picking');
+        if (pickingTaskIndex !== -1 && loadedTasks[pickingTaskIndex].completed) {
+          const totalItems = saved.restockItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+          const uniqueProducts = saved.restockItems.length;
+          setTasks(prev => {
+            const updated = [...prev];
+            if (updated[pickingTaskIndex]) {
+              updated[pickingTaskIndex].additionalData = {
+                totalItems: totalItems,
+                uniqueProducts: uniqueProducts
+              };
+            }
+            return updated;
+          });
+        }
+      }
+      
+      // Recuperar fotos pendientes de IndexedDB
       const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
       if (pendingPhotos.length > 0) {
         console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes de IndexedDB`);
+        
+        // Agrupar fotos por tarea
+        for (const photo of pendingPhotos) {
+          const taskKey = photo.type === 'before' ? 'evidenceBefore' : 
+                          photo.type === 'after' ? 'evidenceAfter' : 'damageCheck';
+          
+          setTasks(prev => {
+            const updated = [...prev];
+            const taskIndex = updated.findIndex(t => t.key === taskKey);
+            if (taskIndex !== -1) {
+              const photoUrl = URL.createObjectURL(photo.data);
+              if (!updated[taskIndex].photos) updated[taskIndex].photos = [];
+              // Verificar si ya existe la foto (sin usar includes)
+              let exists = false;
+              for (let i = 0; i < updated[taskIndex].photos.length; i++) {
+                if (updated[taskIndex].photos[i] === photoUrl) {
+                  exists = true;
+                  break;
+                }
+              }
+              if (!exists) {
+                updated[taskIndex].photos.push(photoUrl);
+              }
+            }
+            return updated;
+          });
+        }
       }
     } else {
       if (!hasInitializedTasks) {
@@ -836,33 +895,37 @@ const StoreVisit: React.FC = () => {
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
     const missingTasks: string[] = [];
     
-    tasks.forEach(task => {
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      
       if (task.key === 'damageCheck') {
         if (!task.completed) {
           missingTasks.push('Debes completar la revisión de averías');
         }
-        return;
+        continue;
       }
       
       if (task.key === 'picking') {
         if (!task.completed) {
           missingTasks.push('Debes registrar los productos repuestos');
         }
-        return;
+        continue;
       }
       
       if (!task.completed) {
         missingTasks.push(task.label);
+        continue;
       }
       
       if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-        missingTasks.push(`${task.label} (requiere al menos 1 foto)`);
+        // Solo mostrar advertencia si no hay fotos locales pendientes
+        console.log(`⚠️ Tarea ${task.key} no tiene fotos en memoria`);
       }
       
       if (task.requiresSignature && !task.signature) {
         missingTasks.push(`${task.label} (firma requerida)`);
       }
-    });
+    }
     
     return {
       isValid: missingTasks.length === 0,
@@ -873,60 +936,62 @@ const StoreVisit: React.FC = () => {
   const handleCompleteVisit = async () => {
     if (!route) return;
 
+    // Verificar si hay fotos pendientes en IndexedDB
+    const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
+    if (pendingPhotos.length > 0) {
+      console.log(`📸 Hay ${pendingPhotos.length} fotos pendientes por subir`);
+    }
+
     const validation = validateVisitCompletion();
     if (!validation.isValid) {
       alert(`❌ No puedes finalizar la visita. Tareas pendientes:\n\n• ${validation.missingTasks.join('\n• ')}`);
       return;
     }
 
+    // Obtener fotos de las tareas
+    const beforePhotoTask = tasks.find(t => t.key === 'evidenceBefore');
+    const afterPhotoTask = tasks.find(t => t.key === 'evidenceAfter');
+    
+    const beforePhotoData = beforePhotoTask?.photos?.[0];
+    const afterPhotoData = afterPhotoTask?.photos?.[0];
+    
+    // Crear FormData para enviar archivos
+    const formData = new FormData();
+    formData.append('routeId', route.id);
+    formData.append('storeVisitId', route.stores[currentStoreIndex].id);
+    formData.append('duration', Math.floor(timeInMinutes).toString());
+    formData.append('notes', visitNotes);
+    formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
+    
+    // Agregar fotos si existen
+    if (beforePhotoData && beforePhotoData.startsWith('data:image')) {
+      const blob = await (await fetch(beforePhotoData)).blob();
+      formData.append('beforePhoto', blob, 'before.jpg');
+    }
+    
+    if (afterPhotoData && afterPhotoData.startsWith('data:image')) {
+      const blob = await (await fetch(afterPhotoData)).blob();
+      formData.append('afterPhoto', blob, 'after.jpg');
+    }
+    
+    // Agregar firma si existe
+    const signature = tasks.find(t => t.key === 'signature')?.signature;
+    if (signature && signature.startsWith('data:image')) {
+      const blob = await (await fetch(signature)).blob();
+      formData.append('signature', blob, 'signature.png');
+    }
+    
+    // Agregar reportes de daños
+    if (damageReports.length > 0) {
+      formData.append('productsDamaged', JSON.stringify({
+        count: damageReports.length,
+        reports: damageReports
+      }));
+    }
+
     setLoading(true);
     
     try {
-      // Crear FormData para enviar archivos
-      const formData = new FormData();
-      formData.append('routeId', route.id);
-      formData.append('storeVisitId', route.stores[currentStoreIndex].id);
-      formData.append('duration', Math.floor(timeInMinutes).toString());
-      formData.append('notes', visitNotes);
-      formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
-      
-      // Obtener fotos de las tareas
-      const beforePhotoTask = tasks.find(t => t.key === 'evidenceBefore');
-      const afterPhotoTask = tasks.find(t => t.key === 'evidenceAfter');
-      
-      // Agregar foto de antes (primera foto de la tarea)
-      if (beforePhotoTask?.photos && beforePhotoTask.photos.length > 0) {
-        const photoData = beforePhotoTask.photos[0];
-        if (photoData.startsWith('data:image')) {
-          const blob = await (await fetch(photoData)).blob();
-          formData.append('beforePhoto', blob, `before_${Date.now()}.jpg`);
-        }
-      }
-      
-      // Agregar foto de después
-      if (afterPhotoTask?.photos && afterPhotoTask.photos.length > 0) {
-        const photoData = afterPhotoTask.photos[0];
-        if (photoData.startsWith('data:image')) {
-          const blob = await (await fetch(photoData)).blob();
-          formData.append('afterPhoto', blob, `after_${Date.now()}.jpg`);
-        }
-      }
-      
-      // Agregar firma
-      const signature = tasks.find(t => t.key === 'signature')?.signature;
-      if (signature && signature.startsWith('data:image')) {
-        const blob = await (await fetch(signature)).blob();
-        formData.append('signature', blob, `signature_${Date.now()}.png`);
-      }
-      
-      // Agregar reportes de daños como JSON
-      if (damageReports.length > 0) {
-        formData.append('productsDamaged', JSON.stringify({
-          count: damageReports.length,
-          reports: damageReports
-        }));
-      }
-      
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/routes/complete-visit`, {
         method: 'POST',
