@@ -345,7 +345,7 @@ const StoreVisit: React.FC = () => {
     return `${padZero(mins)}:${padZero(secs)}`;
   };
 
-  // Cargar estado guardado localmente
+  // Cargar estado guardado localmente (incluyendo fotos y checklist)
   const loadSavedState = async () => {
     if (!storeVisitId) return;
     
@@ -353,6 +353,7 @@ const StoreVisit: React.FC = () => {
     if (saved) {
       console.log('🔄 Cargando estado guardado localmente');
       
+      // Recuperar checklist de tareas
       if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
         const updatedTasks = taskDefinitions.map(task => ({
           ...task,
@@ -369,9 +370,25 @@ const StoreVisit: React.FC = () => {
       
       setTimeInMinutes(saved.timeInStore || 0);
       setDamageReports(saved.damageReports || []);
-      setRestockItems(saved.restockItems || []);
+      setRestockItems(saved.restockItems || []);  // 🆕 Recuperar productos repuestos
       setVisitNotes(saved.notes || '');
       
+      // 🆕 Recuperar fotos de las tareas
+      if (saved.tasks && saved.tasks.length > 0) {
+        const updatedTasksWithPhotos = [...taskDefinitions];
+        for (let i = 0; i < saved.tasks.length; i++) {
+          if (saved.tasks[i].photos && saved.tasks[i].photos.length > 0) {
+            updatedTasksWithPhotos[i].photos = saved.tasks[i].photos;
+          }
+          if (saved.tasks[i].completed) {
+            updatedTasksWithPhotos[i].completed = saved.tasks[i].completed;
+            updatedTasksWithPhotos[i].timestamp = saved.tasks[i].timestamp;
+          }
+        }
+        setTasks(updatedTasksWithPhotos);
+      }
+      
+      // Normalizar el status al cargar
       const normalizedStatus = normalizeStatus(saved.status || 'pending');
       setVisitStatus(normalizedStatus);
       
@@ -380,9 +397,26 @@ const StoreVisit: React.FC = () => {
         setIsTimerRunning(true);
       }
       
+      // 🆕 Recuperar fotos pendientes de IndexedDB y restaurarlas en las tareas
       const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
       if (pendingPhotos.length > 0) {
         console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes`);
+        
+        // Agrupar fotos por tipo
+        for (const photo of pendingPhotos) {
+          const taskKey = photo.type === 'before' ? 'evidenceBefore' : 
+                          photo.type === 'after' ? 'evidenceAfter' : 'damageCheck';
+          const taskIndex = tasks.findIndex(t => t.key === taskKey);
+          if (taskIndex !== -1) {
+            const photoUrl = URL.createObjectURL(photo.data);
+            setTasks(prev => {
+              const updated = [...prev];
+              if (!updated[taskIndex].photos) updated[taskIndex].photos = [];
+              updated[taskIndex].photos.push(photoUrl);
+              return updated;
+            });
+          }
+        }
       }
     } else {
       if (!hasInitializedTasks) {
@@ -1447,6 +1481,7 @@ const StoreVisit: React.FC = () => {
           routeStoreId={Number(route.stores[currentStoreIndex].id)}
           storeId={Number(route.stores[currentStoreIndex].storeId.id)}
           reportedBy={Number(user!.id)}
+          existingItems={restockItems}  // 🆕 Pasar productos ya registrados
           onClose={() => { setShowRestockModal(false); setCurrentTaskIndex(null); }}
           onSave={handleRestockSave}
         />

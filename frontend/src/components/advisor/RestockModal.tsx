@@ -9,6 +9,7 @@ interface IRestockModalProps {
     routeStoreId: number;
     storeId: number;
     reportedBy: number;
+    existingItems?: IRestockItem[];  // 🆕 Productos ya registrados
     onClose: () => void;
     onSave: (items: IRestockItem[]) => void;
 }
@@ -24,10 +25,11 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     routeStoreId,
     storeId,
     reportedBy,
+    existingItems = [],
     onClose,
     onSave
 }) => {
-    const [items, setItems] = useState<IRestockItem[]>([]);
+    const [items, setItems] = useState<IRestockItem[]>(existingItems); 
     const [tempItem, setTempItem] = useState<TempItem | null>(null);
     const [showScanner, setShowScanner] = useState(true);
     const [loading, setLoading] = useState(false);
