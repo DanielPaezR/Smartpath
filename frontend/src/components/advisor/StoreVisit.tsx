@@ -352,71 +352,44 @@ const StoreVisit: React.FC = () => {
     const saved = await offlineStorage.getVisitState(storeVisitId);
     if (saved) {
       console.log('🔄 Cargando estado guardado localmente');
+      console.log('📦 restockItems recuperados:', saved.restockItems?.length || 0);
+      console.log('📸 damageReports recuperados:', saved.damageReports?.length || 0);
       
-      // Recuperar checklist de tareas
+      // Recuperar tareas con sus fotos
+      let loadedTasks = [...taskDefinitions];
+      
       if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
-        const updatedTasks = taskDefinitions.map(task => ({
+        loadedTasks = loadedTasks.map(task => ({
           ...task,
           completed: saved.tasksChecklist[task.key] || false,
           timestamp: saved.tasksChecklist[task.key] ? new Date() : undefined
         }));
-        setTasks(updatedTasks);
-        console.log('✅ Checklist recuperado:', saved.tasksChecklist);
       } else if (saved.tasks && saved.tasks.length > 0) {
-        setTasks(saved.tasks);
-      } else {
-        setTasks([...taskDefinitions]);
+        loadedTasks = saved.tasks.map((savedTask: any, idx: number) => ({
+          ...loadedTasks[idx],
+          completed: savedTask.completed || false,
+          photos: savedTask.photos || [],
+          timestamp: savedTask.timestamp ? new Date(savedTask.timestamp) : undefined
+        }));
       }
       
+      setTasks(loadedTasks);
       setTimeInMinutes(saved.timeInStore || 0);
       setDamageReports(saved.damageReports || []);
-      setRestockItems(saved.restockItems || []);  // 🆕 Recuperar productos repuestos
+      setRestockItems(saved.restockItems || []);
       setVisitNotes(saved.notes || '');
       
-      // 🆕 Recuperar fotos de las tareas
-      if (saved.tasks && saved.tasks.length > 0) {
-        const updatedTasksWithPhotos = [...taskDefinitions];
-        for (let i = 0; i < saved.tasks.length; i++) {
-          if (saved.tasks[i].photos && saved.tasks[i].photos.length > 0) {
-            updatedTasksWithPhotos[i].photos = saved.tasks[i].photos;
-          }
-          if (saved.tasks[i].completed) {
-            updatedTasksWithPhotos[i].completed = saved.tasks[i].completed;
-            updatedTasksWithPhotos[i].timestamp = saved.tasks[i].timestamp;
-          }
-        }
-        setTasks(updatedTasksWithPhotos);
-      }
-      
-      // Normalizar el status al cargar
-      const normalizedStatus = normalizeStatus(saved.status || 'pending');
-      setVisitStatus(normalizedStatus);
-      
+      // El status ya viene normalizado desde que se guardó
+      setVisitStatus(saved.status);
       setHasInitializedTasks(true);
-      if (normalizedStatus === 'in-progress') {
+      
+      if (saved.status === 'in-progress') {
         setIsTimerRunning(true);
       }
       
-      // 🆕 Recuperar fotos pendientes de IndexedDB y restaurarlas en las tareas
       const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
       if (pendingPhotos.length > 0) {
-        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes`);
-        
-        // Agrupar fotos por tipo
-        for (const photo of pendingPhotos) {
-          const taskKey = photo.type === 'before' ? 'evidenceBefore' : 
-                          photo.type === 'after' ? 'evidenceAfter' : 'damageCheck';
-          const taskIndex = tasks.findIndex(t => t.key === taskKey);
-          if (taskIndex !== -1) {
-            const photoUrl = URL.createObjectURL(photo.data);
-            setTasks(prev => {
-              const updated = [...prev];
-              if (!updated[taskIndex].photos) updated[taskIndex].photos = [];
-              updated[taskIndex].photos.push(photoUrl);
-              return updated;
-            });
-          }
-        }
+        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes de IndexedDB`);
       }
     } else {
       if (!hasInitializedTasks) {
@@ -663,25 +636,28 @@ const StoreVisit: React.FC = () => {
         reportedBy: user!.id
       };
 
+      let reportWithId: IDamageReport;
+      
       if (isOnline) {
         const savedReport = await productService.reportDamage(newReport);
-        const reportWithId: IDamageReport = {
+        reportWithId = {
           ...savedReport,
           timestamp: new Date()
         };
-        setDamageReports(prev => [...prev, reportWithId]);
-        alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
       } else {
         await offlineStorage.queueSyncAction('damage', newReport);
-        const tempReport: IDamageReport = {
+        reportWithId = {
           id: `local_${Date.now()}`,
           ...newReport,
           timestamp: new Date()
         };
-        setDamageReports(prev => [...prev, tempReport]);
-        alert(`📱 Reporte guardado localmente. Se sincronizará cuando haya conexión.`);
       }
       
+      const newDamageReports = [...damageReports, reportWithId];
+      setDamageReports(newDamageReports);
+      alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
+      
+      // Actualizar tarea de daños
       const damageTaskIndex = tasks.findIndex(t => t.key === 'damageCheck');
       if (damageTaskIndex !== -1) {
         const updatedTasks = [...tasks];
@@ -696,8 +672,34 @@ const StoreVisit: React.FC = () => {
           updatedTasks[damageTaskIndex].additionalData = { hasDamages: true };
           updatedTasks[damageTaskIndex].photos = damagePhotos;
         }
-        
         setTasks(updatedTasks);
+        
+        // Guardar inmediatamente en offlineStorage
+        if (storeVisitId && currentStore) {
+          const tasksChecklist = updatedTasks.reduce((acc, task) => {
+            acc[task.key] = task.completed;
+            return acc;
+          }, {} as { [key: string]: boolean });
+          
+          // Normalizar status
+          const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+          
+          await offlineStorage.saveVisitState(storeVisitId, {
+            routeStoreId: Number(currentStore.id),
+            storeId: Number(currentStore.storeId.id),
+            storeName: storeInfo.name,
+            startTime: new Date().toISOString(),
+            status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+            tasks: updatedTasks,
+            tasksChecklist: tasksChecklist,
+            timeInStore: timeInMinutes,
+            damageReports: newDamageReports,
+            restockItems: restockItems,
+            notes: visitNotes,
+            photos: []
+          });
+          console.log('💾 Daño guardado inmediatamente');
+        }
       }
       
       handleCloseDamageReport();
@@ -721,32 +723,60 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleRestockSave = async (items: IRestockItem[]) => {
-    setRestockItems(prev => [...prev, ...items]);
-    
-    if (currentTaskIndex !== null) {
-      const updatedTasks = [...tasks];
-      updatedTasks[currentTaskIndex].completed = true;
-      updatedTasks[currentTaskIndex].timestamp = new Date();
-      updatedTasks[currentTaskIndex].additionalData = {
-        totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
-        uniqueProducts: items.length
-      };
-      setTasks(updatedTasks);
-    }
-    
-    setShowRestockModal(false);
-    setCurrentTaskIndex(null);
-    
-    if (!isOnline) {
-      for (const item of items) {
-        await offlineStorage.queueSyncAction('restock', item);
+      const newRestockItems = [...restockItems, ...items];
+      setRestockItems(newRestockItems);
+      
+      if (currentTaskIndex !== null) {
+        const updatedTasks = [...tasks];
+        updatedTasks[currentTaskIndex].completed = true;
+        updatedTasks[currentTaskIndex].timestamp = new Date();
+        updatedTasks[currentTaskIndex].additionalData = {
+          totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
+          uniqueProducts: items.length
+        };
+        setTasks(updatedTasks);
+        
+        // Guardar inmediatamente en offlineStorage
+        if (storeVisitId && currentStore) {
+          const tasksChecklist = updatedTasks.reduce((acc, task) => {
+            acc[task.key] = task.completed;
+            return acc;
+          }, {} as { [key: string]: boolean });
+          
+          // Normalizar status
+          const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+          
+          await offlineStorage.saveVisitState(storeVisitId, {
+            routeStoreId: Number(currentStore.id),
+            storeId: Number(currentStore.storeId.id),
+            storeName: storeInfo.name,
+            startTime: new Date().toISOString(),
+            status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+            tasks: updatedTasks,
+            tasksChecklist: tasksChecklist,
+            timeInStore: timeInMinutes,
+            damageReports: damageReports,
+            restockItems: newRestockItems,
+            notes: visitNotes,
+            photos: []
+          });
+          console.log('💾 Restock guardado inmediatamente');
+        }
       }
-      alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
-    } else {
-      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
-    }
-  };
+      
+      setShowRestockModal(false);
+      setCurrentTaskIndex(null);
+      
+      if (!isOnline) {
+        for (const item of items) {
+          await offlineStorage.queueSyncAction('restock', item);
+        }
+        alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
+      } else {
+        const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+        alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+      }
+    };
 
   const handleTaskCheckbox = async (task: ITask, index: number) => {
     if (task.completed) {
@@ -1130,19 +1160,22 @@ const StoreVisit: React.FC = () => {
 
   // Guardar estado automáticamente
   useEffect(() => {
-    if (visitStatus === 'in-progress' && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
+    if ((visitStatus === 'in-progress' || visitStatus === 'in_progress') && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
       const saveInterval = setInterval(() => {
         const tasksChecklist = tasks.reduce((acc, task) => {
           acc[task.key] = task.completed;
           return acc;
         }, {} as { [key: string]: boolean });
         
+        // Normalizar status
+        const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+        
         offlineStorage.saveVisitState(storeVisitId, {
           routeStoreId: Number(currentStore.id),
           storeId: Number(currentStore.storeId.id),
           storeName: storeInfo.name,
           startTime: new Date().toISOString(),
-          status: visitStatus,
+          status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
           tasks: tasks,
           tasksChecklist: tasksChecklist,
           timeInStore: timeInMinutes,
