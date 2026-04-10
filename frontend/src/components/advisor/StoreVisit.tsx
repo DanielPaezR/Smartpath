@@ -351,7 +351,7 @@ const StoreVisit: React.FC = () => {
     
     const saved = await offlineStorage.getVisitState(storeVisitId);
     if (saved) {
-      console.log('🔄 Cargando estado guardado localmente');
+      console.log('🔄 Cargando estado guardado localmente para visita:', storeVisitId);
       console.log('📦 restockItems recuperados:', saved.restockItems?.length || 0);
       console.log('📸 damageReports recuperados:', saved.damageReports?.length || 0);
       
@@ -418,10 +418,21 @@ const StoreVisit: React.FC = () => {
         }
       }
       
-      // Recuperar fotos pendientes de IndexedDB
+      // Limpiar fotos existentes en las tareas antes de agregar nuevas
+      setTasks(prev => {
+        const cleaned = [...prev];
+        for (let i = 0; i < cleaned.length; i++) {
+          if (cleaned[i].key === 'evidenceBefore' || cleaned[i].key === 'evidenceAfter' || cleaned[i].key === 'damageCheck') {
+            cleaned[i].photos = [];
+          }
+        }
+        return cleaned;
+      });
+      
+      // Recuperar fotos pendientes SOLO de esta visita
       const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
       if (pendingPhotos.length > 0) {
-        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes de IndexedDB`);
+        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes para visita ${storeVisitId}`);
         
         // Agrupar fotos por tarea
         for (const photo of pendingPhotos) {
@@ -434,7 +445,7 @@ const StoreVisit: React.FC = () => {
             if (taskIndex !== -1) {
               const photoUrl = URL.createObjectURL(photo.data);
               if (!updated[taskIndex].photos) updated[taskIndex].photos = [];
-              // Verificar si ya existe la foto (sin usar includes)
+              
               let exists = false;
               for (let i = 0; i < updated[taskIndex].photos.length; i++) {
                 if (updated[taskIndex].photos[i] === photoUrl) {
@@ -451,6 +462,10 @@ const StoreVisit: React.FC = () => {
         }
       }
     } else {
+      // Si es una visita nueva, limpiar fotos de cualquier visita anterior
+      if (storeVisitId) {
+        await offlineStorage.clearPhotosForVisit(storeVisitId);
+      }
       if (!hasInitializedTasks) {
         setTasks([...taskDefinitions]);
         setHasInitializedTasks(true);
@@ -608,6 +623,16 @@ const StoreVisit: React.FC = () => {
   const handleStartVisit = async () => {
     if (!route) return;
     
+    const newStoreVisitId = route.stores[currentStoreIndex].id;
+    
+    // 🆕 Limpiar fotos de la visita anterior si existe
+    if (storeVisitId && storeVisitId !== newStoreVisitId) {
+      await offlineStorage.clearPhotosForVisit(storeVisitId);
+      await offlineStorage.deleteVisitState(storeVisitId);
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+      console.log('🧹 Fotos de visita anterior limpiadas');
+    }
+    
     try {
       const response = await routeService.startVisit(
         route.id,
@@ -615,8 +640,8 @@ const StoreVisit: React.FC = () => {
       );
       
       const startTime = response.startTime ? new Date(response.startTime) : new Date();
-
-      // 🆕 Guardar start_time en localStorage
+      
+      // Guardar start_time en localStorage
       localStorage.setItem(`start_time_${route.stores[currentStoreIndex].id}`, startTime.toISOString());
       
       const updatedStores = [...route.stores];
@@ -1028,18 +1053,16 @@ const StoreVisit: React.FC = () => {
       stores: updatedStores,
       completed_stores: (route.completed_stores || 0) + 1
     });
-
-    // Limpiar start_time de localStorage
-    if (storeVisitId) {
-      localStorage.removeItem(`start_time_${storeVisitId}`);
-    }
     
     setIsTimerRunning(false);
     setVisitStatus('completed');
     
+    // Limpiar fotos y datos de esta visita
     if (storeVisitId) {
       await offlineStorage.clearPhotosForVisit(storeVisitId);
       await offlineStorage.deleteVisitState(storeVisitId);
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+      console.log('🧹 Datos de visita completada limpiados');
     }
     
     localStorage.removeItem('storeVisitState');
@@ -1061,10 +1084,6 @@ const StoreVisit: React.FC = () => {
 
   const handleSkipStore = async (reason: string) => {
     if (!route) return;
-    // Limpiar start_time de localStorage
-    if (storeVisitId) {
-      localStorage.removeItem(`start_time_${storeVisitId}`);
-    }
 
     try {
       await routeService.skipStoreVisit(
@@ -1086,6 +1105,15 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(false);
       setVisitStatus('skipped');
+      
+      // Limpiar fotos y datos de esta visita
+      if (storeVisitId) {
+        await offlineStorage.clearPhotosForVisit(storeVisitId);
+        await offlineStorage.deleteVisitState(storeVisitId);
+        localStorage.removeItem(`start_time_${storeVisitId}`);
+        console.log('🧹 Datos de visita saltada limpiados');
+      }
+      
       alert('✅ Tienda saltada exitosamente');
       navigate('/dashboard');
       
