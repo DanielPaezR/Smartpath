@@ -835,6 +835,50 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleDamageSave = async (newDamages: any[]) => {
+    // Si no hay daños (array vacío), marcar como sin daños
+    if (newDamages.length === 0) {
+      setShowDamageModal(false);
+      
+      // Marcar tarea de daños como completada sin daños
+      if (currentTaskIndex !== null) {
+        const updatedTasks = [...tasks];
+        updatedTasks[currentTaskIndex].completed = true;
+        updatedTasks[currentTaskIndex].timestamp = new Date();
+        updatedTasks[currentTaskIndex].additionalData = { noDamages: true };
+        updatedTasks[currentTaskIndex].barcodes = []; // Limpiar barcodes
+        setTasks(updatedTasks);
+        
+        // Guardar en offlineStorage
+        if (storeVisitId && currentStore) {
+          const tasksChecklist = updatedTasks.reduce((acc, task) => {
+            acc[task.key] = task.completed;
+            return acc;
+          }, {} as { [key: string]: boolean });
+          
+          const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+          
+          await offlineStorage.saveVisitState(storeVisitId, {
+            routeStoreId: Number(currentStore.id),
+            storeId: Number(currentStore.storeId.id),
+            storeName: storeInfo.name,
+            startTime: new Date().toISOString(),
+            status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+            tasks: updatedTasks,
+            tasksChecklist: tasksChecklist,
+            timeInStore: timeInMinutes,
+            damageReports: damageReports,
+            restockItems: restockItems,
+            notes: visitNotes,
+            photos: []
+          });
+        }
+      }
+      
+      alert('✅ Revisión de daños completada - Sin productos dañados');
+      setCurrentTaskIndex(null);
+      return;
+    }
+    
     // Convertir los daños del nuevo formato al formato existente (IDamageReport)
     const formattedDamages = newDamages.map(damage => ({
       id: damage.id || `local_${Date.now()}`,
@@ -855,7 +899,7 @@ const StoreVisit: React.FC = () => {
       severity: damage.severity,
       storeId: String(route?.stores[currentStoreIndex]?.storeId?.id || ''),
       reportedBy: user!.id,
-      quantity: damage.quantity  // 🆕 Agregar quantity al objeto
+      quantity: damage.quantity
     }));
     
     const newDamageReports = [...damageReports, ...formattedDamages];
@@ -867,10 +911,12 @@ const StoreVisit: React.FC = () => {
       const updatedTasks = [...tasks];
       updatedTasks[currentTaskIndex].completed = true;
       updatedTasks[currentTaskIndex].timestamp = new Date();
+      // 🆕 Guardar la lista de barcodes para mostrar en el resumen
+      updatedTasks[currentTaskIndex].barcodes = formattedDamages.map(d => d.barcode);
       updatedTasks[currentTaskIndex].additionalData = { 
         hasDamages: true, 
         count: formattedDamages.length,
-        totalQuantity: formattedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0)  // ✅ Ahora funciona
+        totalQuantity: formattedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0)
       };
       setTasks(updatedTasks);
       
@@ -900,7 +946,8 @@ const StoreVisit: React.FC = () => {
       }
     }
     
-    alert(`✅ ${formattedDamages.length} productos dañados reportados`);
+    const totalProducts = formattedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0);
+    alert(`✅ ${formattedDamages.length} productos dañados reportados (${totalProducts} unidades)`);
     setCurrentTaskIndex(null);
   };
 
@@ -1279,9 +1326,13 @@ const StoreVisit: React.FC = () => {
             {task.completed ? (
               <div className="task-status">
                 <p className="status-success">
-                  ✅ {task.additionalData?.hasDamages 
-                    ? `Reporte completado (${task.barcodes?.length || 0} productos)`
-                    : 'Revisión completada sin daños'}
+                  {task.additionalData?.noDamages ? (
+                    '✅ Revisión completada sin daños'
+                  ) : task.additionalData?.hasDamages ? (
+                    `✅ Reporte completado (${task.additionalData?.count || task.barcodes?.length || 0} productos, ${task.additionalData?.totalQuantity || 0} unidades)`
+                  ) : (
+                    'Revisión completada'
+                  )}
                 </p>
                 <button className="secondary-btn outline" onClick={() => handleDamageCheckTask(index)}>✏️ Cambiar</button>
               </div>
