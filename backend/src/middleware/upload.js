@@ -1,12 +1,7 @@
 // backend/src/middleware/upload.js
 import multer from 'multer';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Configurar almacenamiento
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     let folder = 'uploads/photos/';
@@ -21,12 +16,10 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// Filtro de archivos
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -35,20 +28,22 @@ const fileFilter = (req, file, cb) => {
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Solo se permiten imágenes'));
+    cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif, webp)'));
   }
 };
 
-// Configurar multer
-export const upload = multer({
+// Configurar multer con límites aumentados
+export const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { 
+    fileSize: 20 * 1024 * 1024, // 20MB por archivo (aumentado de 10MB)
+    files: 10 // máximo 10 archivos por petición
+  },
   fileFilter: fileFilter
 });
 
-// Middleware para manejar campos de archivos
 export const handlePhotoUpload = upload.fields([
-  { name: 'beforePhoto', maxCount: 1 },
-  { name: 'afterPhoto', maxCount: 1 },
+  { name: 'beforePhoto', maxCount: 3 },  // Aumentado a 3 fotos por tipo
+  { name: 'afterPhoto', maxCount: 3 },
   { name: 'signature', maxCount: 1 }
 ]);

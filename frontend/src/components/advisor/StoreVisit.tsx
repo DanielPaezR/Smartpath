@@ -961,6 +961,28 @@ const StoreVisit: React.FC = () => {
   const handleCompleteVisit = async () => {
     if (!route) return;
 
+    // Verificar token antes de continuar
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      navigate('/login');
+      return;
+    }
+
+    // Verificar expiración del token
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+        return;
+      }
+    } catch (e) {
+      console.error('Error verificando token:', e);
+    }
+
     // Verificar si hay fotos pendientes en IndexedDB
     const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
     if (pendingPhotos.length > 0) {
@@ -988,22 +1010,66 @@ const StoreVisit: React.FC = () => {
     formData.append('notes', visitNotes);
     formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
     
-    // Agregar fotos si existen
+    // Función para comprimir imagen
+    const compressImage = (dataUrl: string, maxWidth: number = 1024): Promise<Blob> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('Error comprimiendo imagen'));
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+    };
+    
+    // Agregar fotos comprimidas si existen
     if (beforePhotoData && beforePhotoData.startsWith('data:image')) {
-      const blob = await (await fetch(beforePhotoData)).blob();
-      formData.append('beforePhoto', blob, 'before.jpg');
+      try {
+        const compressedBlob = await compressImage(beforePhotoData, 1024);
+        formData.append('beforePhoto', compressedBlob, 'before.jpg');
+        console.log('📸 Foto BEFORE comprimida y agregada');
+      } catch (err) {
+        console.error('Error procesando foto BEFORE:', err);
+      }
     }
     
     if (afterPhotoData && afterPhotoData.startsWith('data:image')) {
-      const blob = await (await fetch(afterPhotoData)).blob();
-      formData.append('afterPhoto', blob, 'after.jpg');
+      try {
+        const compressedBlob = await compressImage(afterPhotoData, 1024);
+        formData.append('afterPhoto', compressedBlob, 'after.jpg');
+        console.log('📸 Foto AFTER comprimida y agregada');
+      } catch (err) {
+        console.error('Error procesando foto AFTER:', err);
+      }
     }
     
     // Agregar firma si existe
     const signature = tasks.find(t => t.key === 'signature')?.signature;
     if (signature && signature.startsWith('data:image')) {
-      const blob = await (await fetch(signature)).blob();
-      formData.append('signature', blob, 'signature.png');
+      try {
+        const blob = await (await fetch(signature)).blob();
+        formData.append('signature', blob, 'signature.png');
+        console.log('✍️ Firma agregada al FormData');
+      } catch (err) {
+        console.error('Error procesando firma:', err);
+      }
     }
     
     // Agregar reportes de daños
@@ -1012,29 +1078,56 @@ const StoreVisit: React.FC = () => {
         count: damageReports.length,
         reports: damageReports
       }));
+      console.log(`⚠️ ${damageReports.length} reportes de daño agregados`);
     }
 
     setLoading(true);
     
+    // AbortController para timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+    
     try {
-      const token = localStorage.getItem('token');
+      console.log('📤 Enviando petición a:', `${API_BASE_URL}/routes/complete-visit`);
+      
       const response = await fetch(`${API_BASE_URL}/routes/complete-visit`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        body: formData,
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      console.log('📥 Status response:', response.status);
       
       const result = await response.json();
       
-      if (result.success) {
+      if (response.ok && result.success) {
         await finalizeVisit();
         alert('✅ Visita completada exitosamente');
       } else {
-        throw new Error(result.message);
+        throw new Error(result.message || 'Error desconocido');
       }
     } catch (error) {
-      console.error('Error finalizando visita:', error);
-      alert('❌ Error al completar la visita. Los datos se guardaron localmente.');
+      clearTimeout(timeoutId);
+      console.error('❌ Error finalizando visita:', error);
+      
+      if (error.name === 'AbortError') {
+        alert('⏰ La petición tomó demasiado tiempo. Los datos se guardaron localmente y se sincronizarán después.');
+      } else {
+        alert(`❌ Error al completar la visita: ${error.message}. Los datos se guardaron localmente.`);
+      }
+      
+      // Guardar localmente para sincronizar después
+      const visitData = {
+        duration: Math.floor(timeInMinutes),
+        notes: visitNotes,
+        damageReports: damageReports,
+        signature: tasks.find(t => t.key === 'signature')?.signature,
+        routeId: route.id,
+        storeVisitId: route.stores[currentStoreIndex].id
+      };
+      await offlineStorage.queueSyncAction('visit_complete', visitData);
       await finalizeVisit(true);
     } finally {
       setLoading(false);
