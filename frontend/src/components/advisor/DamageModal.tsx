@@ -2,19 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import BarcodeScannerButton from './BarcodeScannerButton';
 import { API_BASE_URL } from '../../services/api';
-import { offlineStorage } from '../../services/offlineStorage';
 import '../../styles/DamageModal.css';
-
-interface IDamageItem {
-  id?: string;
-  barcode: string;
-  product_name: string;
-  product_brand: string;
-  product_category: string;
-  quantity: number;
-  photos: string[];
-  severity: 'low' | 'medium' | 'high';
-}
 
 interface DamageModalProps {
   storeId: number;
@@ -33,8 +21,8 @@ const DamageModal: React.FC<DamageModalProps> = ({
   onSave,
   existingDamages = []
 }) => {
-  const [damages, setDamages] = useState<IDamageItem[]>(existingDamages);
-  const [currentDamage, setCurrentDamage] = useState<IDamageItem | null>(null);
+  const [damages, setDamages] = useState<any[]>(existingDamages);
+  const [currentDamage, setCurrentDamage] = useState<any | null>(null);
   const [showScanner, setShowScanner] = useState(true);
   const [loading, setLoading] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -99,6 +87,24 @@ const DamageModal: React.FC<DamageModalProps> = ({
     }
   };
 
+  const handleQuantityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    if (rawValue === '') {
+      setCurrentDamage(prev => prev ? { ...prev, quantity: 0 } : null);
+      return;
+    }
+    const numValue = parseInt(rawValue, 10);
+    if (!isNaN(numValue) && numValue >= 0) {
+      setCurrentDamage(prev => prev ? { ...prev, quantity: numValue } : null);
+    }
+  };
+
+  const handleQuantityBlur = () => {
+    if (currentDamage && currentDamage.quantity < 1) {
+      setCurrentDamage({ ...currentDamage, quantity: 1 });
+    }
+  };
+
   const handlePhotoCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
@@ -124,7 +130,7 @@ const DamageModal: React.FC<DamageModalProps> = ({
   const removePhoto = (index: number) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
     if (currentDamage) {
-      setCurrentDamage({ ...currentDamage, photos: currentDamage.photos.filter((_, i) => i !== index) });
+      setCurrentDamage({ ...currentDamage, photos: currentDamage.photos.filter((_: any, i: number) => i !== index) });
     }
   };
 
@@ -236,57 +242,83 @@ const DamageModal: React.FC<DamageModalProps> = ({
             </div>
           )}
 
-          {/* Formulario de daño */}
+          {/* Formulario de daño - INFORMACIÓN NO EDITABLE */}
           {currentDamage && (
             <div className="damage-form">
               <h4>📦 Producto Dañado</h4>
               
               <div className="form-row">
                 <label>Código:</label>
-                <span className="barcode">{currentDamage.barcode}</span>
-              </div>
-
-              <div className="form-row">
-                <label>Producto:</label>
-                <input
-                  type="text"
-                  value={currentDamage.product_name}
-                  onChange={(e) => setCurrentDamage({ ...currentDamage, product_name: e.target.value })}
-                  placeholder="Nombre del producto"
-                  autoFocus
-                />
-              </div>
-
-              <div className="form-row">
-                <label>Marca:</label>
-                <input
-                  type="text"
-                  value={currentDamage.product_brand}
-                  onChange={(e) => setCurrentDamage({ ...currentDamage, product_brand: e.target.value })}
-                  placeholder="Marca (opcional)"
-                />
-              </div>
-
-              <div className="form-row">
-                <label>Cantidad dañada:</label>
-                <div className="quantity-controls">
-                  <button onClick={() => handleQuantityChange(currentDamage.quantity - 1)} disabled={currentDamage.quantity <= 1}>-</button>
-                  <input
-                    type="number"
-                    min="1"
-                    max="999"
-                    value={currentDamage.quantity}
-                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
-                  />
-                  <button onClick={() => handleQuantityChange(currentDamage.quantity + 1)}>+</button>
+                <div className="info-display">
+                  <span className="barcode-value">{currentDamage.barcode}</span>
                 </div>
               </div>
 
+              {/* Producto - solo texto, no editable */}
+              <div className="form-row">
+                <label>Producto:</label>
+                <div className="info-display">
+                  <span className="product-name">{currentDamage.product_name || 'Producto no encontrado'}</span>
+                </div>
+              </div>
+
+              {/* Marca - solo texto, no editable */}
+              {currentDamage.product_brand && (
+                <div className="form-row">
+                  <label>Marca:</label>
+                  <div className="info-display">
+                    <span className="product-brand">{currentDamage.product_brand}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Categoría - solo texto, no editable */}
+              {currentDamage.product_category && (
+                <div className="form-row">
+                  <label>Categoría:</label>
+                  <div className="info-display">
+                    <span className="product-category">{currentDamage.product_category}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Cantidad - input editable que permite borrar */}
+              <div className="form-row">
+                <label>Cantidad dañada:</label>
+                <div className="quantity-controls">
+                  <button 
+                    type="button" 
+                    onClick={() => handleQuantityChange((currentDamage?.quantity || 1) - 1)}
+                    disabled={currentDamage?.quantity <= 1}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={currentDamage?.quantity === 0 ? '' : currentDamage?.quantity || ''}
+                    onChange={handleQuantityInputChange}
+                    onBlur={handleQuantityBlur}
+                    className="quantity-input"
+                    placeholder="1"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => handleQuantityChange((currentDamage?.quantity || 1) + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Severidad */}
               <div className="form-row">
                 <label>Severidad:</label>
                 <select
                   value={currentDamage.severity}
                   onChange={(e) => setCurrentDamage({ ...currentDamage, severity: e.target.value as 'low' | 'medium' | 'high' })}
+                  className="severity-select"
                 >
                   <option value="low">🟢 Baja</option>
                   <option value="medium">🟡 Media</option>
@@ -294,6 +326,7 @@ const DamageModal: React.FC<DamageModalProps> = ({
                 </select>
               </div>
 
+              {/* Fotos */}
               <div className="form-row">
                 <label>📸 Fotos ({currentDamage.photos.length}/{maxPhotos}):</label>
                 <input
@@ -306,7 +339,7 @@ const DamageModal: React.FC<DamageModalProps> = ({
                 />
                 {currentDamage.photos.length > 0 && (
                   <div className="photos-preview">
-                    {currentDamage.photos.map((photo, idx) => (
+                    {currentDamage.photos.map((photo: string, idx: number) => (
                       <div key={idx} className="photo-preview">
                         <img src={photo} alt={`Daño ${idx + 1}`} />
                         <button onClick={() => removePhoto(idx)}>✕</button>
