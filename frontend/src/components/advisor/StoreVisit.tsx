@@ -807,60 +807,60 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleRestockSave = async (items: IRestockItem[]) => {
-      const newRestockItems = [...restockItems, ...items];
-      setRestockItems(newRestockItems);
+    const newRestockItems = items;
+    setRestockItems(newRestockItems);
+    
+    if (currentTaskIndex !== null) {
+      const updatedTasks = [...tasks];
+      updatedTasks[currentTaskIndex].completed = true;
+      updatedTasks[currentTaskIndex].timestamp = new Date();
+      updatedTasks[currentTaskIndex].additionalData = {
+        totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
+        uniqueProducts: items.length
+      };
+      setTasks(updatedTasks);
       
-      if (currentTaskIndex !== null) {
-        const updatedTasks = [...tasks];
-        updatedTasks[currentTaskIndex].completed = true;
-        updatedTasks[currentTaskIndex].timestamp = new Date();
-        updatedTasks[currentTaskIndex].additionalData = {
-          totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
-          uniqueProducts: items.length
-        };
-        setTasks(updatedTasks);
+      // Guardar inmediatamente en offlineStorage
+      if (storeVisitId && currentStore) {
+        const tasksChecklist = updatedTasks.reduce((acc, task) => {
+          acc[task.key] = task.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
         
-        // Guardar inmediatamente en offlineStorage
-        if (storeVisitId && currentStore) {
-          const tasksChecklist = updatedTasks.reduce((acc, task) => {
-            acc[task.key] = task.completed;
-            return acc;
-          }, {} as { [key: string]: boolean });
-          
-          // Normalizar status
-          const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
-          
-          await offlineStorage.saveVisitState(storeVisitId, {
-            routeStoreId: Number(currentStore.id),
-            storeId: Number(currentStore.storeId.id),
-            storeName: storeInfo.name,
-            startTime: new Date().toISOString(),
-            status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
-            tasks: updatedTasks,
-            tasksChecklist: tasksChecklist,
-            timeInStore: timeInMinutes,
-            damageReports: damageReports,
-            restockItems: newRestockItems,
-            notes: visitNotes,
-            photos: []
-          });
-          console.log('💾 Restock guardado inmediatamente');
-        }
+        // Normalizar status
+        const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+        
+        await offlineStorage.saveVisitState(storeVisitId, {
+          routeStoreId: Number(currentStore.id),
+          storeId: Number(currentStore.storeId.id),
+          storeName: storeInfo.name,
+          startTime: new Date().toISOString(),
+          status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+          tasks: updatedTasks,
+          tasksChecklist: tasksChecklist,
+          timeInStore: timeInMinutes,
+          damageReports: damageReports,
+          restockItems: newRestockItems,
+          notes: visitNotes,
+          photos: []
+        });
+        console.log('💾 Restock guardado inmediatamente');
       }
-      
-      setShowRestockModal(false);
-      setCurrentTaskIndex(null);
-      
-      if (!isOnline) {
-        for (const item of items) {
-          await offlineStorage.queueSyncAction('restock', item);
-        }
-        alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
-      } else {
-        const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-        alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+    }
+    
+    setShowRestockModal(false);
+    setCurrentTaskIndex(null);
+    
+    if (!isOnline) {
+      for (const item of items) {
+        await offlineStorage.queueSyncAction('restock', item);
       }
-    };
+      alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
+    } else {
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+    }
+  };
 
   const handleTaskCheckbox = async (task: ITask, index: number) => {
     if (task.completed) {
