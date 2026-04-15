@@ -11,6 +11,7 @@ import { restockService, IRestockItem } from '../../services/restockService';
 import { offlineStorage } from '../../services/offlineStorage';
 import '../../styles/StoreVisit.css';
 import { API_BASE_URL } from '../../services/api';
+import DamageModal from './DamageModal';
 
 // Interfaces mejoradas
 interface ITask {
@@ -257,6 +258,7 @@ const StoreVisit: React.FC = () => {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showDamageReport, setShowDamageReport] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
+  const [showDamageModal, setShowDamageModal] = useState(false);
   
   // Estados para formulario de daños
   const [currentBarcode, setCurrentBarcode] = useState<string>('');
@@ -544,39 +546,9 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleDamageCheckTask = (taskIndex: number) => {
-    const task = tasks[taskIndex];
-    
-    if (task.completed) {
-      const updatedTasks = [...tasks];
-      updatedTasks[taskIndex].completed = false;
-      updatedTasks[taskIndex].timestamp = undefined;
-      updatedTasks[taskIndex].additionalData = undefined;
-      setTasks(updatedTasks);
-    } else {
-      const option = window.confirm(
-        '¿Cómo quieres completar la revisión de bodega?\n\n' +
-        '✅ Aceptar = Reportar productos dañados\n' +
-        '❌ Cancelar = Marcar como "Sin daños"'
-      );
-      
-      if (option) {
-        setCurrentTaskIndex(taskIndex);
-        setShowBarcodeScanner(true);
-      } else {
-        const confirmNoDamages = window.confirm(
-          '¿Confirmas que NO encontraste productos dañados en la bodega?\n\n' +
-          'Esta acción marcará la tarea como completada sin reportes de daño.'
-        );
-        
-        if (confirmNoDamages) {
-          const updatedTasks = [...tasks];
-          updatedTasks[taskIndex].completed = true;
-          updatedTasks[taskIndex].timestamp = new Date();
-          updatedTasks[taskIndex].additionalData = { noDamages: true };
-          setTasks(updatedTasks);
-        }
-      }
-    }
+    // Abrir el nuevo modal de daños directamente
+    setCurrentTaskIndex(taskIndex);
+    setShowDamageModal(true);
   };
 
   const loadCurrentRoute = useCallback(async () => {
@@ -860,6 +832,76 @@ const StoreVisit: React.FC = () => {
       const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
       alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
     }
+  };
+
+  const handleDamageSave = async (newDamages: any[]) => {
+    // Convertir los daños del nuevo formato al formato existente (IDamageReport)
+    const formattedDamages = newDamages.map(damage => ({
+      id: damage.id || `local_${Date.now()}`,
+      barcode: damage.barcode,
+      product: {
+        id: '',
+        barcode: damage.barcode,
+        name: damage.product_name,
+        category: damage.product_category,
+        brand: damage.product_brand,
+        price: 0,
+        stock: 0
+      },
+      damageType: 'producto_danado',
+      description: `${damage.quantity} unidades dañadas - Severidad: ${damage.severity}`,
+      photos: damage.photos,
+      timestamp: new Date(),
+      severity: damage.severity,
+      storeId: String(route?.stores[currentStoreIndex]?.storeId?.id || ''),
+      reportedBy: user!.id,
+      quantity: damage.quantity  // 🆕 Agregar quantity al objeto
+    }));
+    
+    const newDamageReports = [...damageReports, ...formattedDamages];
+    setDamageReports(newDamageReports);
+    setShowDamageModal(false);
+    
+    // Marcar tarea de daños como completada
+    if (currentTaskIndex !== null) {
+      const updatedTasks = [...tasks];
+      updatedTasks[currentTaskIndex].completed = true;
+      updatedTasks[currentTaskIndex].timestamp = new Date();
+      updatedTasks[currentTaskIndex].additionalData = { 
+        hasDamages: true, 
+        count: formattedDamages.length,
+        totalQuantity: formattedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0)  // ✅ Ahora funciona
+      };
+      setTasks(updatedTasks);
+      
+      // Guardar inmediatamente en offlineStorage
+      if (storeVisitId && currentStore) {
+        const tasksChecklist = updatedTasks.reduce((acc, task) => {
+          acc[task.key] = task.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        
+        const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+        
+        await offlineStorage.saveVisitState(storeVisitId, {
+          routeStoreId: Number(currentStore.id),
+          storeId: Number(currentStore.storeId.id),
+          storeName: storeInfo.name,
+          startTime: new Date().toISOString(),
+          status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+          tasks: updatedTasks,
+          tasksChecklist: tasksChecklist,
+          timeInStore: timeInMinutes,
+          damageReports: newDamageReports,
+          restockItems: restockItems,
+          notes: visitNotes,
+          photos: []
+        });
+      }
+    }
+    
+    alert(`✅ ${formattedDamages.length} productos dañados reportados`);
+    setCurrentTaskIndex(null);
   };
 
   const handleTaskCheckbox = async (task: ITask, index: number) => {
@@ -1683,6 +1725,17 @@ const StoreVisit: React.FC = () => {
         </div>
       )}
 
+      {showDamageModal && (
+        <DamageModal
+          storeId={Number(currentStore?.storeId?.id)}
+          routeStoreId={Number(currentStore?.id)}
+          reportedBy={Number(user!.id)}
+          existingDamages={damageReports}
+          onClose={() => setShowDamageModal(false)}
+          onSave={handleDamageSave}
+        />
+      )}
+
       {showSignaturePad && <SignaturePad onSave={handleSignatureSave} onClose={() => setShowSignaturePad(false)} />}
       
       {showBarcodeScanner && (
@@ -1700,7 +1753,7 @@ const StoreVisit: React.FC = () => {
           routeStoreId={Number(route.stores[currentStoreIndex].id)}
           storeId={Number(route.stores[currentStoreIndex].storeId.id)}
           reportedBy={Number(user!.id)}
-          existingItems={restockItems}  // 🆕 Pasar productos ya registrados
+          existingItems={restockItems}
           onClose={() => { setShowRestockModal(false); setCurrentTaskIndex(null); }}
           onSave={handleRestockSave}
         />
