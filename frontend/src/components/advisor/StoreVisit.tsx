@@ -1174,7 +1174,7 @@ const StoreVisit: React.FC = () => {
     
     // AbortController para timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
     
     try {
       console.log('📤 Enviando petición a:', `${API_BASE_URL}/routes/complete-visit`);
