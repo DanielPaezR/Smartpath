@@ -307,3 +307,32 @@
   border-radius: 8px;
   background: white;
 }
+
+/* Opción sin daños */
+.no-damage-option {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.btn-no-damage {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-no-damage:hover {
+  background: #218838;
+}
+
+.no-damage-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 8px;
+}

@@ -239,6 +239,24 @@ const DamageModal: React.FC<DamageModalProps> = ({
                   : '➕ Escanea otro producto o finaliza'}
               </p>
               <BarcodeScannerButton onScan={handleScannerScan} disabled={loading} />
+              
+              {/* 🆕 Botón para marcar sin daños */}
+              {damages.length === 0 && (
+                <div className="no-damage-option">
+                  <button 
+                    className="btn-no-damage"
+                    onClick={() => {
+                      if (confirm('¿Confirmas que NO hay productos dañados en esta bodega?')) {
+                        onSave([]);  // Guardar lista vacía
+                        onClose();
+                      }
+                    }}
+                  >
+                    ✅ No hay productos dañados
+                  </button>
+                  <p className="no-damage-hint">Selecciona esta opción si después de revisar no encuentras daños</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -301,7 +319,7 @@ const DamageModal: React.FC<DamageModalProps> = ({
                     onChange={handleQuantityInputChange}
                     onBlur={handleQuantityBlur}
                     className="quantity-input"
-                    placeholder="1"
+                    placeholder="0"
                   />
                   <button 
                     type="button" 
