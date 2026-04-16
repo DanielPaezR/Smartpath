@@ -1,6 +1,6 @@
 // frontend/src/components/advisor/RestockModal.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { restockService, IRestockItem } from '../../services/restockService';
+import { IRestockItem } from '../../services/restockService';
 import BarcodeScannerButton from './BarcodeScannerButton';
 import { API_BASE_URL } from '../../services/api';
 import '../../styles/RestockModal.css';
@@ -11,7 +11,7 @@ interface IRestockModalProps {
     reportedBy: number;
     existingItems?: IRestockItem[];  // 🆕 Productos ya registrados
     onClose: () => void;
-    onSave: (items: IRestockItem[]) => void;
+    onSave: (items: IRestockItem[]) => Promise<void>;
 }
 
 interface TempItem {
@@ -44,7 +44,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
     }, [showScanner, tempItem]);
 
-    // Buscar producto por código de barras
+    // Buscar producto por codigo de barras
     const searchProduct = async (barcode: string) => {
         setLoading(true);
         try {
@@ -63,7 +63,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                 setShowScanner(false);
                 setBarcodeInput('');
             } else {
-                if (confirm(`Producto con código ${barcode} no encontrado.\n¿Quieres ingresarlo manualmente?`)) {
+                if (confirm(`Producto con c?digo ${barcode} no encontrado.\n?Quieres ingresarlo manualmente?`)) {
                     setTempItem({
                         barcode,
                         product: { name: '', brand: '', category: '' },
@@ -138,24 +138,16 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
 
         if (items.length === 0) {
-            if (!confirm('No has registrado ningún producto. ¿Continuar sin registrar?')) {
+            if (!confirm('No has registrado ningun producto. Continuar sin registrar?')) {
                 return;
             }
-            onSave([]);
-            onClose();
+            await onSave([]);
             return;
         }
 
         setLoading(true);
         try {
-            const savedItems: IRestockItem[] = [];
-            for (const item of items) {
-                const saved = await restockService.addRestockItem(item);
-                savedItems.push(saved);
-            }
-            alert(`✅ ${savedItems.length} productos registrados correctamente`);
-            onSave(savedItems);
-            onClose();
+            await onSave(items);
         } catch (error) {
             console.error('Error guardando productos:', error);
             alert('Error al guardar los productos');

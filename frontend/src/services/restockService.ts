@@ -96,6 +96,40 @@ class RestockService {
             };
         }
     }
+
+
+    async syncRestockItems(
+        routeStoreId: number,
+        storeId: number,
+        items: Omit<IRestockItem, 'reported_at' | 'total_value'>[]
+    ): Promise<IRestockItem[]> {
+        try {
+            const response = await fetch(`${this.baseUrl}/sync-items`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    route_store_id: routeStoreId,
+                    store_id: storeId,
+                    items
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error en restockService.syncRestockItems:', response.status, errorText);
+                throw new Error(`Error al sincronizar productos repuestos: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.items || [];
+        } catch (error) {
+            console.error('Error en restockService.syncRestockItems:', error);
+            throw error;
+        }
+    }
 }
 
 export const restockService = new RestockService();

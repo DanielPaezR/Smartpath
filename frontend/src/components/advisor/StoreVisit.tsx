@@ -779,7 +779,22 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleRestockSave = async (items: IRestockItem[]) => {
-    const newRestockItems = items;
+    if (!currentStore) {
+      throw new Error('No se encontro la tienda actual para sincronizar la reposicion');
+    }
+
+    const routeStoreId = Number(currentStore.id);
+    const storeId = Number(currentStore.storeId.id);
+    const payloadItems = items.map(({ reported_at, total_value, ...item }) => ({
+      ...item,
+      route_store_id: routeStoreId,
+      store_id: storeId
+    }));
+
+    const newRestockItems = isOnline
+      ? await restockService.syncRestockItems(routeStoreId, storeId, payloadItems)
+      : payloadItems;
+
     setRestockItems(newRestockItems);
     
     if (currentTaskIndex !== null) {
@@ -787,24 +802,22 @@ const StoreVisit: React.FC = () => {
       updatedTasks[currentTaskIndex].completed = true;
       updatedTasks[currentTaskIndex].timestamp = new Date();
       updatedTasks[currentTaskIndex].additionalData = {
-        totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
-        uniqueProducts: items.length
+        totalItems: newRestockItems.reduce((sum, item) => sum + item.quantity, 0),
+        uniqueProducts: newRestockItems.length
       };
       setTasks(updatedTasks);
       
-      // Guardar inmediatamente en offlineStorage
       if (storeVisitId && currentStore) {
         const tasksChecklist = updatedTasks.reduce((acc, task) => {
           acc[task.key] = task.completed;
           return acc;
         }, {} as { [key: string]: boolean });
         
-        // Normalizar status
         const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
         
         await offlineStorage.saveVisitState(storeVisitId, {
-          routeStoreId: Number(currentStore.id),
-          storeId: Number(currentStore.storeId.id),
+          routeStoreId,
+          storeId,
           storeName: storeInfo.name,
           startTime: new Date().toISOString(),
           status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
@@ -816,7 +829,7 @@ const StoreVisit: React.FC = () => {
           notes: visitNotes,
           photos: []
         });
-        console.log('💾 Restock guardado inmediatamente');
+        console.log('Restock guardado inmediatamente');
       }
     }
     
@@ -824,13 +837,15 @@ const StoreVisit: React.FC = () => {
     setCurrentTaskIndex(null);
     
     if (!isOnline) {
-      for (const item of items) {
-        await offlineStorage.queueSyncAction('restock', item);
-      }
-      alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
+      await offlineStorage.queueSyncAction('restock', {
+        route_store_id: routeStoreId,
+        store_id: storeId,
+        items: payloadItems
+      });
+      alert(`${payloadItems.length} productos registrados localmente. Se sincronizaran cuando haya conexion.`);
     } else {
-      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+      const totalQuantity = newRestockItems.reduce((sum, item) => sum + item.quantity, 0);
+      alert(`Registro exitoso: ${totalQuantity} productos repuestos`);
     }
   };
 

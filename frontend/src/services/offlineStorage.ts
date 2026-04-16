@@ -375,15 +375,27 @@ class OfflineStorageService {
         break;
         
       case 'restock':
-        const restockResponse = await fetch(`${API_BASE_URL}/routes/restock/add-item`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(data)
-        });
-        if (!restockResponse.ok) throw new Error('Error registrando reposición');
+        if (Array.isArray(data?.items)) {
+          const restockSyncResponse = await fetch(`${API_BASE_URL}/routes/restock/sync-items`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+          });
+          if (!restockSyncResponse.ok) throw new Error('Error sincronizando reposicion');
+        } else {
+          const restockResponse = await fetch(`${API_BASE_URL}/routes/restock/add-item`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+          });
+          if (!restockResponse.ok) throw new Error('Error registrando reposicion');
+        }
         break;
         
       case 'visit_complete':
