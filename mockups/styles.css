@@ -98,16 +98,22 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
+    padding: 20px;
     background: #f8f9fa;
-    gap: 20px;
+    gap: 10px;
+    min-height: 500px;
 }
 
 .carousel-wrapper {
     flex: 1;
     overflow: hidden;
-    border-radius: 24px;
-    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
 }
 
 .carousel {
@@ -118,13 +124,34 @@ body {
 .carousel-slide {
     flex: 0 0 100%;
     min-width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f5f5f5;
 }
 
 .carousel-slide img {
-    width: 100%;
+    max-width: 100%;
+    max-height: 70vh;
+    width: auto;
     height: auto;
+    object-fit: contain;
     display: block;
-    background: #f0f0f0;
+    margin: 0 auto;
+}
+
+/* Para pantallas grandes, limitar altura */
+@media (min-width: 1200px) {
+    .carousel-slide img {
+        max-height: 60vh;
+    }
+}
+
+/* Para móviles */
+@media (max-width: 768px) {
+    .carousel-slide img {
+        max-height: 50vh;
+    }
 }
 
 .carousel-btn {
@@ -261,4 +288,19 @@ body {
     .header h1 {
         font-size: 28px;
     }
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
