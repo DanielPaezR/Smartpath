@@ -40,7 +40,7 @@
       "tarea": "Supervisión"
     },
     {
-      "imagen": "images/admin/Seguimiento_3.png",
+      "imagen": "images/admin/segumiento_3.png",
       "titulo": "Detalle de Asesor",
       "descripcion": "Lista de asesores con estado ubicación y progreso.",
       "tarea": "Supervisión"
