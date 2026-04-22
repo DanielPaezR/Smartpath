@@ -1,0 +1,11 @@
+# Excluir la carpeta mockups de la redirección
+RewriteEngine On
+RewriteRule ^mockups/ - [L,NC]
+
+# Si el archivo o directorio existe, sírvelo directamente
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Redirigir todo lo demás a index.html (para React)
+RewriteRule ^ index.html [L]
