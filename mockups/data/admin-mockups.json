@@ -4,33 +4,45 @@
   "color": "#2196F3",
   "mockups": [
     {
+      "imagen": "images/login.png",
+      "titulo": "Inicio de Sesión",
+      "descripcion": "Credenciales para acceder al aplicativo móvil.",
+      "tarea": "Seguridad"
+    },
+    {
       "imagen": "images/admin/Dashboard_1.png",
       "titulo": "Dashboard Administrativo",
-      "descripcion": "Visión general del sistema: asesores activos, rutas del día, métricas clave.",
+      "descripcion": "Visión general del sistema: seguimiento de asesores y gestión de tiendas y productos.",
       "tarea": "Monitoreo"
     },
     {
       "imagen": "images/admin/Dashboard_2.png",
       "titulo": "Métricas Generales",
-      "descripcion": "Estadísticas globales del sistema: visitas completadas, eficiencia promedio, productos repuestos.",
+      "descripcion": "Visión general del sistema: Gestión de asesores, configuración de rutas, Métricas de Negocio y Sistema.",
       "tarea": "Análisis"
     },
     {
       "imagen": "images/admin/Dashboard_3.png",
       "titulo": "Gráficos de Rendimiento",
-      "descripcion": "Visualización gráfica de tendencias y rendimiento de los asesores.",
+      "descripcion": "Visión general del sistema: Galería de fotos y estado Machine Learning",
       "tarea": "Análisis"
     },
     {
       "imagen": "images/admin/Seguimiento_1.png",
       "titulo": "Seguimiento en Tiempo Real",
-      "descripcion": "Monitoreo de ubicación y progreso de cada asesor en campo.",
+      "descripcion": "Monitoreo de ubicación y estado de cada asesor en campo.",
       "tarea": "Supervisión"
     },
     {
       "imagen": "images/admin/Seguimiento_2.png",
       "titulo": "Detalle de Asesor",
-      "descripcion": "Información detallada del progreso de un asesor específico.",
+      "descripcion": "Total asesores, cuantos en tienda, en viaje y con ubicación.",
+      "tarea": "Supervisión"
+    },
+    {
+      "imagen": "images/admin/Seguimiento_3.png",
+      "titulo": "Detalle de Asesor",
+      "descripcion": "Lista de asesores con estado ubicación y progreso.",
       "tarea": "Supervisión"
     },
     {
@@ -42,7 +54,7 @@
     {
       "imagen": "images/admin/agregartienda.png",
       "titulo": "Agregar Tienda",
-      "descripcion": "Formulario para agregar nuevas tiendas al sistema.",
+      "descripcion": "Formulario para agregar nueva tienda a una ruta.",
       "tarea": "Configuración"
     },
     {
@@ -54,13 +66,19 @@
     {
       "imagen": "images/admin/gestionProductos_1.png",
       "titulo": "Gestión de Productos",
-      "descripcion": "Catálogo de productos para reposición y control de inventario.",
+      "descripcion": "Listado y administración de todos los productos del sistema.",
       "tarea": "Configuración"
     },
     {
       "imagen": "images/admin/gestionTiendas_1.png",
       "titulo": "Gestión de Tiendas",
-      "descripcion": "Administración de tiendas, horarios y prioridades.",
+      "descripcion": "Datos sobre las tiendas: cantidad, prioridad, zona y filtro de busqueda.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionTiendas_2.png",
+      "titulo": "Gestión de Tiendas",
+      "descripcion": "Listado y administración de todas las tiendas del sistema..",
       "tarea": "Configuración"
     },
     {

@@ -4,6 +4,12 @@
   "color": "#4CAF50",
   "mockups": [
     {
+      "imagen": "images/login.png",
+      "titulo": "Inicio de Sesión",
+      "descripcion": "Credenciales para acceder al aplicativo móvil.",
+      "tarea": "Seguridad"
+    },
+    {
       "imagen": "images/advisor/dashboardAsesor_1.png",
       "titulo": "Dashboard Principal",
       "descripcion": "Vista general del mapa de ruta con las tiendas a visitar, progreso del día y estadísticas rápidas.",
@@ -11,36 +17,60 @@
     },
     {
       "imagen": "images/advisor/dashboardAsesor_2.png",
-      "titulo": "Lista de Tiendas",
-      "descripcion": "Listado ordenado de todas las tiendas asignadas para el día, con estado de cada visita.",
-      "tarea": "Planificación"
+      "titulo": "Dashboard Principal 2",
+      "descripcion": "Vista general del mapa de ruta con las tiendas a visitar, progreso del día y estadísticas rápidas.",
+      "tarea": "Visión General"
     },
     {
       "imagen": "images/advisor/dashboardAsesor_3.png",
-      "titulo": "Detalle de Tienda",
-      "descripcion": "Información detallada de la tienda actual, incluyendo dirección, horarios y contacto.",
-      "tarea": "Información"
+      "titulo": "Dashboard Principal 3",
+      "descripcion": "Vista general del mapa de ruta con las tiendas a visitar, progreso del día y estadísticas rápidas.",
+      "tarea": "Visión General"
     },
     {
       "imagen": "images/advisor/iniciarVisita.png",
       "titulo": "Inicio de Visita",
-      "descripcion": "Pantalla para iniciar la visita a una tienda, con botón para comenzar el checklist.",
+      "descripcion": "Pantalla para iniciar la visita a una tienda, con botón para abrir google maps.",
       "tarea": "Gestión de Visita"
     },
     {
       "imagen": "images/advisor/storeVisit_1.png",
       "titulo": "Checklist de Tareas",
-      "descripcion": "Lista de 10 tareas a realizar en cada tienda: evidencia fotográfica, picking, organización, etc.",
+      "descripcion": "Tiempo en tienda, Barra y porcentaje de avance.",
       "tarea": "Tareas"
     },
     {
       "imagen": "images/advisor/storeVisit_2.png",
-      "titulo": "Registro de Reposiciones",
-      "descripcion": "Escáner de código de barras para registrar productos repuestos, con cantidad editable.",
-      "tarea": "Inventario"
+      "titulo": "Checklist de Tareas 2",
+      "descripcion": "Lista de 10 tareas a realizar en cada tienda: evidencia fotográfica, picking, organización, etc.",
+      "tarea": "Tareas"
+    },
+    {
+      "imagen": "images/advisor/storeVisit_3.png",
+      "titulo": "Checklist de Tareas 3",
+      "descripcion": "Lista de 10 tareas a realizar en cada tienda: evidencia fotográfica, picking, organización, etc.",
+      "tarea": "Tareas"
+    },
+    {
+      "imagen": "images/advisor/storeVisit_4.png",
+      "titulo": "Checklist de Tareas 4",
+      "descripcion": "Lista de 10 tareas a realizar en cada tienda: evidencia fotográfica, picking, organización, etc.",
+      "tarea": "Tareas"
     },
     {
       "imagen": "images/advisor/picking_1.png",
+      "titulo": "Picking de Productos",
+      "descripcion": "Seleccion de modalidad de registro.",
+      "tarea": "Inventario"
+    },
+    {
+      "imagen": "images/advisor/picking_2.png",
+      "titulo": "Picking de Productos",
+      "descripcion": "Escaneo de Codigo de Barras para registrar productos seleccionados para reposición en estantería.",
+      "tarea": "Inventario"
+    },
+    {
+      "imagen": "images/advisor/picking_3.png",
       "titulo": "Picking de Productos",
       "descripcion": "Registro de productos seleccionados para reposición en estantería.",
       "tarea": "Inventario"
@@ -48,20 +78,32 @@
     {
       "imagen": "images/advisor/daños_1.png",
       "titulo": "Reporte de Daños",
+      "descripcion": "Selección de modalidad de registro.",
+      "tarea": "Calidad"
+    },
+    {
+      "imagen": "images/advisor/daños_2.png",
+      "titulo": "Reporte de Daños",
       "descripcion": "Registro rápido de productos dañados con fotos y selección de severidad (baja, media, alta).",
       "tarea": "Calidad"
     },
     {
-      "imagen": "images/advisor/notas.png",
-      "titulo": "Notas de Visita",
-      "descripcion": "Campo para agregar observaciones adicionales sobre la visita a la tienda.",
-      "tarea": "Documentación"
-    },
-    {
       "imagen": "images/advisor/metricas_1.png",
       "titulo": "Métricas Personales",
-      "descripcion": "Estadísticas de rendimiento: visitas completadas, eficiencia, productos repuestos y daños reportados.",
+      "descripcion": "Estadísticas de rendimiento: visitas completadas, eficiencia, tiempo promedio y productos repuestos..",
       "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/advisor/metricas_2.png",
+      "titulo": "Métricas Personales 2",
+      "descripcion": "Estadísticas de rendimiento: visitas completadas, eficiencia, kilometros recorridos.",
+      "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/advisor/notas.png",
+      "titulo": "Notas de Visita",
+      "descripcion": "Campo para ver observaciones adicionales sobre la visita a la tienda.",
+      "tarea": "Documentación"
     }
   ]
 }
