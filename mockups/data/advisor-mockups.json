@@ -4,45 +4,63 @@
   "color": "#4CAF50",
   "mockups": [
     {
-      "imagen": "images/advisor/login.png",
-      "titulo": "Inicio de Sesión",
-      "descripcion": "Pantalla de login para que los asesores accedan con su correo y contraseña.",
-      "tarea": "Autenticación"
-    },
-    {
-      "imagen": "images/advisor/dashboard.png",
+      "imagen": "images/advisor/dashboardAsesor_1.png",
       "titulo": "Dashboard Principal",
-      "descripcion": "Vista general de la ruta del día, progreso y estadísticas rápidas.",
+      "descripcion": "Vista general del mapa de ruta con las tiendas a visitar, progreso del día y estadísticas rápidas.",
       "tarea": "Visión General"
     },
     {
-      "imagen": "images/advisor/ruta.png",
-      "titulo": "Mapa de Ruta",
-      "descripcion": "Visualización de todas las tiendas a visitar en el día, con navegación integrada.",
-      "tarea": "Navegación"
+      "imagen": "images/advisor/dashboardAsesor_2.png",
+      "titulo": "Lista de Tiendas",
+      "descripcion": "Listado ordenado de todas las tiendas asignadas para el día, con estado de cada visita.",
+      "tarea": "Planificación"
     },
     {
-      "imagen": "images/advisor/checklist.png",
-      "titulo": "Checklist de Tareas",
-      "descripcion": "Lista de tareas a realizar en cada tienda: fotos, picking, organización, etc.",
+      "imagen": "images/advisor/dashboardAsesor_3.png",
+      "titulo": "Detalle de Tienda",
+      "descripcion": "Información detallada de la tienda actual, incluyendo dirección, horarios y contacto.",
+      "tarea": "Información"
+    },
+    {
+      "imagen": "images/advisor/iniciarVisita.png",
+      "titulo": "Inicio de Visita",
+      "descripcion": "Pantalla para iniciar la visita a una tienda, con botón para comenzar el checklist.",
       "tarea": "Gestión de Visita"
     },
     {
-      "imagen": "images/advisor/restock.png",
+      "imagen": "images/advisor/storeVisit_1.png",
+      "titulo": "Checklist de Tareas",
+      "descripcion": "Lista de 10 tareas a realizar en cada tienda: evidencia fotográfica, picking, organización, etc.",
+      "tarea": "Tareas"
+    },
+    {
+      "imagen": "images/advisor/storeVisit_2.png",
       "titulo": "Registro de Reposiciones",
-      "descripcion": "Escáner de código de barras para registrar productos repuestos con cantidad editable.",
+      "descripcion": "Escáner de código de barras para registrar productos repuestos, con cantidad editable.",
       "tarea": "Inventario"
     },
     {
-      "imagen": "images/advisor/damage.png",
+      "imagen": "images/advisor/picking_1.png",
+      "titulo": "Picking de Productos",
+      "descripcion": "Registro de productos seleccionados para reposición en estantería.",
+      "tarea": "Inventario"
+    },
+    {
+      "imagen": "images/advisor/daños_1.png",
       "titulo": "Reporte de Daños",
-      "descripcion": "Registro rápido de productos dañados con fotos y severidad.",
+      "descripcion": "Registro rápido de productos dañados con fotos y selección de severidad (baja, media, alta).",
       "tarea": "Calidad"
     },
     {
-      "imagen": "images/advisor/metricas.png",
+      "imagen": "images/advisor/notas.png",
+      "titulo": "Notas de Visita",
+      "descripcion": "Campo para agregar observaciones adicionales sobre la visita a la tienda.",
+      "tarea": "Documentación"
+    },
+    {
+      "imagen": "images/advisor/metricas_1.png",
       "titulo": "Métricas Personales",
-      "descripcion": "Estadísticas de rendimiento del asesor: visitas, eficiencia, productos repuestos.",
+      "descripcion": "Estadísticas de rendimiento: visitas completadas, eficiencia, productos repuestos y daños reportados.",
       "tarea": "Análisis"
     }
   ]

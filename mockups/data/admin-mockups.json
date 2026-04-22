@@ -4,46 +4,100 @@
   "color": "#2196F3",
   "mockups": [
     {
-      "imagen": "images/admin/login.png",
-      "titulo": "Inicio de Sesión Admin",
-      "descripcion": "Acceso al panel de administración con credenciales de administrador.",
-      "tarea": "Autenticación"
-    },
-    {
-      "imagen": "images/admin/dashboard.png",
+      "imagen": "images/admin/Dashboard_1.png",
       "titulo": "Dashboard Administrativo",
       "descripcion": "Visión general del sistema: asesores activos, rutas del día, métricas clave.",
       "tarea": "Monitoreo"
     },
     {
-      "imagen": "images/admin/config-rutas.png",
-      "titulo": "Configuración de Rutas",
-      "descripcion": "Editor semanal para asignar tiendas a cada asesor por día.",
-      "tarea": "Planificación"
+      "imagen": "images/admin/Dashboard_2.png",
+      "titulo": "Métricas Generales",
+      "descripcion": "Estadísticas globales del sistema: visitas completadas, eficiencia promedio, productos repuestos.",
+      "tarea": "Análisis"
     },
     {
-      "imagen": "images/admin/tracking.png",
+      "imagen": "images/admin/Dashboard_3.png",
+      "titulo": "Gráficos de Rendimiento",
+      "descripcion": "Visualización gráfica de tendencias y rendimiento de los asesores.",
+      "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/admin/Seguimiento_1.png",
       "titulo": "Seguimiento en Tiempo Real",
       "descripcion": "Monitoreo de ubicación y progreso de cada asesor en campo.",
       "tarea": "Supervisión"
     },
     {
-      "imagen": "images/admin/metricas-avanzadas.png",
-      "titulo": "Métricas Avanzadas",
-      "descripcion": "Análisis detallado de reposiciones, daños y eficiencia por asesor.",
+      "imagen": "images/admin/Seguimiento_2.png",
+      "titulo": "Detalle de Asesor",
+      "descripcion": "Información detallada del progreso de un asesor específico.",
+      "tarea": "Supervisión"
+    },
+    {
+      "imagen": "images/admin/configRutas.png",
+      "titulo": "Configuración de Rutas",
+      "descripcion": "Editor semanal para asignar tiendas a cada asesor por día de la semana.",
+      "tarea": "Planificación"
+    },
+    {
+      "imagen": "images/admin/agregartienda.png",
+      "titulo": "Agregar Tienda",
+      "descripcion": "Formulario para agregar nuevas tiendas al sistema.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionAsesores.png",
+      "titulo": "Gestión de Asesores",
+      "descripcion": "Listado y administración de todos los asesores del sistema.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionProductos_1.png",
+      "titulo": "Gestión de Productos",
+      "descripcion": "Catálogo de productos para reposición y control de inventario.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionTiendas_1.png",
+      "titulo": "Gestión de Tiendas",
+      "descripcion": "Administración de tiendas, horarios y prioridades.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/metricasAsesores.png",
+      "titulo": "Métricas por Asesor",
+      "descripcion": "Análisis detallado del rendimiento individual de cada asesor.",
       "tarea": "Análisis"
     },
     {
-      "imagen": "images/admin/galeria-fotos.png",
+      "imagen": "images/admin/metricasDaños.png",
+      "titulo": "Métricas de Daños",
+      "descripcion": "Estadísticas de productos dañados por categoría y por tienda.",
+      "tarea": "Calidad"
+    },
+    {
+      "imagen": "images/admin/metricas_reposiciones.png",
+      "titulo": "Métricas de Reposiciones",
+      "descripcion": "Análisis de productos repuestos, valor total y tendencias.",
+      "tarea": "Inventario"
+    },
+    {
+      "imagen": "images/admin/galeriaFotos.png",
       "titulo": "Galería de Fotos",
-      "descripcion": "Visualización de todas las fotos tomadas (antes, después, daños) con filtros.",
+      "descripcion": "Visualización de todas las fotos tomadas (antes, después, daños) con filtros por asesor, tienda y fecha.",
       "tarea": "Auditoría"
     },
     {
-      "imagen": "images/admin/rendimiento.png",
+      "imagen": "images/admin/metricasSistema_1.png",
       "titulo": "Métricas de Rendimiento",
       "descripcion": "Estadísticas del sistema: tiempos de respuesta, almacenamiento, sincronización.",
       "tarea": "Optimización"
+    },
+    {
+      "imagen": "images/admin/machineLearning.png",
+      "titulo": "Machine Learning",
+      "descripcion": "Dashboard de datos para entrenamiento del modelo de optimización de rutas.",
+      "tarea": "Inteligencia Artificial"
     }
   ]
 }
