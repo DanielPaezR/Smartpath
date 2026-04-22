@@ -1,0 +1,49 @@
+{
+  "perfil": "Asesor",
+  "icono": "📱",
+  "color": "#4CAF50",
+  "mockups": [
+    {
+      "imagen": "images/advisor/login.png",
+      "titulo": "Inicio de Sesión",
+      "descripcion": "Pantalla de login para que los asesores accedan con su correo y contraseña.",
+      "tarea": "Autenticación"
+    },
+    {
+      "imagen": "images/advisor/dashboard.png",
+      "titulo": "Dashboard Principal",
+      "descripcion": "Vista general de la ruta del día, progreso y estadísticas rápidas.",
+      "tarea": "Visión General"
+    },
+    {
+      "imagen": "images/advisor/ruta.png",
+      "titulo": "Mapa de Ruta",
+      "descripcion": "Visualización de todas las tiendas a visitar en el día, con navegación integrada.",
+      "tarea": "Navegación"
+    },
+    {
+      "imagen": "images/advisor/checklist.png",
+      "titulo": "Checklist de Tareas",
+      "descripcion": "Lista de tareas a realizar en cada tienda: fotos, picking, organización, etc.",
+      "tarea": "Gestión de Visita"
+    },
+    {
+      "imagen": "images/advisor/restock.png",
+      "titulo": "Registro de Reposiciones",
+      "descripcion": "Escáner de código de barras para registrar productos repuestos con cantidad editable.",
+      "tarea": "Inventario"
+    },
+    {
+      "imagen": "images/advisor/damage.png",
+      "titulo": "Reporte de Daños",
+      "descripcion": "Registro rápido de productos dañados con fotos y severidad.",
+      "tarea": "Calidad"
+    },
+    {
+      "imagen": "images/advisor/metricas.png",
+      "titulo": "Métricas Personales",
+      "descripcion": "Estadísticas de rendimiento del asesor: visitas, eficiencia, productos repuestos.",
+      "tarea": "Análisis"
+    }
+  ]
+}

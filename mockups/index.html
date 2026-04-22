@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPath - Galería de Mockups</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <span class="logo-icon">🚀</span>
+                <h1>SmartPath</h1>
+            </div>
+            <p class="subtitle">Galería de Mockups - Interfaz de Usuario</p>
+        </div>
+
+        <!-- Selector de Perfil -->
+        <div class="profile-selector">
+            <button class="profile-btn active" data-profile="advisor">
+                <span class="btn-icon">📱</span>
+                Perfil Asesor
+            </button>
+            <button class="profile-btn" data-profile="admin">
+                <span class="btn-icon">🖥️</span>
+                Perfil Administrador
+            </button>
+        </div>
+
+        <!-- Carrusel -->
+        <div class="carousel-container">
+            <button class="carousel-btn prev" id="prevBtn">❮</button>
+            <div class="carousel-wrapper">
+                <div class="carousel" id="carousel">
+                    <!-- Las imágenes se cargarán dinámicamente -->
+                </div>
+            </div>
+            <button class="carousel-btn next" id="nextBtn">❯</button>
+        </div>
+
+        <!-- Indicadores -->
+        <div class="indicators" id="indicators"></div>
+
+        <!-- Información de la imagen actual -->
+        <div class="info-panel" id="infoPanel">
+            <div class="info-tag" id="infoTag"></div>
+            <h2 id="infoTitle">Cargando...</h2>
+            <p id="infoDescription"></p>
+            <div class="info-meta">
+                <span class="meta-item" id="metaTask"></span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>SmartPath - Sistema de Optimización de Rutas para Mercaderistas</p>
+            <p>Proyecto de Grado - Universidad Adventista</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

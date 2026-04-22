@@ -1,0 +1,49 @@
+{
+  "perfil": "Administrador",
+  "icono": "🖥️",
+  "color": "#2196F3",
+  "mockups": [
+    {
+      "imagen": "images/admin/login.png",
+      "titulo": "Inicio de Sesión Admin",
+      "descripcion": "Acceso al panel de administración con credenciales de administrador.",
+      "tarea": "Autenticación"
+    },
+    {
+      "imagen": "images/admin/dashboard.png",
+      "titulo": "Dashboard Administrativo",
+      "descripcion": "Visión general del sistema: asesores activos, rutas del día, métricas clave.",
+      "tarea": "Monitoreo"
+    },
+    {
+      "imagen": "images/admin/config-rutas.png",
+      "titulo": "Configuración de Rutas",
+      "descripcion": "Editor semanal para asignar tiendas a cada asesor por día.",
+      "tarea": "Planificación"
+    },
+    {
+      "imagen": "images/admin/tracking.png",
+      "titulo": "Seguimiento en Tiempo Real",
+      "descripcion": "Monitoreo de ubicación y progreso de cada asesor en campo.",
+      "tarea": "Supervisión"
+    },
+    {
+      "imagen": "images/admin/metricas-avanzadas.png",
+      "titulo": "Métricas Avanzadas",
+      "descripcion": "Análisis detallado de reposiciones, daños y eficiencia por asesor.",
+      "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/admin/galeria-fotos.png",
+      "titulo": "Galería de Fotos",
+      "descripcion": "Visualización de todas las fotos tomadas (antes, después, daños) con filtros.",
+      "tarea": "Auditoría"
+    },
+    {
+      "imagen": "images/admin/rendimiento.png",
+      "titulo": "Métricas de Rendimiento",
+      "descripcion": "Estadísticas del sistema: tiempos de respuesta, almacenamiento, sincronización.",
+      "tarea": "Optimización"
+    }
+  ]
+}

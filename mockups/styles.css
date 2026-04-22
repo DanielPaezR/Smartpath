@@ -1,0 +1,264 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 32px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.logo-icon {
+    font-size: 48px;
+}
+
+.header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+/* Selector de Perfil */
+.profile-selector {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 30px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.profile-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 48px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    color: #333;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.profile-btn .btn-icon {
+    font-size: 20px;
+}
+
+.profile-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.profile-btn:hover:not(.active) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Carrusel */
+.carousel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: #f8f9fa;
+    gap: 20px;
+}
+
+.carousel-wrapper {
+    flex: 1;
+    overflow: hidden;
+    border-radius: 24px;
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.2);
+}
+
+.carousel {
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+}
+
+.carousel-slide {
+    flex: 0 0 100%;
+    min-width: 100%;
+}
+
+.carousel-slide img {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: #f0f0f0;
+}
+
+.carousel-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.carousel-btn:hover {
+    background: #667eea;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Indicadores */
+.indicators {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+.indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ddd;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.indicator.active {
+    width: 28px;
+    border-radius: 10px;
+    background: #667eea;
+}
+
+/* Panel de Información */
+.info-panel {
+    padding: 30px 40px;
+    background: white;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.info-tag {
+    display: inline-block;
+    padding: 6px 14px;
+    background: #e9ecef;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 16px;
+}
+
+.info-panel h2 {
+    font-size: 28px;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+}
+
+.info-panel p {
+    font-size: 16px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.info-meta {
+    display: flex;
+    gap: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e9ecef;
+}
+
+.meta-item {
+    display: inline-block;
+    padding: 6px 14px;
+    background: #f8f9fa;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #666;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 24px;
+    background: #1a1a2e;
+    color: #888;
+    font-size: 14px;
+}
+
+.footer p:first-child {
+    margin-bottom: 8px;
+    color: #aaa;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profile-selector {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .profile-btn {
+        width: 80%;
+        justify-content: center;
+    }
+    
+    .carousel-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+    }
+    
+    .info-panel {
+        padding: 20px;
+    }
+    
+    .info-panel h2 {
+        font-size: 22px;
+    }
+    
+    .header h1 {
+        font-size: 28px;
+    }
+}
