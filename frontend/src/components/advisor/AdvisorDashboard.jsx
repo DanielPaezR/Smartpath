@@ -157,13 +157,13 @@ const AdvisorDashboard = () => {
 
   useEffect(() => {
     const handleFocus = () => {
-      if (user?.id) {
-        loadRouteData(user.id);
+      if (currentUser?.id) {
+        loadRouteData(currentUser.id);
       }
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [user?.id]);
+  }, [currentUser?.id]);
 
   const initializeDashboard = async () => {
     try {
