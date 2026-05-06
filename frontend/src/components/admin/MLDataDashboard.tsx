@@ -34,16 +34,15 @@ const MLDataDashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Obtener resultados de optimización por asesor
       const response = await fetch(`${API_BASE_URL}/admin/optimization-summary`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       const data = await response.json();
       if (data.success) {
-        setOptimizationData(data.byAdvisor);
-        setGlobalMetrics(data.global);
-        setLastExecution(data.lastExecution);
+        setOptimizationData(data.byAdvisor || []);
+        setGlobalMetrics(data.global || null);
+        setLastExecution(data.lastExecution || '');
       }
     } catch (err: any) {
       console.error('Error cargando datos:', err);
@@ -52,14 +51,19 @@ const MLDataDashboard: React.FC = () => {
     }
   };
 
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(1)}%`;
+  const formatPercentage = (value: number | string | null): string => {
+    if (value === null || value === undefined) return '0%';
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return '0%';
+    return `${num.toFixed(1)}%`;
   };
 
-  const getImprovementColor = (value: number) => {
-    if (value > 30) return 'excellent';
-    if (value > 15) return 'good';
-    if (value > 0) return 'regular';
+  const getImprovementColor = (value: number | string | null): string => {
+    const num = typeof value === 'string' ? parseFloat(value) : (value || 0);
+    if (isNaN(num)) return 'regular';
+    if (num > 30) return 'excellent';
+    if (num > 15) return 'good';
+    if (num > 0) return 'regular';
     return 'bad';
   };
 
@@ -86,7 +90,7 @@ const MLDataDashboard: React.FC = () => {
           <div className="metric-card-global">
             <div className="metric-icon">🛣️</div>
             <div className="metric-info">
-              <span className="metric-value">{globalMetrics.total_rutas}</span>
+              <span className="metric-value">{globalMetrics.total_rutas || 0}</span>
               <span className="metric-label">Rutas Optimizadas</span>
             </div>
           </div>
@@ -136,9 +140,10 @@ const MLDataDashboard: React.FC = () => {
                     <div className="efficiency-bar">
                       <div 
                         className="efficiency-fill" 
-                        style={{ width: `${Math.min(100, advisor.mejora_distancia)}%` }}
-                      />
-                      <span>{Math.round(advisor.mejora_distancia)}%</span>
+                        style={{ width: `${Math.min(100, Number(advisor.mejora_distancia) || 0)}%` }}
+                      >
+                        <span>{Math.round(Number(advisor.mejora_distancia) || 0)}%</span>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -158,11 +163,11 @@ const MLDataDashboard: React.FC = () => {
           </div>
           <div className="interpret-card">
             <h4>📊 Nivel de Confianza (95%)</h4>
-            <p>El modelo tiene un 95% de confianza en que los resultados obtenidos son estadísticamente significativos, basado en el análisis de {globalMetrics?.total_rutas} rutas y {optimizationData.reduce((acc, a) => acc + a.rutas, 0)} recorridos.</p>
+            <p>El modelo tiene un 95% de confianza en que los resultados obtenidos son estadísticamente significativos, basado en el análisis de {globalMetrics?.total_rutas || 0} rutas.</p>
           </div>
           <div className="interpret-card">
             <h4>⚡ Factores que afectan la mejora</h4>
-            <p>Las mejoras varían según la calidad de los datos disponibles para cada asesor. Asesores con más datos históricos (como Alberto Penagos) muestran mejoras más significativas.</p>
+            <p>Las mejoras varían según la calidad de los datos disponibles para cada asesor. Asesores con más datos históricos muestran mejoras más significativas.</p>
           </div>
         </div>
       </div>
@@ -171,14 +176,15 @@ const MLDataDashboard: React.FC = () => {
       <div className="executive-summary">
         <h3>📄 Resumen Ejecutivo</h3>
         <div className="summary-content">
-          <p>El modelo de optimización de rutas ha demostrado ser efectivo, logrando una <strong>mejora promedio del {globalMetrics?.mejora_promedio.toFixed(1)}%</strong> en la distancia recorrida.</p>
+          <p>El modelo de optimización de rutas ha demostrado ser efectivo, logrando una <strong>mejora promedio del {formatPercentage(globalMetrics?.mejora_promedio || 0)}</strong> en la distancia recorrida.</p>
           <ul>
-            <li>✅ <strong>Alberto Penagos</strong>: Mejora del 51.16% (9 rutas analizadas)</li>
-            <li>✅ <strong>Jeiner Acosta</strong>: Mejora del 48.38% (2 rutas)</li>
-            <li>✅ <strong>Johana Gonzales</strong>: Mejora del 29.10% (4 rutas)</li>
-            <li>✅ <strong>Luz Nidia</strong>: Mejora del 15.00% (14 rutas)</li>
+            {optimizationData.map((advisor) => (
+              <li key={advisor.advisor_id}>
+                ✅ <strong>{advisor.advisor_name}</strong>: Mejora del {formatPercentage(advisor.mejora_distancia)} ({advisor.rutas} rutas)
+              </li>
+            ))}
           </ul>
-          <p className="confidence-note">📊 <strong>Nivel de confianza del 95%</strong> - Los resultados son estadísticamente significativos y representativos del comportamiento real del sistema.</p>
+          <p className="confidence-note">📊 <strong>Nivel de confianza del {formatPercentage(globalMetrics?.confianza || 0)}</strong> - Los resultados son estadísticamente significativos y representativos del comportamiento real del sistema.</p>
         </div>
       </div>
 
@@ -188,7 +194,7 @@ const MLDataDashboard: React.FC = () => {
         <p>El algoritmo de optimización utiliza el método del <strong>Vecino Más Cercano (Nearest Neighbor)</strong> para calcular rutas optimizadas. La distancia entre tiendas se calcula mediante la <strong>fórmula de Haversine</strong>, que tiene en cuenta la curvatura terrestre para mayor precisión.</p>
         <div className="methodology-stats">
           <div className="stat">
-            <span className="stat-number">{globalMetrics?.total_rutas}</span>
+            <span className="stat-number">{globalMetrics?.total_rutas || 0}</span>
             <span className="stat-label">Rutas analizadas</span>
           </div>
           <div className="stat">
@@ -196,7 +202,7 @@ const MLDataDashboard: React.FC = () => {
             <span className="stat-label">Tiendas en sistema</span>
           </div>
           <div className="stat">
-            <span className="stat-number">95%</span>
+            <span className="stat-number">{formatPercentage(globalMetrics?.confianza || 0)}</span>
             <span className="stat-label">Confianza estadística</span>
           </div>
         </div>
