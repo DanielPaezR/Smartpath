@@ -7,7 +7,6 @@ interface OptimizationSummary {
   advisor_id: number;
   advisor_name: string;
   mejora_distancia: number;
-  mejora_tiempo: number;
   rutas: number;
 }
 
@@ -33,184 +32,196 @@ const MLDataDashboard: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
       const response = await fetch(`${API_BASE_URL}/admin/optimization-summary`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
       });
-      
       const data = await response.json();
       if (data.success) {
         setOptimizationData(data.byAdvisor || []);
         setGlobalMetrics(data.global || null);
         setLastExecution(data.lastExecution || '');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error cargando datos:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatPercentage = (value: number | string | null): string => {
+  const formatPct = (value: number | string | null): string => {
     if (value === null || value === undefined) return '0%';
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return '0%';
-    return `${num.toFixed(1)}%`;
+    return isNaN(num) ? '0%' : `${num.toFixed(1)}%`;
   };
 
-  const getImprovementColor = (value: number | string | null): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : (value || 0);
-    if (isNaN(num)) return 'regular';
-    if (num > 30) return 'excellent';
-    if (num > 15) return 'good';
-    if (num > 0) return 'regular';
-    return 'bad';
+  const getImprovementClass = (value: number | string | null): string => {
+    const num = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
+    if (isNaN(num)) return 'tier-neutral';
+    if (num > 30) return 'tier-high';
+    if (num > 15) return 'tier-mid';
+    if (num > 0)  return 'tier-low';
+    return 'tier-none';
   };
 
-  if (loading) return <div className="ml-loading">Cargando resultados de optimización...</div>;
+  if (loading) {
+    return (
+      <div className="mld-loading">
+        <span className="mld-loading__spinner" />
+        <p>Cargando resultados...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="ml-dashboard">
-      <div className="ml-header">
-        <h1>🚀 Resultados de Optimización de Rutas</h1>
-        <p>Análisis cuantitativo del modelo de optimización</p>
-        {lastExecution && <small>Última ejecución: {new Date(lastExecution).toLocaleString()}</small>}
-      </div>
+    <div className="mld">
 
-      {/* Métricas Globales */}
-      {globalMetrics && (
-        <div className="global-metrics">
-          <div className="metric-card-global">
-            <div className="metric-icon">📊</div>
-            <div className="metric-info">
-              <span className="metric-value">{formatPercentage(globalMetrics.mejora_promedio)}</span>
-              <span className="metric-label">Mejora Promedio en Distancia</span>
-            </div>
-          </div>
-          <div className="metric-card-global">
-            <div className="metric-icon">🛣️</div>
-            <div className="metric-info">
-              <span className="metric-value">{globalMetrics.total_rutas || 0}</span>
-              <span className="metric-label">Rutas Optimizadas</span>
-            </div>
-          </div>
-          <div className="metric-card-global">
-            <div className="metric-icon">📈</div>
-            <div className="metric-info">
-              <span className="metric-value">{formatPercentage(globalMetrics.mejora_max)}</span>
-              <span className="metric-label">Mejora Máxima</span>
-            </div>
-          </div>
-          <div className="metric-card-global">
-            <div className="metric-icon">🎯</div>
-            <div className="metric-info">
-              <span className="metric-value">{formatPercentage(globalMetrics.confianza)}</span>
-              <span className="metric-label">Nivel de Confianza</span>
-            </div>
-          </div>
+      {/* Header */}
+      <header className="mld__header">
+        <div>
+          <h1 className="mld__title">Optimización de Rutas</h1>
+          <p className="mld__subtitle">Análisis cuantitativo — algoritmo Nearest Neighbor</p>
         </div>
+        {lastExecution && (
+          <span className="mld__timestamp">
+            Actualizado {new Date(lastExecution).toLocaleString('es-CO', {
+              day: '2-digit', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            })}
+          </span>
+        )}
+      </header>
+
+      {/* Global metrics */}
+      {globalMetrics && (
+        <section className="mld__metrics">
+          <div className="mld-metric">
+            <span className="mld-metric__value">{formatPct(globalMetrics.mejora_promedio)}</span>
+            <span className="mld-metric__label">Mejora promedio</span>
+          </div>
+          <div className="mld-metric">
+            <span className="mld-metric__value">{globalMetrics.total_rutas ?? 0}</span>
+            <span className="mld-metric__label">Rutas optimizadas</span>
+          </div>
+          <div className="mld-metric">
+            <span className="mld-metric__value">{formatPct(globalMetrics.mejora_max)}</span>
+            <span className="mld-metric__label">Mejora máxima</span>
+          </div>
+          <div className="mld-metric">
+            <span className="mld-metric__value">{formatPct(globalMetrics.confianza)}</span>
+            <span className="mld-metric__label">Confianza estadística</span>
+          </div>
+        </section>
       )}
 
-      {/* Tabla de Resultados por Asesor */}
-      <div className="results-table">
-        <h2>📋 Resultados por Asesor</h2>
-        <div className="table-container">
-          <table className="advisor-table">
+      {/* Results table */}
+      <section className="mld__section">
+        <h2 className="mld__section-title">Resultados por asesor</h2>
+        <div className="mld-table-wrap">
+          <table className="mld-table">
             <thead>
               <tr>
                 <th>Asesor</th>
-                <th>Rutas Analizadas</th>
-                <th>Mejora Distancia</th>
-                <th>Mejora Tiempo</th>
+                <th>Rutas analizadas</th>
+                <th>Mejora en distancia</th>
                 <th>Eficiencia</th>
               </tr>
             </thead>
             <tbody>
-              {optimizationData.map((advisor) => (
-                <tr key={advisor.advisor_id}>
-                  <td className="advisor-name">{advisor.advisor_name}</td>
-                  <td>{advisor.rutas}</td>
-                  <td className={`improvement ${getImprovementColor(advisor.mejora_distancia)}`}>
-                    {formatPercentage(advisor.mejora_distancia)}
-                  </td>
-                  <td className={`improvement ${getImprovementColor(advisor.mejora_tiempo)}`}>
-                    {formatPercentage(advisor.mejora_tiempo)}
-                  </td>
-                  <td>
-                    <div className="efficiency-bar">
-                      <div 
-                        className="efficiency-fill" 
-                        style={{ width: `${Math.min(100, Number(advisor.mejora_distancia) || 0)}%` }}
-                      >
-                        <span>{Math.round(Number(advisor.mejora_distancia) || 0)}%</span>
+              {optimizationData.map((advisor) => {
+                const pct = Math.min(100, Number(advisor.mejora_distancia) || 0);
+                return (
+                  <tr key={advisor.advisor_id}>
+                    <td className="mld-table__name">{advisor.advisor_name}</td>
+                    <td>{advisor.rutas}</td>
+                    <td>
+                      <span className={`mld-badge ${getImprovementClass(advisor.mejora_distancia)}`}>
+                        {formatPct(advisor.mejora_distancia)}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="mld-bar">
+                        <div className="mld-bar__fill" style={{ width: `${pct}%` }} />
+                        <span className="mld-bar__label">{Math.round(pct)}%</span>
                       </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      {/* Interpretación de Resultados */}
-      <div className="interpretation">
-        <h3>📖 Interpretación de los Resultados</h3>
-        <div className="interpretation-grid">
-          <div className="interpret-card">
-            <h4>🎯 ¿Qué significa la mejora?</h4>
-            <p>El porcentaje de mejora indica cuánto se reduce la distancia total de la ruta después de aplicar el algoritmo de optimización. Una mejora del 30% significa que la ruta es un 30% más corta que la original.</p>
+      {/* Interpretation */}
+      <section className="mld__section">
+        <h2 className="mld__section-title">Interpretación</h2>
+        <div className="mld-cards">
+          <div className="mld-card">
+            <h3 className="mld-card__title">Lectura del porcentaje</h3>
+            <p>El porcentaje de mejora indica la reducción en distancia total después de aplicar el algoritmo. Un 30% significa que el asesor recorre un 30% menos de kilómetros por ruta.</p>
           </div>
-          <div className="interpret-card">
-            <h4>📊 Nivel de Confianza (95%)</h4>
-            <p>El modelo tiene un 95% de confianza en que los resultados obtenidos son estadísticamente significativos, basado en el análisis de {globalMetrics?.total_rutas || 0} rutas.</p>
+          <div className="mld-card">
+            <h3 className="mld-card__title">Nivel de confianza</h3>
+            <p>El modelo opera con un {formatPct(globalMetrics?.confianza || 0)} de confianza estadística, basado en el análisis de {globalMetrics?.total_rutas ?? 0} rutas.</p>
           </div>
-          <div className="interpret-card">
-            <h4>⚡ Factores que afectan la mejora</h4>
-            <p>Las mejoras varían según la calidad de los datos disponibles para cada asesor. Asesores con más datos históricos muestran mejoras más significativas.</p>
+          <div className="mld-card">
+            <h3 className="mld-card__title">Algoritmo</h3>
+            <p>Se implementó el algoritmo del Vecino Más Cercano (Nearest Neighbor) para resolver el problema del viajante (TSP), optimizando el orden de visita de las tiendas.</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Resumen Ejecutivo */}
-      <div className="executive-summary">
-        <h3>📄 Resumen Ejecutivo</h3>
-        <div className="summary-content">
-          <p>El modelo de optimización de rutas ha demostrado ser efectivo, logrando una <strong>mejora promedio del {formatPercentage(globalMetrics?.mejora_promedio || 0)}</strong> en la distancia recorrida.</p>
-          <ul>
+      {/* Executive summary */}
+      <section className="mld__section">
+        <h2 className="mld__section-title">Resumen ejecutivo</h2>
+        <div className="mld-summary">
+          <p>
+            El modelo logró una mejora promedio de{' '}
+            <strong>{formatPct(globalMetrics?.mejora_promedio || 0)}</strong> en la distancia recorrida,
+            con un nivel de confianza del <strong>{formatPct(globalMetrics?.confianza || 0)}</strong>.
+          </p>
+          <ul className="mld-summary__list">
             {optimizationData.map((advisor) => (
               <li key={advisor.advisor_id}>
-                ✅ <strong>{advisor.advisor_name}</strong>: Mejora del {formatPercentage(advisor.mejora_distancia)} ({advisor.rutas} rutas)
+                <strong>{advisor.advisor_name}</strong>
+                <span>{formatPct(advisor.mejora_distancia)} de mejora — {advisor.rutas} rutas</span>
               </li>
             ))}
           </ul>
-          <p className="confidence-note">📊 <strong>Nivel de confianza del {formatPercentage(globalMetrics?.confianza || 0)}</strong> - Los resultados son estadísticamente significativos y representativos del comportamiento real del sistema.</p>
         </div>
-      </div>
+      </section>
 
-      {/* Metodología */}
-      <div className="methodology">
-        <h3>🔬 Metodología</h3>
-        <p>El algoritmo de optimización utiliza el método del <strong>Vecino Más Cercano (Nearest Neighbor)</strong> para calcular rutas optimizadas. La distancia entre tiendas se calcula mediante la <strong>fórmula de Haversine</strong>, que tiene en cuenta la curvatura terrestre para mayor precisión.</p>
-        <div className="methodology-stats">
-          <div className="stat">
-            <span className="stat-number">{globalMetrics?.total_rutas || 0}</span>
-            <span className="stat-label">Rutas analizadas</span>
+      {/* Methodology */}
+      <section className="mld__section">
+        <h2 className="mld__section-title">Metodología</h2>
+        <p className="mld__body">
+          Las rutas optimizadas se calculan con el método del{' '}
+          <strong>Vecino Más Cercano</strong>. La distancia entre tiendas se obtiene mediante la{' '}
+          <strong>fórmula de Haversine</strong>, que considera la curvatura terrestre para mayor precisión.
+        </p>
+        <div className="mld-stats">
+          <div className="mld-stat">
+            <span className="mld-stat__number">{globalMetrics?.total_rutas ?? 0}</span>
+            <span className="mld-stat__label">Rutas analizadas</span>
           </div>
-          <div className="stat">
-            <span className="stat-number">162</span>
-            <span className="stat-label">Tiendas en sistema</span>
+          <div className="mld-stat">
+            <span className="mld-stat__number">162</span>
+            <span className="mld-stat__label">Tiendas en sistema</span>
           </div>
-          <div className="stat">
-            <span className="stat-number">{formatPercentage(globalMetrics?.confianza || 0)}</span>
-            <span className="stat-label">Confianza estadística</span>
+          <div className="mld-stat">
+            <span className="mld-stat__number">{formatPct(globalMetrics?.confianza || 0)}</span>
+            <span className="mld-stat__label">Confianza estadística</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="ml-footer">
-        <button onClick={loadOptimizationResults} className="refresh-btn">🔄 Actualizar Datos</button>
-      </div>
+      {/* Footer */}
+      <footer className="mld__footer">
+        <button className="mld__refresh" onClick={loadOptimizationResults}>
+          Actualizar datos
+        </button>
+      </footer>
+
     </div>
   );
 };
