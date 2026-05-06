@@ -1905,10 +1905,13 @@ class AdminController {
     try {
       console.log('🚀 Ejecutando optimización de rutas...');
 
-      // Ejecutar el script Python
-      const pythonProcess = spawn('python3', ['ml/optimizer.py'], {
-        cwd: process.cwd() + '/backend',
-        stdio: ['pipe', 'pipe', 'pipe']
+      // Usar la ruta completa de python3
+      const pythonPath = '/usr/bin/python3';
+      const scriptPath = '/home/daniel.paez/Smartpath/backend/ml/optimizer.py';
+      
+      const { spawn } = await import('child_process');
+      const pythonProcess = spawn(pythonPath, [scriptPath], {
+        cwd: '/home/daniel.paez/Smartpath/backend'
       });
 
       let stdout = '';
