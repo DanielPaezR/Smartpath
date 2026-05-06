@@ -44,25 +44,25 @@ def calculate_total_distance(route, points):
     return total
 
 def calculate_total_time(route, store_times):
-    return sum(store_times.get(store_id, 0) for store_id in route)
+    return sum(store_times.get(store_id, 65.7) for store_id in route)
 
 def main():
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # Obtener tiempos históricos por tienda (de Alberto)
+        # Limpiar resultados anteriores para esta ejecución (opcional)
+        cursor.execute("DELETE FROM optimization_results")
+        
+        # Obtener tiempos por tienda DESDE LA TABLA store_time_references
         cursor.execute("""
-            SELECT store_id, AVG(actual_duration) as avg_time
-            FROM route_stores rs
-            JOIN routes r ON rs.route_id = r.id
-            WHERE r.advisor_id = 11
-                AND rs.status = 'completed'
-                AND rs.actual_duration > 0
-            GROUP BY store_id
+            SELECT store_id, avg_duration as avg_time
+            FROM store_time_references
         """)
         store_times = {row['store_id']: row['avg_time'] for row in cursor.fetchall()}
-        print(f"📊 Tiempos históricos: {len(store_times)} tiendas")
+        
+        real_count = sum(1 for v in store_times.values() if v)
+        print(f"📊 Tiempos por tienda: {len(store_times)} tiendas (reales + sintéticos)")
 
         # Obtener rutas que tienen al menos una tienda completada
         cursor.execute("""
@@ -108,7 +108,7 @@ def main():
             # Calcular nivel de confianza basado en cantidad de datos
             confidence = min(95, 50 + (len(store_times) / 2))
 
-            # Guardar en DB usando los nombres de columnas correctos
+            # Guardar en DB
             cursor.execute("""
                 INSERT INTO optimization_results
                 (advisor_id, route_id, execution_date, distance_original, distance_optimized, distance_improvement, time_original, time_optimized, time_improvement, confidence_level)
