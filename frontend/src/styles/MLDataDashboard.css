@@ -377,3 +377,191 @@
     font-size: 0.8rem;
   }
 }
+
+/* frontend/src/styles/MLDataDashboard.css - Agregar al final */
+
+.global-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.metric-card-global {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: white;
+}
+
+.metric-card-global .metric-icon {
+  font-size: 2.5rem;
+}
+
+.metric-card-global .metric-value {
+  font-size: 2rem;
+  font-weight: bold;
+  display: block;
+}
+
+.metric-card-global .metric-label {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.results-table h2 {
+  margin: 20px 0;
+  color: #333;
+}
+
+.advisor-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.advisor-table th {
+  background: #2c3e50;
+  color: white;
+  padding: 12px;
+  text-align: left;
+}
+
+.advisor-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.advisor-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.improvement.excellent {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.improvement.good {
+  color: #2ecc71;
+  font-weight: bold;
+}
+
+.improvement.regular {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.improvement.bad {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.efficiency-bar {
+  width: 100px;
+  background: #e9ecef;
+  border-radius: 20px;
+  height: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.efficiency-fill {
+  background: #27ae60;
+  height: 100%;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.interpretation, .methodology {
+  background: #f8f9fa;
+  border-radius: 16px;
+  padding: 24px;
+  margin: 24px 0;
+}
+
+.interpretation h3, .methodology h3, .executive-summary h3 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.interpretation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.interpret-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.interpret-card h4 {
+  margin: 0 0 10px 0;
+  color: #667eea;
+}
+
+.executive-summary {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 24px 0;
+}
+
+.summary-content ul {
+  margin: 15px 0;
+  padding-left: 20px;
+}
+
+.summary-content li {
+  margin: 8px 0;
+}
+
+.confidence-note {
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 15px;
+  font-weight: 500;
+}
+
+.methodology-stats {
+  display: flex;
+  gap: 30px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  text-align: center;
+  background: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  min-width: 120px;
+}
+
+.stat-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #666;
+}

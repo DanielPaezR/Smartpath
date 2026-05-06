@@ -42,6 +42,7 @@ router.put('/advisors/:advisorId/schedule/order', adminController.updateSchedule
 router.get('/stores/simple', adminController.getAllStoresSimple);
 router.get('/ml/metrics', adminController.getMLMetrics);
 router.get('/advisors/:advisorId/weekly-pattern', adminController.getWeeklyPattern);
+router.get('/optimization-summary', adminController.getOptimizationSummary);
 
 // Generar rutas diarias
 router.post('/routes/generate-daily', adminController.generateDailyRoutes);

@@ -1959,6 +1959,55 @@ class AdminController {
       res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  async getOptimizationSummary(req, res) {
+    const connection = await createConnection();
+    try {
+      // Resultados por asesor
+      const [byAdvisor] = await connection.execute(`
+        SELECT 
+          o.advisor_id,
+          u.name as advisor_name,
+          ROUND(AVG(o.distance_improvement), 2) as mejora_distancia,
+          ROUND(AVG(o.time_improvement), 2) as mejora_tiempo,
+          COUNT(*) as rutas
+        FROM optimization_results o
+        JOIN users u ON o.advisor_id = u.id
+        WHERE o.advisor_id IN (8,9,10,11)
+        GROUP BY o.advisor_id, u.name
+        ORDER BY mejora_distancia DESC
+      `);
+      
+      // Métricas globales
+      const [global] = await connection.execute(`
+        SELECT 
+          ROUND(AVG(distance_improvement), 2) as mejora_promedio,
+          COUNT(*) as total_rutas,
+          ROUND(MIN(distance_improvement), 2) as mejora_min,
+          ROUND(MAX(distance_improvement), 2) as mejora_max,
+          ROUND(AVG(confidence_level), 2) as confianza
+        FROM optimization_results
+        WHERE advisor_id IN (8,9,10,11)
+      `);
+      
+      // Última ejecución
+      const [lastExec] = await connection.execute(`
+        SELECT MAX(created_at) as last_execution FROM optimization_results
+      `);
+      
+      res.json({
+        success: true,
+        byAdvisor,
+        global: global[0],
+        lastExecution: lastExec[0]?.last_execution
+      });
+      
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 export default new AdminController();
