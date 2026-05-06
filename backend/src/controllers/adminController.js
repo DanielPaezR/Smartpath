@@ -2,6 +2,7 @@
 import { createConnection } from '../config/database.js';
 import { User } from '../models/User.js';
 import { routeGenerator } from '../services/routeGenerator.js';
+import { spawn } from 'child_process';
 
 // Función auxiliar para métricas vacías de reposición
 const emptyRestockMetrics = () => ({
@@ -1896,6 +1897,63 @@ class AdminController {
       res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
+    }
+  }
+
+  // Ejecutar optimización de rutas
+  async runOptimization(req, res) {
+    try {
+      console.log('🚀 Ejecutando optimización de rutas...');
+
+      // Ejecutar el script Python
+      const pythonProcess = spawn('python', ['ml/optimizer.py'], {
+        cwd: process.cwd() + '/backend',
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      pythonProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('✅ Optimización completada exitosamente');
+          res.json({
+            success: true,
+            message: 'Optimización completada',
+            output: stdout.trim(),
+            error: stderr.trim()
+          });
+        } else {
+          console.error('❌ Error en optimización:', stderr);
+          res.status(500).json({
+            success: false,
+            error: 'Error ejecutando optimización',
+            details: stderr.trim(),
+            output: stdout.trim()
+          });
+        }
+      });
+
+      pythonProcess.on('error', (error) => {
+        console.error('❌ Error ejecutando script Python:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Error ejecutando script Python',
+          details: error.message
+        });
+      });
+
+    } catch (error) {
+      console.error('❌ Error en runOptimization:', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 }

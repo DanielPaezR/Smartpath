@@ -36,11 +36,24 @@ interface MLMetrics {
   recommendations: string[];
 }
 
+interface OptimizationResult {
+  route_id: number;
+  advisor_id: number;
+  original_distance: number;
+  optimized_distance: number;
+  original_time: number;
+  optimized_time: number;
+  distance_improvement: number;
+  time_improvement: number;
+}
+
 const MLDataDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<MLMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter'>('month');
+  const [optimizationResults, setOptimizationResults] = useState<OptimizationResult[]>([]);
+  const [loadingOptimization, setLoadingOptimization] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -64,11 +77,46 @@ const MLDataDashboard: React.FC = () => {
     }
   };
 
+  const runOptimization = async () => {
+    try {
+      setLoadingOptimization(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/admin/run-optimization`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('Optimización completada: ' + result.output);
+        // Aquí podrías recargar datos o mostrar resultados
+        // Por ahora, solo mostrar mensaje
+      } else {
+        alert('Error en optimización: ' + result.error);
+      }
+    } catch (err: any) {
+      alert('Error ejecutando optimización: ' + err.message);
+    } finally {
+      setLoadingOptimization(false);
+    }
+  };
+
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}min`;
+  };
+
+  const calculateAverageImprovement = (results: OptimizationResult[], field: 'distance_improvement' | 'time_improvement') => {
+    if (results.length === 0) return 0;
+    const sum = results.reduce((acc, r) => acc + r[field], 0);
+    return sum / results.length;
+  };
+
+  const calculateConfidence = (n: number) => {
+    if (n <= 0) return 0;
+    return 100 * (1 - 1 / Math.sqrt(n));
   };
 
   if (loading) return <div className="ml-loading">Cargando datos de Machine Learning...</div>;
@@ -243,9 +291,103 @@ const MLDataDashboard: React.FC = () => {
         </ul>
       </div>
 
+      {/* Resultados de Optimización */}
+      <div className="ml-section">
+        <h2>🚀 Resultados de Optimización</h2>
+        
+        {/* Tarjetas de métricas */}
+        <div className="optimization-kpis">
+          <div className="kpi-card success">
+            <div className="kpi-icon">📏</div>
+            <div className="kpi-info">
+              <span className="kpi-value">{calculateAverageImprovement(optimizationResults, 'distance_improvement').toFixed(1)}%</span>
+              <span className="kpi-label">Mejora Distancia</span>
+            </div>
+          </div>
+          <div className="kpi-card success">
+            <div className="kpi-icon">⏱️</div>
+            <div className="kpi-info">
+              <span className="kpi-value">{calculateAverageImprovement(optimizationResults, 'time_improvement').toFixed(1)}%</span>
+              <span className="kpi-label">Mejora Tiempo</span>
+            </div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-icon">📊</div>
+            <div className="kpi-info">
+              <span className="kpi-value">{calculateConfidence(optimizationResults.length).toFixed(1)}%</span>
+              <span className="kpi-label">Confianza</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Gráfico comparativo */}
+        <div className="ml-card">
+          <h3>📈 Comparación Original vs Optimizado</h3>
+          <div className="chart-container">
+            {optimizationResults.length > 0 ? (
+              <div className="bar-chart">
+                {optimizationResults.slice(0, 10).map((result, i) => (
+                  <div key={i} className="chart-row">
+                    <span className="chart-label">Ruta {result.route_id}</span>
+                    <div className="chart-bars">
+                      <div className="chart-bar original" style={{ width: `${Math.min(result.original_distance / 10, 100)}%` }}>
+                        {result.original_distance.toFixed(1)}km
+                      </div>
+                      <div className="chart-bar optimized" style={{ width: `${Math.min(result.optimized_distance / 10, 100)}%` }}>
+                        {result.optimized_distance.toFixed(1)}km
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>No hay resultados de optimización disponibles</p>
+            )}
+          </div>
+        </div>
+
+        {/* Tabla de resultados históricos */}
+        <div className="ml-card">
+          <h3>📋 Resultados Históricos</h3>
+          <div className="table-container">
+            <table className="ml-table">
+              <thead>
+                <tr>
+                  <th>Ruta ID</th>
+                  <th>Asesor</th>
+                  <th>Distancia Original</th>
+                  <th>Distancia Optimizada</th>
+                  <th>Mejora Distancia</th>
+                  <th>Mejora Tiempo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {optimizationResults.map((result, i) => (
+                  <tr key={i}>
+                    <td>{result.route_id}</td>
+                    <td>{result.advisor_id}</td>
+                    <td>{result.original_distance.toFixed(2)} km</td>
+                    <td>{result.optimized_distance.toFixed(2)} km</td>
+                    <td className="success">{result.distance_improvement.toFixed(1)}%</td>
+                    <td className="success">{result.time_improvement.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div className="ml-footer">
         <button onClick={loadData} className="refresh-btn">🔄 Actualizar Datos</button>
         <button className="export-btn" onClick={() => alert('Función de exportación próximamente')}>📥 Exportar para ML</button>
+        <button 
+          onClick={runOptimization} 
+          className="optimize-btn" 
+          disabled={loadingOptimization}
+        >
+          {loadingOptimization ? '⏳ Ejecutando...' : '🚀 Ejecutar Optimización'}
+        </button>
       </div>
     </div>
   );

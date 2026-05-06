@@ -46,6 +46,6 @@ router.get('/advisors/:advisorId/weekly-pattern', adminController.getWeeklyPatte
 // Generar rutas diarias
 router.post('/routes/generate-daily', adminController.generateDailyRoutes);
 router.post('/routes/generate-week', adminController.generateWeekRoutes);
-
+router.post('/run-optimization', adminController.runOptimization);
 
 export default router;
