@@ -24,7 +24,7 @@ async function populateDurations() {
   try {
     console.log('🚀 Iniciando población de duraciones sintéticas...');
 
-    // Obtener datos de Alberto (id=11)
+    // Obtener datos de Alberto (id=11) - solo completed con duración > 0
     const albertoId = 11;
     console.log('📊 Obteniendo datos de referencia de Alberto...');
 
@@ -49,13 +49,12 @@ async function populateDurations() {
     for (const advisorId of ADVISOR_IDS) {
       console.log(`\n👤 Procesando asesor ID: ${advisorId}`);
 
-      // Obtener visitas completadas SIN duración
+      // Obtener visitas SIN duración (todos los estados excepto completed con duración)
       const [visits] = await connection.execute(`
         SELECT rs.id, rs.store_id, rs.actual_duration
         FROM route_stores rs
         JOIN routes r ON rs.route_id = r.id
         WHERE r.advisor_id = ?
-          AND rs.status = 'completed'
           AND (rs.actual_duration IS NULL OR rs.actual_duration = 0 OR rs.actual_duration < 1)
       `, [advisorId]);
 
@@ -64,6 +63,7 @@ async function populateDurations() {
       let updatedCount = 0;
 
       for (const visit of visits) {
+        // Usar promedio de Alberto si existe, sino usar promedio general
         const mean = storeTimes[visit.store_id] || GENERAL_AVG;
         const syntheticDuration = generateSyntheticDuration(mean, STD_DEV);
         
