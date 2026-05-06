@@ -3,6 +3,7 @@ import math
 import os
 from dotenv import load_dotenv
 from collections import defaultdict
+from datetime import date
 
 load_dotenv()
 
@@ -50,21 +51,6 @@ def main():
     cursor = conn.cursor(dictionary=True)
 
     try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS optimization_results (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                route_id INT,
-                advisor_id INT,
-                original_distance FLOAT,
-                optimized_distance FLOAT,
-                original_time FLOAT,
-                optimized_time FLOAT,
-                distance_improvement FLOAT,
-                time_improvement FLOAT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
         # Obtener tiempos históricos por tienda (de Alberto)
         cursor.execute("""
             SELECT store_id, AVG(actual_duration) as avg_time
@@ -118,12 +104,16 @@ def main():
 
             distance_improvement = ((original_distance - optimized_distance) / original_distance) * 100 if original_distance > 0 else 0
             time_improvement = ((original_time - optimized_time) / original_time) * 100 if original_time > 0 else 0
+            
+            # Calcular nivel de confianza basado en cantidad de datos
+            confidence = min(95, 50 + (len(store_times) / 2))
 
+            # Guardar en DB usando los nombres de columnas correctos
             cursor.execute("""
                 INSERT INTO optimization_results
-                (route_id, advisor_id, original_distance, optimized_distance, original_time, optimized_time, distance_improvement, time_improvement)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (route_id, advisor_id, original_distance, optimized_distance, original_time, optimized_time, distance_improvement, time_improvement))
+                (advisor_id, route_id, execution_date, distance_original, distance_optimized, distance_improvement, time_original, time_optimized, time_improvement, confidence_level)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (advisor_id, route_id, date.today(), original_distance, optimized_distance, distance_improvement, original_time, optimized_time, time_improvement, confidence))
 
             advisor_summary[advisor_id]['routes'] += 1
             advisor_summary[advisor_id]['dist_improv'] += distance_improvement
