@@ -1906,7 +1906,7 @@ class AdminController {
       console.log('🚀 Ejecutando optimización de rutas...');
 
       // Ejecutar el script Python
-      const pythonProcess = spawn('python', ['ml/optimizer.py'], {
+      const pythonProcess = spawn('python3', ['ml/optimizer.py'], {
         cwd: process.cwd() + '/backend',
         stdio: ['pipe', 'pipe', 'pipe']
       });
