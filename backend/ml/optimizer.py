@@ -1,31 +1,26 @@
-# backend/ml/optimizer.py
 import mysql.connector
 import math
 import os
 from dotenv import load_dotenv
 from collections import defaultdict
 
-# Cargar variables de entorno
 load_dotenv()
 
-# Configuración de la base de datos desde .env
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
-    'user': os.getenv('DB_USER', 'root'),
+    'user': os.getenv('DB_USER', 'smartpath'),
     'password': os.getenv('DB_PASSWORD', '12345Paez'),
     'database': os.getenv('DB_NAME', 'smartpath')
 }
 
-# Función para calcular distancia Haversine
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # Radio de la Tierra en km
+    R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-# Algoritmo del vecino más cercano
 def nearest_neighbor(points):
     if not points:
         return []
@@ -39,7 +34,6 @@ def nearest_neighbor(points):
         current = nearest
     return route
 
-# Calcular distancia total de una ruta
 def calculate_total_distance(route, points):
     total = 0
     for i in range(len(route) - 1):
@@ -48,7 +42,6 @@ def calculate_total_distance(route, points):
         total += haversine(lat1, lon1, lat2, lon2)
     return total
 
-# Calcular tiempo total estimado
 def calculate_total_time(route, store_times):
     return sum(store_times.get(store_id, 0) for store_id in route)
 
@@ -57,7 +50,6 @@ def main():
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # Crear tabla si no existe
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS optimization_results (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,29 +65,35 @@ def main():
             )
         """)
 
-        # Obtener tiempos históricos por tienda
+        # Obtener tiempos históricos por tienda (de Alberto)
         cursor.execute("""
             SELECT store_id, AVG(actual_duration) as avg_time
-            FROM route_stores
-            WHERE status = 'completed' AND actual_duration > 0
+            FROM route_stores rs
+            JOIN routes r ON rs.route_id = r.id
+            WHERE r.advisor_id = 11
+                AND rs.status = 'completed'
+                AND rs.actual_duration > 0
             GROUP BY store_id
         """)
         store_times = {row['store_id']: row['avg_time'] for row in cursor.fetchall()}
+        print(f"📊 Tiempos históricos: {len(store_times)} tiendas")
 
-        # Obtener rutas completadas
-        cursor.execute("SELECT id, advisor_id FROM routes WHERE status = 'completed'")
+        # Obtener rutas que tienen al menos una tienda completada
+        cursor.execute("""
+            SELECT DISTINCT r.id, r.advisor_id 
+            FROM routes r
+            JOIN route_stores rs ON r.id = rs.route_id
+            WHERE rs.status = 'completed'
+        """)
         routes = cursor.fetchall()
+        print(f"🚀 Procesando {len(routes)} rutas con tiendas completadas\n")
 
         advisor_summary = defaultdict(lambda: {'routes': 0, 'dist_improv': 0, 'time_improv': 0})
-
-        print("🚀 Iniciando optimización de rutas...")
-        print(f"📊 Procesando {len(routes)} rutas completadas\n")
 
         for route in routes:
             route_id = route['id']
             advisor_id = route['advisor_id']
 
-            # Obtener tiendas de la ruta con coordenadas
             cursor.execute("""
                 SELECT s.id, s.latitude, s.longitude, rs.visit_order
                 FROM route_stores rs
@@ -106,33 +104,27 @@ def main():
             stores = cursor.fetchall()
 
             if len(stores) < 2:
-                continue  # Necesita al menos 2 tiendas
+                continue
 
-            # Crear diccionario de puntos
             points = {store['id']: (store['latitude'], store['longitude']) for store in stores}
             original_route = [store['id'] for store in stores]
 
-            # Calcular ruta original
             original_distance = calculate_total_distance(original_route, points)
             original_time = calculate_total_time(original_route, store_times)
 
-            # Optimizar ruta
             optimized_route = nearest_neighbor(points)
             optimized_distance = calculate_total_distance(optimized_route, points)
             optimized_time = calculate_total_time(optimized_route, store_times)
 
-            # Calcular mejoras
             distance_improvement = ((original_distance - optimized_distance) / original_distance) * 100 if original_distance > 0 else 0
             time_improvement = ((original_time - optimized_time) / original_time) * 100 if original_time > 0 else 0
 
-            # Guardar en DB
             cursor.execute("""
                 INSERT INTO optimization_results
                 (route_id, advisor_id, original_distance, optimized_distance, original_time, optimized_time, distance_improvement, time_improvement)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (route_id, advisor_id, original_distance, optimized_distance, original_time, optimized_time, distance_improvement, time_improvement))
 
-            # Actualizar resumen por asesor
             advisor_summary[advisor_id]['routes'] += 1
             advisor_summary[advisor_id]['dist_improv'] += distance_improvement
             advisor_summary[advisor_id]['time_improv'] += time_improvement
@@ -143,7 +135,6 @@ def main():
 
         conn.commit()
 
-        # Imprimir resumen por asesor
         print("\n📈 Resumen de optimización por asesor:")
         for advisor_id, data in advisor_summary.items():
             if data['routes'] > 0:
