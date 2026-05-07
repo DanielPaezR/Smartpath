@@ -1903,60 +1903,86 @@ class AdminController {
   // Ejecutar optimización de rutas
   async runOptimization(req, res) {
     try {
-      console.log('🚀 Ejecutando optimización de rutas...');
+        console.log('🚀 Ejecutando optimización de rutas...');
 
-      // Usar la ruta completa de python3
-      const pythonPath = '/usr/bin/python3';
-      const scriptPath = '/home/daniel.paez/Smartpath/backend/ml/optimizer.py';
-      
-      const { spawn } = await import('child_process');
-      const pythonProcess = spawn(pythonPath, [scriptPath], {
-        cwd: '/home/daniel.paez/Smartpath/backend'
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      pythonProcess.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      pythonProcess.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      pythonProcess.on('close', (code) => {
-        if (code === 0) {
-          console.log('✅ Optimización completada exitosamente');
-          res.json({
-            success: true,
-            message: 'Optimización completada',
-            output: stdout.trim(),
-            error: stderr.trim()
-          });
-        } else {
-          console.error('❌ Error en optimización:', stderr);
-          res.status(500).json({
-            success: false,
-            error: 'Error ejecutando optimización',
-            details: stderr.trim(),
-            output: stdout.trim()
-          });
+        const pythonPath = '/usr/bin/python3';
+        const scriptPath = '/home/daniel.paez/Smartpath/backend/ml/optimizer.py';
+        
+        // Verificar si el script existe
+        const fs = await import('fs');
+        if (!fs.existsSync(scriptPath)) {
+            return res.status(404).json({
+                success: false,
+                error: 'Script de optimización no encontrado'
+            });
         }
-      });
+        
+        const { spawn } = await import('child_process');
+        const pythonProcess = spawn(pythonPath, [scriptPath]);
+        
+        let stdout = '';
+        let stderr = '';
+        let responded = false;
 
-      pythonProcess.on('error', (error) => {
-        console.error('❌ Error ejecutando script Python:', error);
-        res.status(500).json({
-          success: false,
-          error: 'Error ejecutando script Python',
-          details: error.message
+        pythonProcess.stdout.on('data', (data) => {
+            stdout += data.toString();
         });
-      });
+
+        pythonProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+            console.error('Python stderr:', data.toString());
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (responded) return;
+            responded = true;
+            
+            if (code === 0) {
+                console.log('✅ Optimización completada');
+                res.json({
+                    success: true,
+                    message: 'Optimización completada',
+                    output: stdout.trim()
+                });
+            } else {
+                console.error('❌ Error en optimización:', stderr);
+                res.status(500).json({
+                    success: false,
+                    error: 'Error ejecutando optimización',
+                    details: stderr.trim()
+                });
+            }
+        });
+
+        pythonProcess.on('error', (error) => {
+            if (responded) return;
+            responded = true;
+            
+            console.error('❌ Error ejecutando script:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Error ejecutando script Python',
+                details: error.message
+            });
+        });
+
+        // Timeout de 60 segundos
+        setTimeout(() => {
+            if (!responded) {
+                responded = true;
+                pythonProcess.kill();
+                res.status(408).json({
+                    success: false,
+                    error: 'Timeout ejecutando optimización'
+                });
+            }
+        }, 60000);
 
     } catch (error) {
-      console.error('❌ Error en runOptimization:', error);
-      res.status(500).json({ success: false, error: error.message });
+        console.error('❌ Error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: error.message });
+        }
     }
   }
 

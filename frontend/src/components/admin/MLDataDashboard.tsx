@@ -3,71 +3,115 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../../services/api';
 import '../../styles/MLDataDashboard.css';
 
-interface OptimizationSummary {
-  advisor_id: number;
-  advisor_name: string;
-  mejora_distancia: number;
-  rutas: number;
+interface AdvisorMetrics {
+  id: number;
+  name: string;
+  total_visits: number;
+  avg_time: number;
+  efficiency: number;
+  total_restocks: number;
+  total_damages: number;
 }
 
-interface GlobalMetrics {
-  mejora_promedio: number;
-  total_rutas: number;
-  mejora_min: number;
-  mejora_max: number;
-  confianza: number;
+interface GlobalStats {
+  total_visits: number;
+  avg_time: number;
+  efficiency_avg: number;
+  total_restocks: number;
+  total_damages: number;
+  advisors_count: number;
 }
 
 const MLDataDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [optimizationData, setOptimizationData] = useState<OptimizationSummary[]>([]);
-  const [globalMetrics, setGlobalMetrics] = useState<GlobalMetrics | null>(null);
-  const [lastExecution, setLastExecution] = useState<string>('');
+  const [advisors, setAdvisors] = useState<AdvisorMetrics[]>([]);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadOptimizationResults();
+    loadData();
   }, []);
 
-  const loadOptimizationResults = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/admin/optimization-summary`, {
+      
+      // Usar endpoint existente de métricas avanzadas
+      const response = await fetch(`${API_BASE_URL}/admin/metrics/advanced?timeRange=month`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
+      
+      if (!response.ok) {
+        throw new Error('Error cargando datos');
+      }
+      
       const data = await response.json();
+      console.log('📊 Datos cargados:', data);
+      
       if (data.success) {
-        setOptimizationData(data.byAdvisor || []);
-        setGlobalMetrics(data.global || null);
-        setLastExecution(data.lastExecution || '');
+        // Transformar datos para el dashboard
+        const advisorList = data.advisorPerformance || [];
+        setAdvisors(advisorList);
+        
+        setGlobalStats({
+          total_visits: data.overall?.completedVisits || 0,
+          avg_time: data.overall?.avgVisitDuration || 0,
+          efficiency_avg: data.overall?.averageEfficiency || 0,
+          total_restocks: data.restockMetrics?.totalItems || 0,
+          total_damages: data.damageAnalytics?.totalDamagedProducts || 0,
+          advisors_count: advisorList.length
+        });
+      } else {
+        // Si no hay datos, mostrar ejemplo
+        setAdvisors([]);
+        setGlobalStats({
+          total_visits: 0,
+          avg_time: 0,
+          efficiency_avg: 0,
+          total_restocks: 0,
+          total_damages: 0,
+          advisors_count: 0
+        });
       }
     } catch (err) {
       console.error('Error cargando datos:', err);
+      setError('No se pudieron cargar los datos. Asegúrate de que el backend esté corriendo.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatPct = (value: number | string | null): string => {
-    if (value === null || value === undefined) return '0%';
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return isNaN(num) ? '0%' : `${num.toFixed(1)}%`;
+  const formatTime = (minutes: number) => {
+    if (!minutes) return '0 min';
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return `${hours}h ${mins}min`;
   };
 
-  const getImprovementClass = (value: number | string | null): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
-    if (isNaN(num)) return 'tier-neutral';
-    if (num > 30) return 'tier-high';
-    if (num > 15) return 'tier-mid';
-    if (num > 0)  return 'tier-low';
-    return 'tier-none';
+  const getEfficiencyClass = (efficiency: number) => {
+    if (efficiency >= 80) return 'high';
+    if (efficiency >= 60) return 'medium';
+    return 'low';
   };
 
   if (loading) {
     return (
       <div className="mld-loading">
-        <span className="mld-loading__spinner" />
-        <p>Cargando resultados...</p>
+        <div className="spinner"></div>
+        <p>Cargando datos del sistema...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mld-error">
+        <h3>⚠️ Error</h3>
+        <p>{error}</p>
+        <button onClick={loadData} className="mld__refresh">Reintentar</button>
       </div>
     );
   }
@@ -78,75 +122,80 @@ const MLDataDashboard: React.FC = () => {
       {/* Header */}
       <header className="mld__header">
         <div>
-          <h1 className="mld__title">Optimización de Rutas</h1>
-          <p className="mld__subtitle">Análisis cuantitativo — algoritmo Nearest Neighbor</p>
+          <h1 className="mld__title">📊 Métricas del Sistema</h1>
+          <p className="mld__subtitle">Análisis cuantitativo de rendimiento y optimización</p>
         </div>
-        {lastExecution && (
-          <span className="mld__timestamp">
-            Actualizado {new Date(lastExecution).toLocaleString('es-CO', {
-              day: '2-digit', month: 'short', year: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-            })}
-          </span>
-        )}
+        <button onClick={loadData} className="mld__refresh">🔄 Actualizar</button>
       </header>
 
       {/* Global metrics */}
-      {globalMetrics && (
+      {globalStats && (
         <section className="mld__metrics">
           <div className="mld-metric">
-            <span className="mld-metric__value">{formatPct(globalMetrics.mejora_promedio)}</span>
-            <span className="mld-metric__label">Mejora promedio</span>
+            <span className="mld-metric__value">{globalStats.total_visits}</span>
+            <span className="mld-metric__label">Visitas completadas</span>
           </div>
           <div className="mld-metric">
-            <span className="mld-metric__value">{globalMetrics.total_rutas ?? 0}</span>
-            <span className="mld-metric__label">Rutas optimizadas</span>
+            <span className="mld-metric__value">{formatTime(globalStats.avg_time)}</span>
+            <span className="mld-metric__label">Tiempo promedio</span>
           </div>
           <div className="mld-metric">
-            <span className="mld-metric__value">{formatPct(globalMetrics.mejora_max)}</span>
-            <span className="mld-metric__label">Mejora máxima</span>
+            <span className="mld-metric__value">{globalStats.efficiency_avg}%</span>
+            <span className="mld-metric__label">Eficiencia promedio</span>
           </div>
           <div className="mld-metric">
-            <span className="mld-metric__value">{formatPct(globalMetrics.confianza)}</span>
-            <span className="mld-metric__label">Confianza estadística</span>
+            <span className="mld-metric__value">{globalStats.total_restocks}</span>
+            <span className="mld-metric__label">Productos repuestos</span>
+          </div>
+          <div className="mld-metric">
+            <span className="mld-metric__value">{globalStats.total_damages}</span>
+            <span className="mld-metric__label">Productos dañados</span>
           </div>
         </section>
       )}
 
       {/* Results table */}
       <section className="mld__section">
-        <h2 className="mld__section-title">Resultados por asesor</h2>
+        <h2 className="mld__section-title">📈 Rendimiento por Asesor</h2>
         <div className="mld-table-wrap">
           <table className="mld-table">
             <thead>
               <tr>
                 <th>Asesor</th>
-                <th>Rutas analizadas</th>
-                <th>Mejora en distancia</th>
+                <th>Visitas</th>
+                <th>Tiempo promedio</th>
                 <th>Eficiencia</th>
+                <th>Reposiciones</th>
+                <th>Daños</th>
               </tr>
             </thead>
             <tbody>
-              {optimizationData.map((advisor) => {
-                const pct = Math.min(100, Number(advisor.mejora_distancia) || 0);
-                return (
-                  <tr key={advisor.advisor_id}>
-                    <td className="mld-table__name">{advisor.advisor_name}</td>
-                    <td>{advisor.rutas}</td>
-                    <td>
-                      <span className={`mld-badge ${getImprovementClass(advisor.mejora_distancia)}`}>
-                        {formatPct(advisor.mejora_distancia)}
-                      </span>
-                    </td>
+              {advisors.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>
+                    No hay datos disponibles todavía. Los asesores deben completar visitas para generar métricas.
+                  </td>
+                </tr>
+              ) : (
+                advisors.map((advisor) => (
+                  <tr key={advisor.id}>
+                    <td className="mld-table__name">{advisor.name}</td>
+                    <td>{advisor.total_visits}</td>
+                    <td>{formatTime(advisor.avg_time)}</td>
                     <td>
                       <div className="mld-bar">
-                        <div className="mld-bar__fill" style={{ width: `${pct}%` }} />
-                        <span className="mld-bar__label">{Math.round(pct)}%</span>
+                        <div 
+                          className={`mld-bar__fill ${getEfficiencyClass(advisor.efficiency)}`} 
+                          style={{ width: `${Math.min(100, advisor.efficiency)}%` }} 
+                        />
+                        <span className="mld-bar__label">{Math.round(advisor.efficiency)}%</span>
                       </div>
                     </td>
+                    <td>{advisor.total_restocks || 0}</td>
+                    <td>{advisor.total_damages || 0}</td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -154,72 +203,47 @@ const MLDataDashboard: React.FC = () => {
 
       {/* Interpretation */}
       <section className="mld__section">
-        <h2 className="mld__section-title">Interpretación</h2>
+        <h2 className="mld__section-title">💡 Interpretación de Métricas</h2>
         <div className="mld-cards">
           <div className="mld-card">
-            <h3 className="mld-card__title">Lectura del porcentaje</h3>
-            <p>El porcentaje de mejora indica la reducción en distancia total después de aplicar el algoritmo. Un 30% significa que el asesor recorre un 30% menos de kilómetros por ruta.</p>
+            <h3 className="mld-card__title">🎯 Eficiencia</h3>
+            <p>Porcentaje de visitas completadas en ≤40 minutos. <strong>Meta: &gt;80%</strong></p>
           </div>
           <div className="mld-card">
-            <h3 className="mld-card__title">Nivel de confianza</h3>
-            <p>El modelo opera con un {formatPct(globalMetrics?.confianza || 0)} de confianza estadística, basado en el análisis de {globalMetrics?.total_rutas ?? 0} rutas.</p>
+            <h3 className="mld-card__title">📦 Productividad</h3>
+            <p>Cantidad de productos repuestos por visita. Refleja la efectividad en el punto de venta.</p>
           </div>
           <div className="mld-card">
-            <h3 className="mld-card__title">Algoritmo</h3>
-            <p>Se implementó el algoritmo del Vecino Más Cercano (Nearest Neighbor) para resolver el problema del viajante (TSP), optimizando el orden de visita de las tiendas.</p>
+            <h3 className="mld-card__title">⚠️ Calidad</h3>
+            <p>Productos dañados reportados. Idealmente debe ser &lt;5% del total de reposiciones.</p>
           </div>
-        </div>
-      </section>
-
-      {/* Executive summary */}
-      <section className="mld__section">
-        <h2 className="mld__section-title">Resumen ejecutivo</h2>
-        <div className="mld-summary">
-          <p>
-            El modelo logró una mejora promedio de{' '}
-            <strong>{formatPct(globalMetrics?.mejora_promedio || 0)}</strong> en la distancia recorrida,
-            con un nivel de confianza del <strong>{formatPct(globalMetrics?.confianza || 0)}</strong>.
-          </p>
-          <ul className="mld-summary__list">
-            {optimizationData.map((advisor) => (
-              <li key={advisor.advisor_id}>
-                <strong>{advisor.advisor_name}</strong>
-                <span>{formatPct(advisor.mejora_distancia)} de mejora — {advisor.rutas} rutas</span>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 
       {/* Methodology */}
       <section className="mld__section">
-        <h2 className="mld__section-title">Metodología</h2>
+        <h2 className="mld__section-title">🔬 Metodología de Optimización</h2>
         <p className="mld__body">
-          Las rutas optimizadas se calculan con el método del{' '}
-          <strong>Vecino Más Cercano</strong>. La distancia entre tiendas se obtiene mediante la{' '}
-          <strong>fórmula de Haversine</strong>, que considera la curvatura terrestre para mayor precisión.
+          El sistema utiliza datos históricos de tiempos de visita y ubicaciones geográficas para calcular rutas óptimas.
+          La eficiencia se calcula como el porcentaje de visitas completadas dentro del tiempo estándar (40 minutos).
         </p>
         <div className="mld-stats">
           <div className="mld-stat">
-            <span className="mld-stat__number">{globalMetrics?.total_rutas ?? 0}</span>
-            <span className="mld-stat__label">Rutas analizadas</span>
+            <span className="mld-stat__number">{globalStats?.advisors_count || 0}</span>
+            <span className="mld-stat__label">Asesores activos</span>
           </div>
           <div className="mld-stat">
-            <span className="mld-stat__number">162</span>
-            <span className="mld-stat__label">Tiendas en sistema</span>
-          </div>
-          <div className="mld-stat">
-            <span className="mld-stat__number">{formatPct(globalMetrics?.confianza || 0)}</span>
-            <span className="mld-stat__label">Confianza estadística</span>
+            <span className="mld-stat__number">{globalStats?.total_visits || 0}</span>
+            <span className="mld-stat__label">Visitas analizadas</span>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="mld__footer">
-        <button className="mld__refresh" onClick={loadOptimizationResults}>
-          Actualizar datos
-        </button>
+        <p className="mld__footer-text">
+          Los datos se actualizan en tiempo real. La confianza del modelo aumenta con más visitas registradas.
+        </p>
       </footer>
 
     </div>
