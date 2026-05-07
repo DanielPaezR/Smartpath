@@ -1977,6 +1977,15 @@ class AdminController {
         GROUP BY o.advisor_id, u.name
         ORDER BY mejora_distancia DESC
       `);
+
+      const [distanceMetrics] = await connection.execute(`
+        SELECT 
+          ROUND(SUM(original_distance), 2) as distancia_original_total,
+          ROUND(SUM(optimized_distance), 2) as distancia_optimizada_total,
+          ROUND(SUM(original_distance) - SUM(optimized_distance), 2) as ahorro_km
+        FROM optimization_results
+        WHERE advisor_id IN (8,9,10,11)
+      `);
       
       // Métricas globales
       const [global] = await connection.execute(`
@@ -1999,6 +2008,7 @@ class AdminController {
         success: true,
         byAdvisor,
         global: global[0],
+        distanceMetrics: distanceMetrics[0],
         lastExecution: lastExec[0]?.last_execution
       });
       

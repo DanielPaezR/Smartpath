@@ -18,10 +18,17 @@ interface GlobalMetrics {
   confianza: number;
 }
 
+interface DistanceMetrics {
+  distancia_original_total: number;
+  distancia_optimizada_total: number;
+  ahorro_km: number;
+}
+
 const MLDataDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [optimizationData, setOptimizationData] = useState<OptimizationSummary[]>([]);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalMetrics | null>(null);
+  const [distanceMetrics, setDistanceMetrics] = useState<DistanceMetrics | null>(null);
   const [lastExecution, setLastExecution] = useState<string>('');
 
   useEffect(() => {
@@ -32,13 +39,16 @@ const MLDataDashboard: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      
       const response = await fetch(`${API_BASE_URL}/admin/optimization-summary`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
+      
       const data = await response.json();
       if (data.success) {
         setOptimizationData(data.byAdvisor || []);
         setGlobalMetrics(data.global || null);
+        setDistanceMetrics(data.distanceMetrics || null);
         setLastExecution(data.lastExecution || '');
       }
     } catch (err) {
@@ -54,12 +64,17 @@ const MLDataDashboard: React.FC = () => {
     return isNaN(num) ? '0%' : `${num.toFixed(1)}%`;
   };
 
+  const formatKm = (value: number | null): string => {
+    if (value === null || value === undefined) return '0 km';
+    return `${value.toFixed(2)} km`;
+  };
+
   const getImprovementClass = (value: number | string | null): string => {
     const num = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
     if (isNaN(num)) return 'tier-neutral';
     if (num > 30) return 'tier-high';
     if (num > 15) return 'tier-mid';
-    if (num > 0)  return 'tier-low';
+    if (num > 0) return 'tier-low';
     return 'tier-none';
   };
 
@@ -79,7 +94,7 @@ const MLDataDashboard: React.FC = () => {
       <header className="mld__header">
         <div>
           <h1 className="mld__title">Optimización de Rutas</h1>
-          <p className="mld__subtitle">Análisis cuantitativo — algoritmo Nearest Neighbor</p>
+          <p className="mld__subtitle">Análisis cuantitativo del modelo — algoritmo Nearest Neighbor</p>
         </div>
         {lastExecution && (
           <span className="mld__timestamp">
@@ -109,6 +124,35 @@ const MLDataDashboard: React.FC = () => {
           <div className="mld-metric">
             <span className="mld-metric__value">{formatPct(globalMetrics.confianza)}</span>
             <span className="mld-metric__label">Confianza estadística</span>
+          </div>
+        </section>
+      )}
+
+      {/* 📊 Comparativa de Distancias (Original vs Optimizada) */}
+      {distanceMetrics && (
+        <section className="mld__section distance-comparison">
+          <h2 className="mld__section-title">Comparativa de Distancias</h2>
+          <div className="distance-cards">
+            <div className="distance-card original">
+              <div className="distance-icon">📋</div>
+              <div className="distance-label">Distancia Original (Histórica)</div>
+              <div className="distance-value">{formatKm(distanceMetrics.distancia_original_total)}</div>
+              <div className="distance-note">Total recorrido sin optimización</div>
+            </div>
+            <div className="distance-arrow">→</div>
+            <div className="distance-card optimized">
+              <div className="distance-icon">🚀</div>
+              <div className="distance-label">Distancia Optimizada (Modelo)</div>
+              <div className="distance-value">{formatKm(distanceMetrics.distancia_optimizada_total)}</div>
+              <div className="distance-note">Total estimado con reordenamiento óptimo</div>
+            </div>
+          </div>
+          <div className="saving-banner">
+            <span className="saving-icon">💰</span>
+            <span className="saving-text">
+              Ahorro total estimado: <strong>{formatKm(distanceMetrics.ahorro_km)}</strong>
+            </span>
+            <span className="saving-percent">({formatPct(globalMetrics?.mejora_promedio || 0)})</span>
           </div>
         </section>
       )}
@@ -152,26 +196,26 @@ const MLDataDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Interpretation */}
+      {/* Interpretación */}
       <section className="mld__section">
         <h2 className="mld__section-title">Interpretación</h2>
         <div className="mld-cards">
           <div className="mld-card">
-            <h3 className="mld-card__title">Lectura del porcentaje</h3>
+            <h3 className="mld-card__title">🎯 Lectura del porcentaje</h3>
             <p>El porcentaje de mejora indica la reducción en distancia total después de aplicar el algoritmo. Un 30% significa que el asesor recorre un 30% menos de kilómetros por ruta.</p>
           </div>
           <div className="mld-card">
-            <h3 className="mld-card__title">Nivel de confianza</h3>
+            <h3 className="mld-card__title">📊 Nivel de confianza</h3>
             <p>El modelo opera con un {formatPct(globalMetrics?.confianza || 0)} de confianza estadística, basado en el análisis de {globalMetrics?.total_rutas ?? 0} rutas.</p>
           </div>
           <div className="mld-card">
-            <h3 className="mld-card__title">Algoritmo</h3>
-            <p>Se implementó el algoritmo del Vecino Más Cercano (Nearest Neighbor) para resolver el problema del viajante (TSP), optimizando el orden de visita de las tiendas.</p>
+            <h3 className="mld-card__title">⚙️ Algoritmo</h3>
+            <p>Se implementó el algoritmo del <strong>Vecino Más Cercano (Nearest Neighbor)</strong> para resolver el problema del viajante (TSP), optimizando el orden de visita de las tiendas.</p>
           </div>
         </div>
       </section>
 
-      {/* Executive summary */}
+      {/* Resumen ejecutivo */}
       <section className="mld__section">
         <h2 className="mld__section-title">Resumen ejecutivo</h2>
         <div className="mld-summary">
@@ -180,6 +224,14 @@ const MLDataDashboard: React.FC = () => {
             <strong>{formatPct(globalMetrics?.mejora_promedio || 0)}</strong> en la distancia recorrida,
             con un nivel de confianza del <strong>{formatPct(globalMetrics?.confianza || 0)}</strong>.
           </p>
+          {distanceMetrics && (
+            <p>
+              Esto representa un ahorro total estimado de{' '}
+              <strong>{formatKm(distanceMetrics.ahorro_km)}</strong> en la distancia recorrida,
+              pasando de <strong>{formatKm(distanceMetrics.distancia_original_total)}</strong> a{' '}
+              <strong>{formatKm(distanceMetrics.distancia_optimizada_total)}</strong>.
+            </p>
+          )}
           <ul className="mld-summary__list">
             {optimizationData.map((advisor) => (
               <li key={advisor.advisor_id}>
@@ -191,7 +243,7 @@ const MLDataDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Methodology */}
+      {/* Metodología */}
       <section className="mld__section">
         <h2 className="mld__section-title">Metodología</h2>
         <p className="mld__body">
