@@ -39,11 +39,9 @@ const MLDataDashboard: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
       const response = await fetch(`${API_BASE_URL}/admin/optimization-summary`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      
       const data = await response.json();
       if (data.success) {
         setOptimizationData(data.byAdvisor || []);
@@ -94,7 +92,7 @@ const MLDataDashboard: React.FC = () => {
       <header className="mld__header">
         <div>
           <h1 className="mld__title">Optimización de Rutas</h1>
-          <p className="mld__subtitle">Análisis cuantitativo del modelo — algoritmo Nearest Neighbor</p>
+          <p className="mld__subtitle">Análisis cuantitativo — algoritmo Nearest Neighbor</p>
         </div>
         {lastExecution && (
           <span className="mld__timestamp">
@@ -128,7 +126,7 @@ const MLDataDashboard: React.FC = () => {
         </section>
       )}
 
-      {/* 📊 Comparativa de Distancias (Original vs Optimizada) */}
+      {/* Comparativa de Distancias (Original vs Optimizada) */}
       {distanceMetrics && (
         <section className="mld__section distance-comparison">
           <h2 className="mld__section-title">Comparativa de Distancias</h2>
@@ -196,7 +194,7 @@ const MLDataDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Interpretación */}
+      {/* Interpretation */}
       <section className="mld__section">
         <h2 className="mld__section-title">Interpretación</h2>
         <div className="mld-cards">
@@ -215,7 +213,7 @@ const MLDataDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Resumen ejecutivo */}
+      {/* Executive summary */}
       <section className="mld__section">
         <h2 className="mld__section-title">Resumen ejecutivo</h2>
         <div className="mld-summary">
@@ -243,7 +241,7 @@ const MLDataDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Metodología */}
+      {/* Methodology */}
       <section className="mld__section">
         <h2 className="mld__section-title">Metodología</h2>
         <p className="mld__body">
