@@ -21,6 +21,9 @@ router.get('/advisors', adminController.getAllAdvisors);
 router.get('/advisors/:id', adminController.getAdvisorById);
 router.get('/reports/damage', adminController.getDamageReports);
 router.get('/metrics/advanced', adminController.getAdvancedMetrics);
+router.get('/metrics/system', adminController.getSystemMetrics);
+router.get('/photos', adminController.getPhotos);
+router.get('/metrics/performance', adminController.getPerformanceMetrics);
 
 router.patch('/notifications/:notificationId/read', adminController.markNotificationAsRead);
 
@@ -39,10 +42,11 @@ router.put('/advisors/:advisorId/schedule/order', adminController.updateSchedule
 router.get('/stores/simple', adminController.getAllStoresSimple);
 router.get('/ml/metrics', adminController.getMLMetrics);
 router.get('/advisors/:advisorId/weekly-pattern', adminController.getWeeklyPattern);
+router.get('/optimization-summary', adminController.getOptimizationSummary);
 
 // Generar rutas diarias
 router.post('/routes/generate-daily', adminController.generateDailyRoutes);
 router.post('/routes/generate-week', adminController.generateWeekRoutes);
-
+router.post('/run-optimization', adminController.runOptimization);
 
 export default router;

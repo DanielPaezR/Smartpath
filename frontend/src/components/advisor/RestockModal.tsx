@@ -1,6 +1,6 @@
 // frontend/src/components/advisor/RestockModal.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { restockService, IRestockItem } from '../../services/restockService';
+import { IRestockItem } from '../../services/restockService';
 import BarcodeScannerButton from './BarcodeScannerButton';
 import { API_BASE_URL } from '../../services/api';
 import '../../styles/RestockModal.css';
@@ -9,8 +9,9 @@ interface IRestockModalProps {
     routeStoreId: number;
     storeId: number;
     reportedBy: number;
+    existingItems?: IRestockItem[];  // 🆕 Productos ya registrados
     onClose: () => void;
-    onSave: (items: IRestockItem[]) => void;
+    onSave: (items: IRestockItem[]) => Promise<void>;
 }
 
 interface TempItem {
@@ -24,10 +25,11 @@ const RestockModal: React.FC<IRestockModalProps> = ({
     routeStoreId,
     storeId,
     reportedBy,
+    existingItems = [],
     onClose,
     onSave
 }) => {
-    const [items, setItems] = useState<IRestockItem[]>([]);
+    const [items, setItems] = useState<IRestockItem[]>(existingItems); 
     const [tempItem, setTempItem] = useState<TempItem | null>(null);
     const [showScanner, setShowScanner] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
     }, [showScanner, tempItem]);
 
-    // Buscar producto por código de barras
+    // Buscar producto por codigo de barras
     const searchProduct = async (barcode: string) => {
         setLoading(true);
         try {
@@ -61,7 +63,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                 setShowScanner(false);
                 setBarcodeInput('');
             } else {
-                if (confirm(`Producto con código ${barcode} no encontrado.\n¿Quieres ingresarlo manualmente?`)) {
+                if (confirm(`Producto con c?digo ${barcode} no encontrado.\n?Quieres ingresarlo manualmente?`)) {
                     setTempItem({
                         barcode,
                         product: { name: '', brand: '', category: '' },
@@ -136,24 +138,16 @@ const RestockModal: React.FC<IRestockModalProps> = ({
         }
 
         if (items.length === 0) {
-            if (!confirm('No has registrado ningún producto. ¿Continuar sin registrar?')) {
+            if (!confirm('No has registrado ningun producto. Continuar sin registrar?')) {
                 return;
             }
-            onSave([]);
-            onClose();
+            await onSave([]);
             return;
         }
 
         setLoading(true);
         try {
-            const savedItems: IRestockItem[] = [];
-            for (const item of items) {
-                const saved = await restockService.addRestockItem(item);
-                savedItems.push(saved);
-            }
-            alert(`✅ ${savedItems.length} productos registrados correctamente`);
-            onSave(savedItems);
-            onClose();
+            await onSave(items);
         } catch (error) {
             console.error('Error guardando productos:', error);
             alert('Error al guardar los productos');
@@ -321,7 +315,7 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                     </>
                                 )}
                                 
-                                {/* SELECTOR DE CANTIDAD CON INPUT NUMÉRICO - VERSIÓN CORREGIDA */}
+                                {/* SELECTOR DE CANTIDAD CON INPUT NUMÉRICO - CORREGIDO */}
                                 <div className="quantity-selector">
                                     <span className="product-label">Cantidad:</span>
                                     <div className="quantity-controls">
@@ -329,42 +323,41 @@ const RestockModal: React.FC<IRestockModalProps> = ({
                                             type="button" 
                                             className="qty-btn"
                                             onClick={() => {
-                                                const newQuantity = Math.max(1, (tempItem?.quantity || 1) - 1);
-                                                handleQuantityChange(newQuantity);
+                                                const currentQty = tempItem?.quantity || 1;
+                                                if (currentQty > 1) {
+                                                    handleQuantityChange(currentQty - 1);
+                                                }
                                             }}
                                             disabled={tempItem?.quantity <= 1}
                                         >
                                             -
                                         </button>
                                         <input
-                                            type="number"
-                                            min="1"
-                                            max="9999"
-                                            value={tempItem?.quantity || 1}
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={tempItem?.quantity === 0 ? '' : tempItem?.quantity || ''}
                                             onChange={(e) => {
-                                                const value = e.target.value;
-                                                // Permitir vacío temporalmente para que el usuario pueda borrar
-                                                if (value === '') {
+                                                const rawValue = e.target.value;
+                                                // Permitir campo vacío
+                                                if (rawValue === '') {
                                                     setTempItem(prev => prev ? { ...prev, quantity: 0 } : null);
                                                     return;
                                                 }
-                                                const numValue = parseInt(value);
-                                                if (!isNaN(numValue)) {
-                                                    // Si es 0 o negativo, lo dejamos como 0 temporalmente
-                                                    if (numValue <= 0) {
-                                                        setTempItem(prev => prev ? { ...prev, quantity: 0 } : null);
-                                                    } else {
-                                                        handleQuantityChange(Math.min(9999, numValue));
-                                                    }
+                                                // Validar que solo sean números
+                                                const numValue = parseInt(rawValue, 10);
+                                                if (!isNaN(numValue) && numValue >= 0) {
+                                                    setTempItem(prev => prev ? { ...prev, quantity: numValue } : null);
                                                 }
                                             }}
                                             onBlur={() => {
-                                                // Al salir del campo, si está en 0 o vacío, poner 1
+                                                // Al salir, si está vacío o es 0, poner 1
                                                 if (!tempItem || tempItem.quantity < 1) {
                                                     handleQuantityChange(1);
                                                 }
                                             }}
                                             className="quantity-input"
+                                            placeholder="0"
                                         />
                                         <button 
                                             type="button" 

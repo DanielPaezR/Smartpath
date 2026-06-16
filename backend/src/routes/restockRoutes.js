@@ -192,6 +192,125 @@ router.post('/add-item', async (req, res) => {
     }
 });
 
+router.post('/sync-items', async (req, res) => {
+    const connection = await createConnection();
+    try {
+        const {
+            route_store_id,
+            store_id,
+            items = []
+        } = req.body;
+
+        if (!route_store_id || !store_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'route_store_id y store_id son requeridos'
+            });
+        }
+
+        if (!Array.isArray(items)) {
+            return res.status(400).json({
+                success: false,
+                message: 'items debe ser un arreglo'
+            });
+        }
+
+        const [visitStatus] = await connection.execute(
+            'SELECT status FROM route_stores WHERE id = ?',
+            [route_store_id]
+        );
+
+        if (visitStatus.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'La visita a esta tienda no existe.',
+                code: 'INVALID_VISIT'
+            });
+        }
+
+        if (visitStatus[0].status === 'completed' || visitStatus[0].status === 'skipped') {
+            return res.status(400).json({
+                success: false,
+                message: `No se pueden registrar productos en una visita que ya está ${visitStatus[0].status === 'completed' ? 'completada' : 'saltada'}.`,
+                code: 'VISIT_CLOSED'
+            });
+        }
+
+        if (visitStatus[0].status === 'pending') {
+            await connection.execute(
+                'UPDATE route_stores SET status = "in-progress", start_time = NOW() WHERE id = ?',
+                [route_store_id]
+            );
+        }
+
+        await connection.beginTransaction();
+        await connection.execute(
+            'DELETE FROM restock_items WHERE route_store_id = ?',
+            [route_store_id]
+        );
+
+        const savedItems = [];
+
+        for (const item of items) {
+            const [result] = await connection.execute(
+                `INSERT INTO restock_items 
+                (route_store_id, store_id, product_barcode, product_name, 
+                 product_brand, product_category, quantity, unit_price, 
+                 reported_by, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    route_store_id,
+                    store_id,
+                    item.product_barcode,
+                    item.product_name,
+                    item.product_brand || null,
+                    item.product_category || null,
+                    item.quantity,
+                    item.unit_price || null,
+                    req.user.id,
+                    item.notes || null
+                ]
+            );
+
+            savedItems.push({
+                id: result.insertId,
+                route_store_id,
+                store_id,
+                product_barcode: item.product_barcode,
+                product_name: item.product_name,
+                product_brand: item.product_brand,
+                product_category: item.product_category,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                reported_by: req.user.id,
+                notes: item.notes,
+                reported_at: new Date().toISOString()
+            });
+        }
+
+        await connection.commit();
+
+        res.json({
+            success: true,
+            items: savedItems
+        });
+    } catch (error) {
+        try {
+            await connection.rollback();
+        } catch (rollbackError) {
+            console.error('Error rolling back restock sync:', rollbackError);
+        }
+        console.error('❌ Error syncing restock items:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al sincronizar productos',
+            error: error.message
+        });
+    } finally {
+        await connection.end();
+    }
+});
+
 // ============================================
 // SIN CAMBIOS - Obtener items por route_store
 // ============================================

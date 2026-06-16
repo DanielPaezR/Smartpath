@@ -11,6 +11,7 @@ import { restockService, IRestockItem } from '../../services/restockService';
 import { offlineStorage } from '../../services/offlineStorage';
 import '../../styles/StoreVisit.css';
 import { API_BASE_URL } from '../../services/api';
+import DamageModal from './DamageModal';
 
 // Interfaces mejoradas
 interface ITask {
@@ -257,6 +258,7 @@ const StoreVisit: React.FC = () => {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showDamageReport, setShowDamageReport] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
+  const [showDamageModal, setShowDamageModal] = useState(false);
   
   // Estados para formulario de daños
   const [currentBarcode, setCurrentBarcode] = useState<string>('');
@@ -345,46 +347,127 @@ const StoreVisit: React.FC = () => {
     return `${padZero(mins)}:${padZero(secs)}`;
   };
 
-  // Cargar estado guardado localmente
+  // Cargar estado guardado localmente (incluyendo fotos y checklist)
   const loadSavedState = async () => {
     if (!storeVisitId) return;
     
     const saved = await offlineStorage.getVisitState(storeVisitId);
     if (saved) {
-      console.log('🔄 Cargando estado guardado localmente');
+      console.log('🔄 Cargando estado guardado localmente para visita:', storeVisitId);
+      console.log('📦 restockItems recuperados:', saved.restockItems?.length || 0);
+      console.log('📸 damageReports recuperados:', saved.damageReports?.length || 0);
       
-      if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
-        const updatedTasks = taskDefinitions.map(task => ({
-          ...task,
-          completed: saved.tasksChecklist[task.key] || false,
-          timestamp: saved.tasksChecklist[task.key] ? new Date() : undefined
-        }));
-        setTasks(updatedTasks);
-        console.log('✅ Checklist recuperado:', saved.tasksChecklist);
-      } else if (saved.tasks && saved.tasks.length > 0) {
-        setTasks(saved.tasks);
-      } else {
-        setTasks([...taskDefinitions]);
+      // Crear copia de las tareas base
+      let loadedTasks = [...taskDefinitions];
+      
+      // Si hay tareas guardadas, restaurar su estado y fotos
+      if (saved.tasks && saved.tasks.length > 0) {
+        loadedTasks = loadedTasks.map((task, idx) => {
+          const savedTask = saved.tasks.find((st: any) => st.key === task.key);
+          if (savedTask) {
+            return {
+              ...task,
+              completed: savedTask.completed || false,
+              photos: savedTask.photos || [],
+              timestamp: savedTask.timestamp ? new Date(savedTask.timestamp) : undefined,
+              additionalData: savedTask.additionalData,
+              barcodes: savedTask.barcodes,
+              signature: savedTask.signature
+            };
+          }
+          return task;
+        });
       }
       
+      // Si hay checklist, aplicarlo (sobrescribe completed)
+      if (saved.tasksChecklist && Object.keys(saved.tasksChecklist).length > 0) {
+        loadedTasks = loadedTasks.map(task => ({
+          ...task,
+          completed: saved.tasksChecklist[task.key] || false,
+          timestamp: saved.tasksChecklist[task.key] ? task.timestamp || new Date() : undefined
+        }));
+      }
+      
+      setTasks(loadedTasks);
       setTimeInMinutes(saved.timeInStore || 0);
       setDamageReports(saved.damageReports || []);
       setRestockItems(saved.restockItems || []);
       setVisitNotes(saved.notes || '');
       
-      const normalizedStatus = normalizeStatus(saved.status || 'pending');
-      setVisitStatus(normalizedStatus);
-      
+      setVisitStatus(saved.status);
       setHasInitializedTasks(true);
-      if (normalizedStatus === 'in-progress') {
+      
+      if (saved.status === 'in-progress') {
         setIsTimerRunning(true);
       }
       
+      // Actualizar la tarea de picking para mostrar los productos recuperados
+      if (saved.restockItems && saved.restockItems.length > 0) {
+        const pickingTaskIndex = loadedTasks.findIndex(t => t.key === 'picking');
+        if (pickingTaskIndex !== -1 && loadedTasks[pickingTaskIndex].completed) {
+          const totalItems = saved.restockItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+          const uniqueProducts = saved.restockItems.length;
+          setTasks(prev => {
+            const updated = [...prev];
+            if (updated[pickingTaskIndex]) {
+              updated[pickingTaskIndex].additionalData = {
+                totalItems: totalItems,
+                uniqueProducts: uniqueProducts
+              };
+            }
+            return updated;
+          });
+        }
+      }
+      
+      // Limpiar fotos existentes en las tareas antes de agregar nuevas
+      setTasks(prev => {
+        const cleaned = [...prev];
+        for (let i = 0; i < cleaned.length; i++) {
+          if (cleaned[i].key === 'evidenceBefore' || cleaned[i].key === 'evidenceAfter' || cleaned[i].key === 'damageCheck') {
+            cleaned[i].photos = [];
+          }
+        }
+        return cleaned;
+      });
+      
+      // Recuperar fotos pendientes SOLO de esta visita
       const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
       if (pendingPhotos.length > 0) {
-        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes`);
+        console.log(`📸 Recuperando ${pendingPhotos.length} fotos pendientes para visita ${storeVisitId}`);
+        
+        // Agrupar fotos por tarea
+        for (const photo of pendingPhotos) {
+          const taskKey = photo.type === 'before' ? 'evidenceBefore' : 
+                          photo.type === 'after' ? 'evidenceAfter' : 'damageCheck';
+          
+          setTasks(prev => {
+            const updated = [...prev];
+            const taskIndex = updated.findIndex(t => t.key === taskKey);
+            if (taskIndex !== -1) {
+              const photoUrl = URL.createObjectURL(photo.data);
+              if (!updated[taskIndex].photos) updated[taskIndex].photos = [];
+              
+              let exists = false;
+              for (let i = 0; i < updated[taskIndex].photos.length; i++) {
+                if (updated[taskIndex].photos[i] === photoUrl) {
+                  exists = true;
+                  break;
+                }
+              }
+              if (!exists) {
+                updated[taskIndex].photos.push(photoUrl);
+              }
+            }
+            return updated;
+          });
+        }
       }
     } else {
+      // Si es una visita nueva, limpiar fotos de cualquier visita anterior
+      if (storeVisitId) {
+        await offlineStorage.clearPhotosForVisit(storeVisitId);
+      }
       if (!hasInitializedTasks) {
         setTasks([...taskDefinitions]);
         setHasInitializedTasks(true);
@@ -463,39 +546,9 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleDamageCheckTask = (taskIndex: number) => {
-    const task = tasks[taskIndex];
-    
-    if (task.completed) {
-      const updatedTasks = [...tasks];
-      updatedTasks[taskIndex].completed = false;
-      updatedTasks[taskIndex].timestamp = undefined;
-      updatedTasks[taskIndex].additionalData = undefined;
-      setTasks(updatedTasks);
-    } else {
-      const option = window.confirm(
-        '¿Cómo quieres completar la revisión de bodega?\n\n' +
-        '✅ Aceptar = Reportar productos dañados\n' +
-        '❌ Cancelar = Marcar como "Sin daños"'
-      );
-      
-      if (option) {
-        setCurrentTaskIndex(taskIndex);
-        setShowBarcodeScanner(true);
-      } else {
-        const confirmNoDamages = window.confirm(
-          '¿Confirmas que NO encontraste productos dañados en la bodega?\n\n' +
-          'Esta acción marcará la tarea como completada sin reportes de daño.'
-        );
-        
-        if (confirmNoDamages) {
-          const updatedTasks = [...tasks];
-          updatedTasks[taskIndex].completed = true;
-          updatedTasks[taskIndex].timestamp = new Date();
-          updatedTasks[taskIndex].additionalData = { noDamages: true };
-          setTasks(updatedTasks);
-        }
-      }
-    }
+    // Abrir el nuevo modal de daños directamente
+    setCurrentTaskIndex(taskIndex);
+    setShowDamageModal(true);
   };
 
   const loadCurrentRoute = useCallback(async () => {
@@ -542,6 +595,16 @@ const StoreVisit: React.FC = () => {
   const handleStartVisit = async () => {
     if (!route) return;
     
+    const newStoreVisitId = route.stores[currentStoreIndex].id;
+    
+    // 🆕 Limpiar fotos de la visita anterior si existe
+    if (storeVisitId && storeVisitId !== newStoreVisitId) {
+      await offlineStorage.clearPhotosForVisit(storeVisitId);
+      await offlineStorage.deleteVisitState(storeVisitId);
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+      console.log('🧹 Fotos de visita anterior limpiadas');
+    }
+    
     try {
       const response = await routeService.startVisit(
         route.id,
@@ -549,8 +612,8 @@ const StoreVisit: React.FC = () => {
       );
       
       const startTime = response.startTime ? new Date(response.startTime) : new Date();
-
-      // 🆕 Guardar start_time en localStorage
+      
+      // Guardar start_time en localStorage
       localStorage.setItem(`start_time_${route.stores[currentStoreIndex].id}`, startTime.toISOString());
       
       const updatedStores = [...route.stores];
@@ -629,25 +692,28 @@ const StoreVisit: React.FC = () => {
         reportedBy: user!.id
       };
 
+      let reportWithId: IDamageReport;
+      
       if (isOnline) {
         const savedReport = await productService.reportDamage(newReport);
-        const reportWithId: IDamageReport = {
+        reportWithId = {
           ...savedReport,
           timestamp: new Date()
         };
-        setDamageReports(prev => [...prev, reportWithId]);
-        alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
       } else {
         await offlineStorage.queueSyncAction('damage', newReport);
-        const tempReport: IDamageReport = {
+        reportWithId = {
           id: `local_${Date.now()}`,
           ...newReport,
           timestamp: new Date()
         };
-        setDamageReports(prev => [...prev, tempReport]);
-        alert(`📱 Reporte guardado localmente. Se sincronizará cuando haya conexión.`);
       }
       
+      const newDamageReports = [...damageReports, reportWithId];
+      setDamageReports(newDamageReports);
+      alert(`✅ Reporte de daño guardado para: ${currentProduct.name}`);
+      
+      // Actualizar tarea de daños
       const damageTaskIndex = tasks.findIndex(t => t.key === 'damageCheck');
       if (damageTaskIndex !== -1) {
         const updatedTasks = [...tasks];
@@ -662,8 +728,34 @@ const StoreVisit: React.FC = () => {
           updatedTasks[damageTaskIndex].additionalData = { hasDamages: true };
           updatedTasks[damageTaskIndex].photos = damagePhotos;
         }
-        
         setTasks(updatedTasks);
+        
+        // Guardar inmediatamente en offlineStorage
+        if (storeVisitId && currentStore) {
+          const tasksChecklist = updatedTasks.reduce((acc, task) => {
+            acc[task.key] = task.completed;
+            return acc;
+          }, {} as { [key: string]: boolean });
+          
+          // Normalizar status
+          const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+          
+          await offlineStorage.saveVisitState(storeVisitId, {
+            routeStoreId: Number(currentStore.id),
+            storeId: Number(currentStore.storeId.id),
+            storeName: storeInfo.name,
+            startTime: new Date().toISOString(),
+            status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+            tasks: updatedTasks,
+            tasksChecklist: tasksChecklist,
+            timeInStore: timeInMinutes,
+            damageReports: newDamageReports,
+            restockItems: restockItems,
+            notes: visitNotes,
+            photos: []
+          });
+          console.log('💾 Daño guardado inmediatamente');
+        }
       }
       
       handleCloseDamageReport();
@@ -687,31 +779,191 @@ const StoreVisit: React.FC = () => {
   };
 
   const handleRestockSave = async (items: IRestockItem[]) => {
-    setRestockItems(prev => [...prev, ...items]);
+    if (!currentStore) {
+      throw new Error('No se encontro la tienda actual para sincronizar la reposicion');
+    }
+
+    const routeStoreId = Number(currentStore.id);
+    const storeId = Number(currentStore.storeId.id);
+    const payloadItems = items.map(({ reported_at, total_value, ...item }) => ({
+      ...item,
+      route_store_id: routeStoreId,
+      store_id: storeId
+    }));
+
+    const newRestockItems = isOnline
+      ? await restockService.syncRestockItems(routeStoreId, storeId, payloadItems)
+      : payloadItems;
+
+    setRestockItems(newRestockItems);
     
     if (currentTaskIndex !== null) {
       const updatedTasks = [...tasks];
       updatedTasks[currentTaskIndex].completed = true;
       updatedTasks[currentTaskIndex].timestamp = new Date();
       updatedTasks[currentTaskIndex].additionalData = {
-        totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
-        uniqueProducts: items.length
+        totalItems: newRestockItems.reduce((sum, item) => sum + item.quantity, 0),
+        uniqueProducts: newRestockItems.length
       };
       setTasks(updatedTasks);
+      
+      if (storeVisitId && currentStore) {
+        const tasksChecklist = updatedTasks.reduce((acc, task) => {
+          acc[task.key] = task.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        
+        const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+        
+        await offlineStorage.saveVisitState(storeVisitId, {
+          routeStoreId,
+          storeId,
+          storeName: storeInfo.name,
+          startTime: new Date().toISOString(),
+          status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+          tasks: updatedTasks,
+          tasksChecklist: tasksChecklist,
+          timeInStore: timeInMinutes,
+          damageReports: damageReports,
+          restockItems: newRestockItems,
+          notes: visitNotes,
+          photos: []
+        });
+        console.log('Restock guardado inmediatamente');
+      }
     }
     
     setShowRestockModal(false);
     setCurrentTaskIndex(null);
     
     if (!isOnline) {
-      for (const item of items) {
-        await offlineStorage.queueSyncAction('restock', item);
-      }
-      alert(`📱 ${items.length} productos registrados localmente. Se sincronizarán cuando haya conexión.`);
+      await offlineStorage.queueSyncAction('restock', {
+        route_store_id: routeStoreId,
+        store_id: storeId,
+        items: payloadItems
+      });
+      alert(`${payloadItems.length} productos registrados localmente. Se sincronizaran cuando haya conexion.`);
     } else {
-      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-      alert(`✅ Registro exitoso: ${totalQuantity} productos repuestos`);
+      const totalQuantity = newRestockItems.reduce((sum, item) => sum + item.quantity, 0);
+      alert(`Registro exitoso: ${totalQuantity} productos repuestos`);
     }
+  };
+
+  const handleDamageSave = async (newDamages: any[]) => {
+    // Si no hay daños (array vacío), marcar como sin daños
+    if (newDamages.length === 0) {
+      setShowDamageModal(false);
+      
+      // Marcar tarea de daños como completada sin daños
+      if (currentTaskIndex !== null) {
+        const updatedTasks = [...tasks];
+        updatedTasks[currentTaskIndex].completed = true;
+        updatedTasks[currentTaskIndex].timestamp = new Date();
+        updatedTasks[currentTaskIndex].additionalData = { noDamages: true };
+        updatedTasks[currentTaskIndex].barcodes = []; // Limpiar barcodes
+        setTasks(updatedTasks);
+        
+        // Guardar en offlineStorage
+        if (storeVisitId && currentStore) {
+          const tasksChecklist = updatedTasks.reduce((acc, task) => {
+            acc[task.key] = task.completed;
+            return acc;
+          }, {} as { [key: string]: boolean });
+          
+          const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+          
+          await offlineStorage.saveVisitState(storeVisitId, {
+            routeStoreId: Number(currentStore.id),
+            storeId: Number(currentStore.storeId.id),
+            storeName: storeInfo.name,
+            startTime: new Date().toISOString(),
+            status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+            tasks: updatedTasks,
+            tasksChecklist: tasksChecklist,
+            timeInStore: timeInMinutes,
+            damageReports: damageReports,
+            restockItems: restockItems,
+            notes: visitNotes,
+            photos: []
+          });
+        }
+      }
+      
+      alert('✅ Revisión de daños completada - Sin productos dañados');
+      setCurrentTaskIndex(null);
+      return;
+    }
+    
+    // Convertir los daños del nuevo formato al formato existente (IDamageReport)
+    const formattedDamages = newDamages.map(damage => ({
+      id: damage.id || `local_${Date.now()}`,
+      barcode: damage.barcode,
+      product: {
+        id: '',
+        barcode: damage.barcode,
+        name: damage.product_name,
+        category: damage.product_category,
+        brand: damage.product_brand,
+        price: 0,
+        stock: 0
+      },
+      damageType: 'producto_danado',
+      description: `${damage.quantity} unidades dañadas - Severidad: ${damage.severity}`,
+      photos: damage.photos,
+      timestamp: new Date(),
+      severity: damage.severity,
+      storeId: String(route?.stores[currentStoreIndex]?.storeId?.id || ''),
+      reportedBy: user!.id,
+      quantity: damage.quantity
+    }));
+    
+    const newDamageReports = [...damageReports, ...formattedDamages];
+    setDamageReports(newDamageReports);
+    setShowDamageModal(false);
+    
+    // Marcar tarea de daños como completada
+    if (currentTaskIndex !== null) {
+      const updatedTasks = [...tasks];
+      updatedTasks[currentTaskIndex].completed = true;
+      updatedTasks[currentTaskIndex].timestamp = new Date();
+      // 🆕 Guardar la lista de barcodes para mostrar en el resumen
+      updatedTasks[currentTaskIndex].barcodes = formattedDamages.map(d => d.barcode);
+      updatedTasks[currentTaskIndex].additionalData = { 
+        hasDamages: true, 
+        count: formattedDamages.length,
+        totalQuantity: formattedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0)
+      };
+      setTasks(updatedTasks);
+      
+      // Guardar inmediatamente en offlineStorage
+      if (storeVisitId && currentStore) {
+        const tasksChecklist = updatedTasks.reduce((acc, task) => {
+          acc[task.key] = task.completed;
+          return acc;
+        }, {} as { [key: string]: boolean });
+        
+        const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+        
+        await offlineStorage.saveVisitState(storeVisitId, {
+          routeStoreId: Number(currentStore.id),
+          storeId: Number(currentStore.storeId.id),
+          storeName: storeInfo.name,
+          startTime: new Date().toISOString(),
+          status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
+          tasks: updatedTasks,
+          tasksChecklist: tasksChecklist,
+          timeInStore: timeInMinutes,
+          damageReports: newDamageReports,
+          restockItems: restockItems,
+          notes: visitNotes,
+          photos: []
+        });
+      }
+    }
+    
+    const totalProducts = formattedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0);
+    alert(`✅ ${formattedDamages.length} productos dañados reportados (${totalProducts} unidades)`);
+    setCurrentTaskIndex(null);
   };
 
   const handleTaskCheckbox = async (task: ITask, index: number) => {
@@ -772,33 +1024,37 @@ const StoreVisit: React.FC = () => {
   const validateVisitCompletion = (): { isValid: boolean; missingTasks: string[] } => {
     const missingTasks: string[] = [];
     
-    tasks.forEach(task => {
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      
       if (task.key === 'damageCheck') {
         if (!task.completed) {
           missingTasks.push('Debes completar la revisión de averías');
         }
-        return;
+        continue;
       }
       
       if (task.key === 'picking') {
         if (!task.completed) {
           missingTasks.push('Debes registrar los productos repuestos');
         }
-        return;
+        continue;
       }
       
       if (!task.completed) {
         missingTasks.push(task.label);
+        continue;
       }
       
       if (task.requiresPhotos && (!task.photos || task.photos.length === 0)) {
-        missingTasks.push(`${task.label} (requiere al menos 1 foto)`);
+        // Solo mostrar advertencia si no hay fotos locales pendientes
+        console.log(`⚠️ Tarea ${task.key} no tiene fotos en memoria`);
       }
       
       if (task.requiresSignature && !task.signature) {
         missingTasks.push(`${task.label} (firma requerida)`);
       }
-    });
+    }
     
     return {
       isValid: missingTasks.length === 0,
@@ -809,35 +1065,176 @@ const StoreVisit: React.FC = () => {
   const handleCompleteVisit = async () => {
     if (!route) return;
 
+    // Verificar token antes de continuar
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      navigate('/login');
+      return;
+    }
+
+    // Verificar expiración del token
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+        return;
+      }
+    } catch (e) {
+      console.error('Error verificando token:', e);
+    }
+
+    // Verificar si hay fotos pendientes en IndexedDB
+    const pendingPhotos = await offlineStorage.getPendingPhotos(storeVisitId);
+    if (pendingPhotos.length > 0) {
+      console.log(`📸 Hay ${pendingPhotos.length} fotos pendientes por subir`);
+    }
+
     const validation = validateVisitCompletion();
     if (!validation.isValid) {
       alert(`❌ No puedes finalizar la visita. Tareas pendientes:\n\n• ${validation.missingTasks.join('\n• ')}`);
       return;
     }
 
-    const visitData = {
-      duration: Math.floor(timeInMinutes),
-      notes: visitNotes,
-      damageReports: damageReports,
-      signature: tasks.find(t => t.key === 'signature')?.signature,
-      routeId: route.id,
-      storeVisitId: route.stores[currentStoreIndex].id
+    // Obtener fotos de las tareas
+    const beforePhotoTask = tasks.find(t => t.key === 'evidenceBefore');
+    const afterPhotoTask = tasks.find(t => t.key === 'evidenceAfter');
+    
+    const beforePhotoData = beforePhotoTask?.photos?.[0];
+    const afterPhotoData = afterPhotoTask?.photos?.[0];
+    
+    // Crear FormData para enviar archivos
+    const formData = new FormData();
+    formData.append('routeId', route.id);
+    formData.append('storeVisitId', route.stores[currentStoreIndex].id);
+    formData.append('duration', Math.floor(timeInMinutes).toString());
+    formData.append('notes', visitNotes);
+    formData.append('tasksCompleted', tasks.filter(t => t.completed).length.toString());
+    
+    // Función para comprimir imagen
+    const compressImage = (dataUrl: string, maxWidth: number = 1024): Promise<Blob> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('Error comprimiendo imagen'));
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
     };
-
-    if (isOnline) {
+    
+    // Agregar fotos comprimidas si existen
+    if (beforePhotoData && beforePhotoData.startsWith('data:image')) {
       try {
-        await routeService.completeVisit(route.id, route.stores[currentStoreIndex].id, visitData);
-        await finalizeVisit();
-      } catch (error) {
-        console.error('Error finalizando visita:', error);
-        await offlineStorage.queueSyncAction('visit_complete', visitData);
-        await finalizeVisit(true);
-        alert(`✅ Visita completada en modo offline. Se sincronizará cuando haya conexión.`);
+        const compressedBlob = await compressImage(beforePhotoData, 1024);
+        formData.append('beforePhoto', compressedBlob, 'before.jpg');
+        console.log('📸 Foto BEFORE comprimida y agregada');
+      } catch (err) {
+        console.error('Error procesando foto BEFORE:', err);
       }
-    } else {
+    }
+    
+    if (afterPhotoData && afterPhotoData.startsWith('data:image')) {
+      try {
+        const compressedBlob = await compressImage(afterPhotoData, 1024);
+        formData.append('afterPhoto', compressedBlob, 'after.jpg');
+        console.log('📸 Foto AFTER comprimida y agregada');
+      } catch (err) {
+        console.error('Error procesando foto AFTER:', err);
+      }
+    }
+    
+    // Agregar firma si existe
+    const signature = tasks.find(t => t.key === 'signature')?.signature;
+    if (signature && signature.startsWith('data:image')) {
+      try {
+        const blob = await (await fetch(signature)).blob();
+        formData.append('signature', blob, 'signature.png');
+        console.log('✍️ Firma agregada al FormData');
+      } catch (err) {
+        console.error('Error procesando firma:', err);
+      }
+    }
+    
+    // Agregar reportes de daños
+    if (damageReports.length > 0) {
+      formData.append('productsDamaged', JSON.stringify({
+        count: damageReports.length,
+        reports: damageReports
+      }));
+      console.log(`⚠️ ${damageReports.length} reportes de daño agregados`);
+    }
+
+    setLoading(true);
+    
+    // AbortController para timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+    
+    try {
+      console.log('📤 Enviando petición a:', `${API_BASE_URL}/routes/complete-visit`);
+      
+      const response = await fetch(`${API_BASE_URL}/routes/complete-visit`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      console.log('📥 Status response:', response.status);
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        await finalizeVisit();
+        alert('✅ Visita completada exitosamente');
+      } else {
+        throw new Error(result.message || 'Error desconocido');
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('❌ Error finalizando visita:', error);
+      
+      if (error.name === 'AbortError') {
+        alert('⏰ La petición tomó demasiado tiempo. Los datos se guardaron localmente y se sincronizarán después.');
+      } else {
+        alert(`❌ Error al completar la visita: ${error.message}. Los datos se guardaron localmente.`);
+      }
+      
+      // Guardar localmente para sincronizar después
+      const visitData = {
+        duration: Math.floor(timeInMinutes),
+        notes: visitNotes,
+        damageReports: damageReports,
+        signature: tasks.find(t => t.key === 'signature')?.signature,
+        routeId: route.id,
+        storeVisitId: route.stores[currentStoreIndex].id
+      };
       await offlineStorage.queueSyncAction('visit_complete', visitData);
       await finalizeVisit(true);
-      alert(`✅ Visita completada en modo offline. Se sincronizará cuando haya conexión.`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -853,18 +1250,16 @@ const StoreVisit: React.FC = () => {
       stores: updatedStores,
       completed_stores: (route.completed_stores || 0) + 1
     });
-
-    // Limpiar start_time de localStorage
-    if (storeVisitId) {
-      localStorage.removeItem(`start_time_${storeVisitId}`);
-    }
     
     setIsTimerRunning(false);
     setVisitStatus('completed');
     
+    // Limpiar fotos y datos de esta visita
     if (storeVisitId) {
       await offlineStorage.clearPhotosForVisit(storeVisitId);
       await offlineStorage.deleteVisitState(storeVisitId);
+      localStorage.removeItem(`start_time_${storeVisitId}`);
+      console.log('🧹 Datos de visita completada limpiados');
     }
     
     localStorage.removeItem('storeVisitState');
@@ -886,10 +1281,6 @@ const StoreVisit: React.FC = () => {
 
   const handleSkipStore = async (reason: string) => {
     if (!route) return;
-    // Limpiar start_time de localStorage
-    if (storeVisitId) {
-      localStorage.removeItem(`start_time_${storeVisitId}`);
-    }
 
     try {
       await routeService.skipStoreVisit(
@@ -911,6 +1302,15 @@ const StoreVisit: React.FC = () => {
       
       setIsTimerRunning(false);
       setVisitStatus('skipped');
+      
+      // Limpiar fotos y datos de esta visita
+      if (storeVisitId) {
+        await offlineStorage.clearPhotosForVisit(storeVisitId);
+        await offlineStorage.deleteVisitState(storeVisitId);
+        localStorage.removeItem(`start_time_${storeVisitId}`);
+        console.log('🧹 Datos de visita saltada limpiados');
+      }
+      
       alert('✅ Tienda saltada exitosamente');
       navigate('/dashboard');
       
@@ -941,9 +1341,13 @@ const StoreVisit: React.FC = () => {
             {task.completed ? (
               <div className="task-status">
                 <p className="status-success">
-                  ✅ {task.additionalData?.hasDamages 
-                    ? `Reporte completado (${task.barcodes?.length || 0} productos)`
-                    : 'Revisión completada sin daños'}
+                  {task.additionalData?.noDamages ? (
+                    '✅ Revisión completada sin daños'
+                  ) : task.additionalData?.hasDamages ? (
+                    `✅ Reporte completado (${task.additionalData?.count || task.barcodes?.length || 0} productos, ${task.additionalData?.totalQuantity || 0} unidades)`
+                  ) : (
+                    'Revisión completada'
+                  )}
                 </p>
                 <button className="secondary-btn outline" onClick={() => handleDamageCheckTask(index)}>✏️ Cambiar</button>
               </div>
@@ -1050,19 +1454,22 @@ const StoreVisit: React.FC = () => {
 
   // Guardar estado automáticamente
   useEffect(() => {
-    if (visitStatus === 'in-progress' && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
+    if ((visitStatus === 'in-progress' || visitStatus === 'in_progress') && storeVisitId && currentStore && currentStore.id && currentStore.storeId?.id) {
       const saveInterval = setInterval(() => {
         const tasksChecklist = tasks.reduce((acc, task) => {
           acc[task.key] = task.completed;
           return acc;
         }, {} as { [key: string]: boolean });
         
+        // Normalizar status
+        const normalizedStatus = visitStatus === 'in_progress' ? 'in-progress' : visitStatus;
+        
         offlineStorage.saveVisitState(storeVisitId, {
           routeStoreId: Number(currentStore.id),
           storeId: Number(currentStore.storeId.id),
           storeName: storeInfo.name,
           startTime: new Date().toISOString(),
-          status: visitStatus,
+          status: normalizedStatus as 'pending' | 'in-progress' | 'completed' | 'skipped',
           tasks: tasks,
           tasksChecklist: tasksChecklist,
           timeInStore: timeInMinutes,
@@ -1384,6 +1791,17 @@ const StoreVisit: React.FC = () => {
         </div>
       )}
 
+      {showDamageModal && (
+        <DamageModal
+          storeId={Number(currentStore?.storeId?.id)}
+          routeStoreId={Number(currentStore?.id)}
+          reportedBy={Number(user!.id)}
+          existingDamages={damageReports}
+          onClose={() => setShowDamageModal(false)}
+          onSave={handleDamageSave}
+        />
+      )}
+
       {showSignaturePad && <SignaturePad onSave={handleSignatureSave} onClose={() => setShowSignaturePad(false)} />}
       
       {showBarcodeScanner && (
@@ -1401,6 +1819,7 @@ const StoreVisit: React.FC = () => {
           routeStoreId={Number(route.stores[currentStoreIndex].id)}
           storeId={Number(route.stores[currentStoreIndex].storeId.id)}
           reportedBy={Number(user!.id)}
+          existingItems={restockItems}
           onClose={() => { setShowRestockModal(false); setCurrentTaskIndex(null); }}
           onSave={handleRestockSave}
         />

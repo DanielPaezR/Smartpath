@@ -1,0 +1,361 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 32px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.logo-icon {
+    font-size: 40px;
+}
+
+.header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    font-size: 15px;
+    opacity: 0.8;
+}
+
+/* Selector de Perfil */
+.profile-selector {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.profile-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 48px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    color: #333;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.profile-btn .btn-icon {
+    font-size: 18px;
+}
+
+.profile-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.profile-btn:hover:not(.active) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Carrusel */
+.carousel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    background: #f8f9fa;
+    gap: 15px;
+}
+
+.carousel-wrapper {
+    flex: 1;
+    overflow: hidden;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    background: #fff;
+}
+
+.carousel {
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+}
+
+.carousel-slide {
+    flex: 0 0 100%;
+    min-width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f5f5f5;
+    min-height: 450px;
+}
+
+.carousel-slide img {
+    max-width: 100%;
+    max-height: 550px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.carousel-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+}
+
+.carousel-btn:hover {
+    background: #667eea;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Indicadores */
+.indicators {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    flex-wrap: wrap;
+}
+
+.indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ddd;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.indicator.active {
+    width: 28px;
+    border-radius: 10px;
+    background: #667eea;
+}
+
+/* Panel de Información */
+.info-panel {
+    padding: 24px 32px;
+    background: white;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.info-tag {
+    display: inline-block;
+    padding: 5px 12px;
+    background: #e9ecef;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 12px;
+}
+
+.info-panel h2 {
+    font-size: 22px;
+    color: #1a1a2e;
+    margin-bottom: 10px;
+}
+
+.info-panel p {
+    font-size: 15px;
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.info-meta {
+    display: flex;
+    gap: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    display: inline-block;
+    padding: 5px 12px;
+    background: #f8f9fa;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #666;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 20px;
+    background: #1a1a2e;
+    color: #888;
+    font-size: 13px;
+}
+
+.footer p:first-child {
+    margin-bottom: 6px;
+    color: #aaa;
+}
+
+/* Spinner */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive para pantallas pequeñas */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .header {
+        padding: 20px 15px;
+    }
+    
+    .header h1 {
+        font-size: 24px;
+    }
+    
+    .logo-icon {
+        font-size: 32px;
+    }
+    
+    .subtitle {
+        font-size: 13px;
+    }
+    
+    .profile-selector {
+        gap: 10px;
+        padding: 16px;
+    }
+    
+    .profile-btn {
+        padding: 8px 20px;
+        font-size: 13px;
+    }
+    
+    .carousel-container {
+        padding: 15px;
+        gap: 8px;
+    }
+    
+    .carousel-slide {
+        min-height: 280px;
+    }
+    
+    .carousel-slide img {
+        max-height: 280px;
+    }
+    
+    .carousel-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+    }
+    
+    .info-panel {
+        padding: 16px 20px;
+    }
+    
+    .info-panel h2 {
+        font-size: 18px;
+    }
+    
+    .info-panel p {
+        font-size: 13px;
+    }
+    
+    .indicators {
+        gap: 8px;
+        padding: 12px;
+    }
+    
+    .footer {
+        padding: 16px;
+        font-size: 11px;
+    }
+}
+
+/* Pantallas medianas (tablets) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .carousel-slide {
+        min-height: 380px;
+    }
+    
+    .carousel-slide img {
+        max-height: 380px;
+    }
+    
+    .info-panel h2 {
+        font-size: 20px;
+    }
+}
+
+/* Pantallas grandes (desktop) */
+@media (min-width: 1025px) {
+    .carousel-slide {
+        min-height: 550px;
+    }
+    
+    .carousel-slide img {
+        max-height: 550px;
+    }
+}

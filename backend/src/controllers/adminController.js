@@ -2,6 +2,7 @@
 import { createConnection } from '../config/database.js';
 import { User } from '../models/User.js';
 import { routeGenerator } from '../services/routeGenerator.js';
+import { spawn } from 'child_process';
 
 // Función auxiliar para métricas vacías de reposición
 const emptyRestockMetrics = () => ({
@@ -1632,6 +1633,346 @@ class AdminController {
       res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
+    }
+  }
+
+  async getSystemMetrics(req, res) {
+    const connection = await createConnection();
+    try {
+      const { period = 'month' } = req.query;
+      
+      let dateCondition = '';
+      if (period === 'week') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+      } else if (period === 'month') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+      } else if (period === 'quarter') {
+        dateCondition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+      }
+      
+      // 1. Tiempo promedio de visita (sin rs. porque no hay alias)
+      const [avgVisitTime] = await connection.execute(`
+        SELECT 
+          AVG(actual_duration) as avg_duration,
+          COUNT(*) as total_visits,
+          AVG(CASE WHEN actual_duration <= 40 THEN actual_duration END) as efficient_avg,
+          SUM(CASE WHEN actual_duration <= 40 THEN 1 ELSE 0 END) as efficient_visits
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
+      `);
+      
+      // 2. Tiempo promedio por tarea
+      const [taskMetrics] = await connection.execute(`
+        SELECT 
+          AVG(tasks_completed) as avg_tasks_completed,
+          AVG(actual_duration / NULLIF(tasks_completed, 0)) as avg_time_per_task
+        FROM route_stores
+        WHERE status = 'completed' AND tasks_completed > 0 ${dateCondition}
+      `);
+      
+      // 3. Eficiencia por asesor
+      const [advisorEfficiency] = await connection.execute(`
+        SELECT 
+          u.name,
+          COUNT(rs.id) as visits,
+          AVG(rs.actual_duration) as avg_time,
+          AVG(rs.tasks_completed) as avg_tasks,
+          ROUND((SUM(CASE WHEN rs.actual_duration <= 40 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(rs.id), 0), 2) as efficiency
+        FROM route_stores rs
+        JOIN routes r ON rs.route_id = r.id
+        JOIN users u ON r.advisor_id = u.id
+        WHERE rs.status = 'completed' AND rs.actual_duration > 0 ${dateCondition.replace(/created_at/g, 'rs.created_at')}
+        GROUP BY u.id, u.name
+        ORDER BY efficiency DESC
+      `);
+      
+      // 4. Actividad diaria
+      const [dailyActivity] = await connection.execute(`
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as visits_completed,
+          AVG(actual_duration) as avg_duration
+        FROM route_stores
+        WHERE status = 'completed' AND actual_duration > 0 ${dateCondition}
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+        LIMIT 30
+      `);
+      
+      res.json({
+        success: true,
+        metrics: {
+          visits: {
+            total: avgVisitTime[0]?.total_visits || 0,
+            efficient: avgVisitTime[0]?.efficient_visits || 0,
+            efficiency_rate: avgVisitTime[0]?.total_visits > 0 
+              ? ((avgVisitTime[0].efficient_visits / avgVisitTime[0].total_visits) * 100).toFixed(2)
+              : 0,
+            avg_duration: Math.round(avgVisitTime[0]?.avg_duration || 0),
+            efficient_avg: Math.round(avgVisitTime[0]?.efficient_avg || 0)
+          },
+          tasks: {
+            avg_completed: parseFloat(taskMetrics[0]?.avg_tasks_completed || 0).toFixed(1),
+            avg_time_per_task: Math.round(taskMetrics[0]?.avg_time_per_task || 0)
+          },
+          offline: {
+            total_sync_operations: 0,
+            avg_retries: 0
+          },
+          advisor_performance: advisorEfficiency,
+          daily_trend: dailyActivity
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error obteniendo métricas del sistema:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Obtener fotos - VERSIÓN ULTRA SIMPLIFICADA
+  async getPhotos(req, res) {
+    const connection = await createConnection();
+    try {
+      const { type, advisorId, storeId, startDate, endDate, limit = 50 } = req.query;
+      
+      console.log('📸 Filtros:', { type, advisorId, storeId, startDate, endDate });
+      
+      let sql = `
+        SELECT 
+          rs.id as visit_id,
+          rs.before_photo_url,
+          rs.after_photo_url,
+          s.name as store_name,
+          u.name as advisor_name,
+          r.date,
+          rs.created_at
+        FROM route_stores rs
+        JOIN routes r ON rs.route_id = r.id
+        JOIN stores s ON rs.store_id = s.id
+        JOIN users u ON r.advisor_id = u.id
+        WHERE 1=1
+      `;
+      
+      // Filtros
+      if (advisorId && advisorId !== '') {
+        sql += ` AND u.id = ${parseInt(advisorId)}`;
+      }
+      
+      if (storeId && storeId !== '') {
+        sql += ` AND s.id = ${parseInt(storeId)}`;
+      }
+      
+      if (startDate && startDate !== '') {
+        sql += ` AND r.date >= '${startDate}'`;
+      }
+      
+      if (endDate && endDate !== '') {
+        sql += ` AND r.date <= '${endDate}'`;
+      }
+      
+      sql += ` ORDER BY rs.created_at DESC LIMIT ${parseInt(limit)}`;
+      
+      console.log('📸 SQL:', sql);
+      
+      const [photos] = await connection.execute(sql);
+      
+      console.log(`📸 Encontradas ${photos.length} filas`);
+      
+      // Procesar fotos - CADA FOTO ES UN ELEMENTO INDEPENDIENTE
+      const processedPhotos = [];
+      const baseUrl = 'https://ingenieria.unac.edu.co/~daniel.paez/smartpath';
+      
+      for (const photo of photos) {
+        // Si el filtro es 'before' o no hay filtro, agregar foto de before
+        if ((!type || type === 'all' || type === 'before') && photo.before_photo_url && photo.before_photo_url.trim()) {
+          let url = photo.before_photo_url;
+          if (!url.startsWith('http')) {
+            url = baseUrl + (url.startsWith('/') ? url : '/' + url);
+          }
+          processedPhotos.push({
+            id: photo.visit_id,
+            type: 'before',
+            photo_url: url,
+            store_name: photo.store_name,
+            advisor_name: photo.advisor_name,
+            date: photo.date,
+            created_at: photo.created_at
+          });
+        }
+        
+        // Si el filtro es 'after' o no hay filtro, agregar foto de after
+        if ((!type || type === 'all' || type === 'after') && photo.after_photo_url && photo.after_photo_url.trim()) {
+          let url = photo.after_photo_url;
+          if (!url.startsWith('http')) {
+            url = baseUrl + (url.startsWith('/') ? url : '/' + url);
+          }
+          processedPhotos.push({
+            id: photo.visit_id,
+            type: 'after',
+            photo_url: url,
+            store_name: photo.store_name,
+            advisor_name: photo.advisor_name,
+            date: photo.date,
+            created_at: photo.created_at
+          });
+        }
+      }
+      
+      console.log(`📸 Total fotos procesadas: ${processedPhotos.length}`);
+      
+      res.json({
+        success: true,
+        photos: processedPhotos,
+        total: processedPhotos.length
+      });
+      
+    } catch (error) {
+      console.error('❌ Error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Obtener métricas de rendimiento del sistema
+  async getPerformanceMetrics(req, res) {
+    const connection = await createConnection();
+    try {
+      // 1. Métricas del servidor
+      const serverMetrics = {
+        uptime: process.uptime(),
+        memory: {
+          rss: process.memoryUsage().rss,
+          heapTotal: process.memoryUsage().heapTotal,
+          heapUsed: process.memoryUsage().heapUsed
+        },
+        node_version: process.version,
+        platform: process.platform
+      };
+      
+      // 2. Métricas de la base de datos
+      let dbSize = 0;
+      let tableCounts = {};
+      
+      try {
+        // Tamaño de la BD
+        const [sizeResult] = await connection.execute(`
+          SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as size_mb
+          FROM information_schema.tables
+          WHERE table_schema = DATABASE()
+        `);
+        dbSize = sizeResult[0]?.size_mb || 0;
+        
+        // Conteo de registros por tabla
+        const tables = ['users', 'stores', 'routes', 'route_stores', 'restock_items', 'damage_reports'];
+        for (const table of tables) {
+          try {
+            const [result] = await connection.execute(`SELECT COUNT(*) as count FROM ${table}`);
+            tableCounts[table] = result[0]?.count || 0;
+          } catch (e) {
+            tableCounts[table] = 0;
+          }
+        }
+      } catch (dbError) {
+        console.error('Error consultando BD:', dbError.message);
+      }
+      
+      res.json({
+        success: true,
+        metrics: {
+          server: serverMetrics,
+          database: {
+            size_mb: dbSize,
+            tables: tableCounts
+          },
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error obteniendo métricas:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Ejecutar optimización de rutas
+  async runOptimization(req, res) {
+    try {
+        console.log('🚀 Optimización solicitada (modo demostración)');
+        
+        // Ya tenemos datos en la tabla, solo confirmar
+        res.json({
+            success: true,
+            message: 'Los datos de optimización ya están disponibles en el sistema',
+            note: 'Los resultados actuales provienen de datos históricos.'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async getOptimizationSummary(req, res) {
+    const connection = await createConnection();
+    try {
+        // Resultados por asesor - usando los nombres correctos de columna
+        const [byAdvisor] = await connection.execute(`
+            SELECT 
+                o.advisor_id,
+                u.name as advisor_name,
+                ROUND(AVG(o.distance_improvement), 2) as mejora_distancia,
+                ROUND(AVG(o.time_improvement), 2) as mejora_tiempo,
+                COUNT(*) as rutas
+            FROM optimization_results o
+            JOIN users u ON o.advisor_id = u.id
+            GROUP BY o.advisor_id, u.name
+            ORDER BY mejora_distancia DESC
+        `);
+
+        // Métricas de distancia
+        const [distanceMetrics] = await connection.execute(`
+            SELECT 
+                ROUND(SUM(distance_original), 2) as distancia_original_total,
+                ROUND(SUM(distance_optimized), 2) as distancia_optimizada_total,
+                ROUND(SUM(distance_original) - SUM(distance_optimized), 2) as ahorro_km
+            FROM optimization_results
+        `);
+        
+        // Métricas globales
+        const [global] = await connection.execute(`
+            SELECT 
+                ROUND(AVG(distance_improvement), 2) as mejora_promedio,
+                COUNT(*) as total_rutas,
+                ROUND(MIN(distance_improvement), 2) as mejora_min,
+                ROUND(MAX(distance_improvement), 2) as mejora_max,
+                ROUND(AVG(confidence_level), 2) as confianza
+            FROM optimization_results
+        `);
+        
+        // Última ejecución
+        const [lastExec] = await connection.execute(`
+            SELECT MAX(created_at) as last_execution FROM optimization_results
+        `);
+        
+        res.json({
+            success: true,
+            byAdvisor: byAdvisor || [],
+            global: global[0] || { mejora_promedio: 0, total_rutas: 0, mejora_min: 0, mejora_max: 0, confianza: 0 },
+            distanceMetrics: distanceMetrics[0] || { distancia_original_total: 0, distancia_optimizada_total: 0, ahorro_km: 0 },
+            lastExecution: lastExec[0]?.last_execution
+        });
+        
+    } catch (error) {
+        console.error('Error en getOptimizationSummary:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        await connection.end();
     }
   }
 }

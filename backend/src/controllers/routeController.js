@@ -1,6 +1,7 @@
 // backend/src/controllers/routeController.js - VERSIÓN COMPLETA CORREGIDA
 import { createConnection } from '../config/database.js';
 import { mlService } from '../services/mlService.js';
+import multer from 'multer';
 
 // 🎯 NORMALIZADOR INTELIGENTE - Diferencia entre tablas
 const normalizeStatus = (status, table = 'route_stores') => {
@@ -623,11 +624,12 @@ export const routeController = {
     console.log('🚨=== INICIANDO completeStoreVisit ===');
     const connection = await createConnection();
     try {
-      const { routeId, storeVisitId, visitData } = req.body;
-
-      console.log('✅ COMPLETE STORE VISIT - DATOS:', { routeId, storeVisitId });
-      console.log('📦 visitData recibido:', visitData);
-
+      // Obtener datos del body y archivos
+      const { routeId, storeVisitId, duration, notes, tasksCompleted, productsDamaged } = req.body;
+      
+      console.log('📸 Datos recibidos:', { routeId, storeVisitId, duration, notes, tasksCompleted });
+      console.log('📸 Archivos recibidos:', req.files ? Object.keys(req.files) : 'ninguno');
+      
       if (!routeId || !storeVisitId) {
         return res.status(400).json({ 
           success: false,
@@ -635,65 +637,64 @@ export const routeController = {
         });
       }
 
-      let duration = visitData?.duration;
-      if (!duration) {
+      let finalDuration = duration;
+      if (!finalDuration) {
         const [visitInfo] = await connection.execute(
           `SELECT TIMESTAMPDIFF(MINUTE, start_time, NOW()) as calculated_duration
           FROM route_stores WHERE id = ? AND route_id = ?`,
           [storeVisitId, routeId]
         );
-        duration = visitInfo[0]?.calculated_duration || 0;
+        finalDuration = visitInfo[0]?.calculated_duration || 0;
       }
 
-      // 🎯 USAR STATUS NORMALIZADO PARA COMPLETAR
       const status = normalizeStatus('completed', 'route_stores');
-      console.log('🔄 Status normalizado para completar:', status);
-
-      // 🎯 PREPARAR DATOS PARA PRODUCTS_DAMAGED (debe ser JSON válido o null)
-      let productsDamagedValue = null;
-      if (visitData?.productsDamaged !== undefined && visitData?.productsDamaged !== null) {
-        // Si es un número, convertirlo a objeto JSON
-        if (typeof visitData.productsDamaged === 'number') {
-          productsDamagedValue = JSON.stringify({
-            count: visitData.productsDamaged,
-            reports: visitData?.damageReports || []
-          });
-        } else if (typeof visitData.productsDamaged === 'object') {
-          // Si ya es un objeto, stringificarlo
-          productsDamagedValue = JSON.stringify(visitData.productsDamaged);
+      
+      // Guardar URL de las fotos en la estructura correcta con subcarpetas
+      let beforePhotoUrl = null;
+      let afterPhotoUrl = null;
+      
+      if (req.files) {
+        if (req.files.beforePhoto && req.files.beforePhoto[0]) {
+          beforePhotoUrl = `/uploads/photos/before/${req.files.beforePhoto[0].filename}`;
+          console.log('📸 Foto BEFORE guardada:', beforePhotoUrl);
+        }
+        if (req.files.afterPhoto && req.files.afterPhoto[0]) {
+          afterPhotoUrl = `/uploads/photos/after/${req.files.afterPhoto[0].filename}`;
+          console.log('📸 Foto AFTER guardada:', afterPhotoUrl);
         }
       }
       
-      console.log('🔍 productsDamaged preparado:', productsDamagedValue);
+      // Procesar productos dañados
+      let productsDamagedValue = null;
+      if (productsDamaged) {
+        try {
+          productsDamagedValue = typeof productsDamaged === 'string' 
+            ? productsDamaged 
+            : JSON.stringify(productsDamaged);
+        } catch(e) {
+          productsDamagedValue = null;
+        }
+      }
 
-      // 🎯 QUERY CORREGIDA
       const [result] = await connection.execute(
         `UPDATE route_stores 
         SET status = ?, end_time = NOW(),
             actual_duration = ?, notes = ?,
             before_photo_url = ?, after_photo_url = ?,
-            products_damaged = ?, signature_url = ?, barcode_data = ?,
-            tasks_completed = ?
+            products_damaged = ?, tasks_completed = ?
         WHERE id = ? AND route_id = ?`,
         [
           status,
-          duration,
-          visitData?.notes || '',
-          visitData?.beforePhoto || null,
-          visitData?.afterPhoto || null,
-          productsDamagedValue,  // ✅ Ahora es JSON válido o null
-          visitData?.signature || null,
-          visitData?.barcodeData || null,
-          visitData?.tasksCompleted || 0,
+          finalDuration,
+          notes || '',
+          beforePhotoUrl,
+          afterPhotoUrl,
+          productsDamagedValue,
+          parseInt(tasksCompleted) || 0,
           storeVisitId,
           routeId
         ]
       );
-
-      console.log('📊 Resultado de actualización:', {
-        affectedRows: result.affectedRows,
-        changedRows: result.changedRows
-      });
 
       if (result.affectedRows === 0) {
         return res.status(404).json({ 
@@ -702,52 +703,26 @@ export const routeController = {
         });
       }
 
-      // Actualizar contador de tiendas completadas
       await connection.execute(
         `UPDATE routes SET completed_stores = completed_stores + 1 WHERE id = ?`,
         [routeId]
       );
 
-      console.log('✅ Visita completada exitosamente en BD');
+      console.log('✅ Visita completada exitosamente');
 
-      // 🎯 CAPTURAR ANALYTICS
-      try {
-        await mlService.captureVisitMetrics(storeVisitId, {
-          duration: duration,
-          tasksCompleted: visitData?.tasksCompleted || 0,
-          totalTasks: 10,
-          damageReportsCount: visitData?.productsDamaged || 0,
-          travelTime: 0
-        });
-        console.log('📊 Analytics capturados exitosamente');
-      } catch (analyticsError) {
-        console.error('❌ Error en analytics (no crítico):', analyticsError);
-      }
-
-      return res.json({
+      res.json({
         success: true,
         message: 'Visita completada exitosamente',
         visitId: storeVisitId,
-        duration: duration
+        duration: finalDuration,
+        photos: { before: beforePhotoUrl, after: afterPhotoUrl }
       });
 
     } catch (error) {
-      console.error('❌ Error completando visita:', error);
-      console.error('📋 Detalles del error:', {
-        message: error.message,
-        code: error.code,
-        sql: error.sql,
-        sqlState: error.sqlState
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Error completando visita',
-        error: error.message
-      });
+      console.error('❌ Error:', error);
+      res.status(500).json({ success: false, error: error.message });
     } finally {
       await connection.end();
-      console.log('🚨=== FINALIZANDO completeStoreVisit ===');
     }
   },
 

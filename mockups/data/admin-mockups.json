@@ -1,0 +1,121 @@
+{
+  "perfil": "Administrador",
+  "icono": "🖥️",
+  "color": "#2196F3",
+  "mockups": [
+    {
+      "imagen": "images/login.png",
+      "titulo": "Inicio de Sesión",
+      "descripcion": "Credenciales para acceder al aplicativo móvil.",
+      "tarea": "Seguridad"
+    },
+    {
+      "imagen": "images/admin/Dashboard_1.png",
+      "titulo": "Dashboard Administrativo",
+      "descripcion": "Visión general del sistema: seguimiento de asesores y gestión de tiendas y productos.",
+      "tarea": "Monitoreo"
+    },
+    {
+      "imagen": "images/admin/Dashboard_2.png",
+      "titulo": "Métricas Generales",
+      "descripcion": "Visión general del sistema: Gestión de asesores, configuración de rutas, Métricas de Negocio y Sistema.",
+      "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/admin/Dashboard_3.png",
+      "titulo": "Gráficos de Rendimiento",
+      "descripcion": "Visión general del sistema: Galería de fotos y estado Machine Learning",
+      "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/admin/Seguimiento_1.png",
+      "titulo": "Seguimiento en Tiempo Real",
+      "descripcion": "Monitoreo de ubicación y estado de cada asesor en campo.",
+      "tarea": "Supervisión"
+    },
+    {
+      "imagen": "images/admin/Seguimiento_2.png",
+      "titulo": "Detalle de Asesor",
+      "descripcion": "Total asesores, cuantos en tienda, en viaje y con ubicación.",
+      "tarea": "Supervisión"
+    },
+    {
+      "imagen": "images/admin/segumiento_3.png",
+      "titulo": "Detalle de Asesor",
+      "descripcion": "Lista de asesores con estado ubicación y progreso.",
+      "tarea": "Supervisión"
+    },
+    {
+      "imagen": "images/admin/configRutas.png",
+      "titulo": "Configuración de Rutas",
+      "descripcion": "Editor semanal para asignar tiendas a cada asesor por día de la semana.",
+      "tarea": "Planificación"
+    },
+    {
+      "imagen": "images/admin/agregartienda.png",
+      "titulo": "Agregar Tienda",
+      "descripcion": "Formulario para agregar nueva tienda a una ruta.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionAsesores.png",
+      "titulo": "Gestión de Asesores",
+      "descripcion": "Listado y administración de todos los asesores del sistema.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionProductos_1.png",
+      "titulo": "Gestión de Productos",
+      "descripcion": "Listado y administración de todos los productos del sistema.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionTiendas_1.png",
+      "titulo": "Gestión de Tiendas",
+      "descripcion": "Datos sobre las tiendas: cantidad, prioridad, zona y filtro de busqueda.",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/gestionTiendas_2.png",
+      "titulo": "Gestión de Tiendas",
+      "descripcion": "Listado y administración de todas las tiendas del sistema..",
+      "tarea": "Configuración"
+    },
+    {
+      "imagen": "images/admin/metricasAsesores.png",
+      "titulo": "Métricas por Asesor",
+      "descripcion": "Análisis detallado del rendimiento individual de cada asesor.",
+      "tarea": "Análisis"
+    },
+    {
+      "imagen": "images/admin/metricasDaños.png",
+      "titulo": "Métricas de Daños",
+      "descripcion": "Estadísticas de productos dañados por categoría y por tienda.",
+      "tarea": "Calidad"
+    },
+    {
+      "imagen": "images/admin/metricas_reposiciones.png",
+      "titulo": "Métricas de Reposiciones",
+      "descripcion": "Análisis de productos repuestos, valor total y tendencias.",
+      "tarea": "Inventario"
+    },
+    {
+      "imagen": "images/admin/galeriaFotos.png",
+      "titulo": "Galería de Fotos",
+      "descripcion": "Visualización de todas las fotos tomadas (antes, después, daños) con filtros por asesor, tienda y fecha.",
+      "tarea": "Auditoría"
+    },
+    {
+      "imagen": "images/admin/metricasSistema_1.png",
+      "titulo": "Métricas de Rendimiento",
+      "descripcion": "Estadísticas del sistema: tiempos de respuesta, almacenamiento, sincronización.",
+      "tarea": "Optimización"
+    },
+    {
+      "imagen": "images/admin/machineLearning.png",
+      "titulo": "Machine Learning",
+      "descripcion": "Dashboard de datos para entrenamiento del modelo de optimización de rutas.",
+      "tarea": "Inteligencia Artificial"
+    }
+  ]
+}

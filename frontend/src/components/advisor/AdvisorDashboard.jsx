@@ -155,6 +155,16 @@ const AdvisorDashboard = () => {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    const handleFocus = () => {
+      if (currentUser?.id) {
+        loadRouteData(currentUser.id);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [currentUser?.id]);
+
   const initializeDashboard = async () => {
     try {
       setLoading(true);
@@ -351,9 +361,11 @@ const AdvisorDashboard = () => {
   };
 
   const getCompletedStoresCount = () => {
-    if (!currentRoute) return 0;
-    return currentRoute.completed_stores || currentRoute.stores?.filter(store => store.status === 'completed').length || 0;
-  };
+    if (!stores || stores.length === 0) return 0;
+    return stores.filter(store => store.status === 'completed').length;
+  }
+
+
 
   if (loading) {
     return (
